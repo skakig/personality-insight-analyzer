@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { useState } from "react";
 
 const options = [
   { value: 1, label: "Strongly Disagree" },
@@ -16,6 +17,17 @@ interface QuestionProps {
 }
 
 export const Question = ({ question, onAnswer, currentProgress }: QuestionProps) => {
+  const [selectedValue, setSelectedValue] = useState<number | null>(null);
+
+  const handleAnswer = (value: number) => {
+    setSelectedValue(value);
+    onAnswer(value);
+    // Reset selection after a short delay to allow animation
+    setTimeout(() => {
+      setSelectedValue(null);
+    }, 300);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 100 }}
@@ -44,9 +56,11 @@ export const Question = ({ question, onAnswer, currentProgress }: QuestionProps)
             {options.map((option) => (
               <div key={option.value} className="flex flex-col items-center gap-2">
                 <Button
-                  onClick={() => onAnswer(option.value)}
-                  variant="outline"
-                  className="w-12 h-12 rounded-full hover:bg-primary hover:text-white transition-all p-0"
+                  onClick={() => handleAnswer(option.value)}
+                  variant={selectedValue === option.value ? "default" : "outline"}
+                  className={`w-12 h-12 rounded-full transition-all p-0 ${
+                    selectedValue === option.value ? "bg-primary text-white" : ""
+                  }`}
                 >
                   {option.value}
                 </Button>
