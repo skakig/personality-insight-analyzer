@@ -34,8 +34,13 @@ export const AssessmentCard = ({ result }: AssessmentCardProps) => {
   };
 
   const getGrowthPotential = (level: string) => {
-    const nextLevel = parseInt(level) + 1;
-    if (nextLevel > 9) return null;
+    // Convert the level to a number and add 1
+    const nextLevelNum = parseInt(level) + 1;
+    // Convert back to string for type safety
+    const nextLevel = nextLevelNum.toString() as "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
+    
+    // If next level is beyond 9, return null
+    if (nextLevelNum > 9) return null;
     
     const potential = {
       "2": "Discover how to build meaningful connections while maintaining success",
@@ -47,7 +52,7 @@ export const AssessmentCard = ({ result }: AssessmentCardProps) => {
       "8": "Connect your excellence with universal wisdom",
       "9": "Achieve perfect alignment with eternal truths",
     };
-    return potential[nextLevel as keyof typeof potential];
+    return potential[nextLevel];
   };
 
   return (
