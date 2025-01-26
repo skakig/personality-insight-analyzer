@@ -1,8 +1,8 @@
 import { WelcomePage } from "@/components/WelcomePage";
 import { Question } from "@/components/Question";
 import { Results } from "@/components/Results";
-import { personalityQuestions } from "@/data/personalityQuestions";
 import { useQuiz } from "@/hooks/useQuiz";
+import { Loader2 } from "lucide-react";
 
 interface IndexProps {
   session: any;
@@ -16,16 +16,38 @@ const Index = ({ session }: IndexProps) => {
     handleAnswer,
     handlePurchase,
     currentProgress,
-    personalityType
+    personalityType,
+    loading,
+    error,
+    currentQuestionData
   } = useQuiz(session);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Something went wrong</h2>
+          <p className="text-gray-600">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
       {currentStep === "welcome" && <WelcomePage onStart={handleStart} />}
       
-      {currentStep === "questions" && (
+      {currentStep === "questions" && currentQuestionData && (
         <Question
-          question={personalityQuestions[currentQuestion]}
+          question={currentQuestionData.question}
           onAnswer={handleAnswer}
           currentProgress={currentProgress}
         />

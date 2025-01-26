@@ -9,6 +9,36 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      analysis_templates: {
+        Row: {
+          category: string
+          content: string
+          created_at: string
+          id: string
+          level: number
+          score_range_max: number
+          score_range_min: number
+        }
+        Insert: {
+          category: string
+          content: string
+          created_at?: string
+          id?: string
+          level: number
+          score_range_max: number
+          score_range_min: number
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string
+          id?: string
+          level?: number
+          score_range_max?: number
+          score_range_min?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -24,6 +54,68 @@ export type Database = {
           created_at?: string
           id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      quiz_progress: {
+        Row: {
+          completed_levels: number[] | null
+          created_at: string
+          current_level: number
+          id: string
+          last_quiz_date: string
+          user_id: string
+        }
+        Insert: {
+          completed_levels?: number[] | null
+          created_at?: string
+          current_level?: number
+          id?: string
+          last_quiz_date?: string
+          user_id: string
+        }
+        Update: {
+          completed_levels?: number[] | null
+          created_at?: string
+          current_level?: number
+          id?: string
+          last_quiz_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_progress_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_questions: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          level: number
+          question: string
+          weight: number | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          level: number
+          question: string
+          weight?: number | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          level?: number
+          question?: string
+          weight?: number | null
         }
         Relationships: []
       }
