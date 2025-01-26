@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { AuthInput } from "./auth/AuthInput";
@@ -13,6 +14,7 @@ export const AuthForm = ({ onSuccess }: AuthFormProps) => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const navigate = useNavigate();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +24,10 @@ export const AuthForm = ({ onSuccess }: AuthFormProps) => {
       if (isSignUp) {
         await signUp({ email, password });
       } else {
-        await signIn({ email, password });
+        const { session } = await signIn({ email, password });
+        if (session) {
+          navigate("/dashboard");
+        }
       }
     } catch (error: any) {
       toast({
