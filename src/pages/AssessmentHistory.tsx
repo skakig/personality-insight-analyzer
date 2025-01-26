@@ -21,9 +21,17 @@ const AssessmentHistory = () => {
   useEffect(() => {
     const fetchResults = async () => {
       try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          navigate('/auth');
+          return;
+        }
+
         const { data, error } = await supabase
           .from('quiz_results')
           .select('*')
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -41,7 +49,7 @@ const AssessmentHistory = () => {
     };
 
     fetchResults();
-  }, []);
+  }, [navigate]);
 
   if (loading) {
     return (
@@ -62,7 +70,7 @@ const AssessmentHistory = () => {
         <Card>
           <CardContent className="flex flex-col items-center justify-center p-6">
             <p className="text-lg text-gray-600 mb-4">No assessments taken yet.</p>
-            <Button onClick={() => navigate("/")}>Take Assessment</Button>
+            <Button onClick={() => navigate("/dashboard/quiz")}>Take Assessment</Button>
           </CardContent>
         </Card>
       ) : (

@@ -6,17 +6,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
-interface Subscription {
-  subscription_tier: string;
-  max_assessments: number;
-  assessments_used: number;
-  active: boolean;
+interface DashboardProps {
+  session: any;
 }
 
-const Dashboard = ({ session }: { session: any }) => {
+const Dashboard = ({ session }: DashboardProps) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [subscription, setSubscription] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -113,10 +110,10 @@ const Dashboard = ({ session }: { session: any }) => {
           <CardContent className="space-y-4">
             <Button 
               className="w-full"
-              onClick={() => navigate("/new-assessment")}
+              onClick={() => navigate("/dashboard/quiz")}
               disabled={!subscription?.active}
             >
-              New Assessment
+              Take Assessment
             </Button>
             <Button 
               variant="outline" 
