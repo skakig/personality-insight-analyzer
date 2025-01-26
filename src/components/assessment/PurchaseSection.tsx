@@ -7,11 +7,10 @@ import { useState } from "react";
 
 interface PurchaseSectionProps {
   resultId: string;
-  subscription: any;
   loading: boolean;
 }
 
-export const PurchaseSection = ({ resultId, subscription, loading }: PurchaseSectionProps) => {
+export const PurchaseSection = ({ resultId, loading }: PurchaseSectionProps) => {
   const [purchaseLoading, setPurchaseLoading] = useState(false);
 
   const handlePurchase = async () => {
@@ -28,37 +27,6 @@ export const PurchaseSection = ({ resultId, subscription, loading }: PurchaseSec
           description: "Please sign in to purchase the detailed report.",
           variant: "destructive",
         });
-        return;
-      }
-
-      if (subscription?.active) {
-        // Use subscription
-        const { error: updateError } = await supabase
-          .from('corporate_subscriptions')
-          .update({ 
-            assessments_used: (subscription.assessments_used || 0) + 1 
-          })
-          .eq('organization_id', session.user.id);
-
-        if (updateError) throw updateError;
-
-        const { error: resultError } = await supabase
-          .from('quiz_results')
-          .update({ 
-            is_detailed: true,
-            detailed_analysis: 'Your detailed analysis will be generated shortly.',
-            category_scores: {
-              'Self-Awareness': 8.5,
-              'Emotional Intelligence': 7.8,
-              'Moral Reasoning': 8.2,
-              'Ethical Decision-Making': 7.9
-            }
-          })
-          .eq('id', resultId);
-
-        if (resultError) throw resultError;
-
-        window.location.reload();
         return;
       }
 
@@ -106,7 +74,6 @@ export const PurchaseSection = ({ resultId, subscription, loading }: PurchaseSec
           <PurchaseButton 
             onClick={handlePurchase} 
             loading={loading || purchaseLoading}
-            subscription={subscription}
           />
           
           <p className="text-xs text-center text-gray-500 mt-4">

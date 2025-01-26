@@ -17,6 +17,7 @@ interface QuizResult {
   category_scores: Record<string, number> | null;
   detailed_analysis: string | null;
   is_detailed: boolean;
+  is_purchased: boolean;
 }
 
 interface SupabaseQuizResult {
@@ -28,6 +29,7 @@ interface SupabaseQuizResult {
   category_scores: Json;
   detailed_analysis: string | null;
   is_detailed: boolean;
+  is_purchased: boolean;
 }
 
 const AssessmentHistory = () => {

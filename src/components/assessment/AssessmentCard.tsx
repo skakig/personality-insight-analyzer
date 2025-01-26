@@ -79,7 +79,6 @@ export const AssessmentCard = ({ result }: AssessmentCardProps) => {
           ) : (
             <PurchaseSection 
               resultId={result.id} 
-              subscription={subscription}
               loading={loading}
             />
           )}

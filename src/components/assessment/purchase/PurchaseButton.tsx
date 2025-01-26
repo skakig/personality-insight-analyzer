@@ -1,22 +1,26 @@
-import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 
 interface PurchaseButtonProps {
   onClick: () => void;
-  loading?: boolean;
+  loading: boolean;
 }
 
 export const PurchaseButton = ({ onClick, loading }: PurchaseButtonProps) => {
   return (
-    <Button 
+    <Button
       onClick={onClick}
       disabled={loading}
-      className="w-full mt-6 group bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-opacity"
+      className="w-full bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white"
     >
-      <span className="flex items-center">
-        {loading ? "Processing..." : "Unlock Full Report"}
-        {!loading && <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />}
-      </span>
+      {loading ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Processing...
+        </>
+      ) : (
+        'Purchase Detailed Report'
+      )}
     </Button>
   );
 };

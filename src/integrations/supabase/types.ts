@@ -210,6 +210,7 @@ export type Database = {
           detailed_analysis: string | null
           id: string
           is_detailed: boolean | null
+          is_purchased: boolean | null
           personality_type: string
           user_id: string
         }
@@ -220,6 +221,7 @@ export type Database = {
           detailed_analysis?: string | null
           id?: string
           is_detailed?: boolean | null
+          is_purchased?: boolean | null
           personality_type: string
           user_id: string
         }
@@ -230,6 +232,7 @@ export type Database = {
           detailed_analysis?: string | null
           id?: string
           is_detailed?: boolean | null
+          is_purchased?: boolean | null
           personality_type?: string
           user_id?: string
         }

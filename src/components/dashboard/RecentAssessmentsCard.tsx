@@ -10,6 +10,7 @@ interface RecentAssessmentsCardProps {
     created_at: string;
     detailed_analysis: string | null;
     is_detailed: boolean;
+    is_purchased: boolean;
     category_scores: Record<string, number> | null;
   }>;
 }
