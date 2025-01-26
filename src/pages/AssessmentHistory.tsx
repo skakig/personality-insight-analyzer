@@ -3,9 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Lock } from "lucide-react";
+import { Loader2, Lock, ChartBar, FileText, ArrowRight, CheckCircle } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { Json } from "@/integrations/supabase/types";
+import { motion } from "framer-motion";
 
 interface QuizResult {
   id: string;
@@ -113,15 +114,15 @@ const AssessmentHistory = () => {
 
   const getLevelDescription = (level: string) => {
     const descriptions: { [key: string]: string } = {
-      "1": "Self-Preservation: Focused on basic needs and survival instincts.",
-      "2": "Self-Interest: Pragmatic approach with understanding of societal rules.",
-      "3": "Social Contract: Cooperative morality based on mutual benefit.",
-      "4": "Justice: Strong focus on fairness and accountability.",
-      "5": "Empathy: Deep understanding of others' perspectives.",
-      "6": "Altruism: Selfless actions for the greater good.",
-      "7": "Integrity: Consistent adherence to principles.",
-      "8": "Virtue: Natural embodiment of moral excellence.",
-      "9": "Self-Actualization: Alignment with universal truths.",
+      "1": "Self-Preservation: Focused on meeting basic needs and survival instincts. This level is characterized by reactive decision-making and strong self-preservation tendencies.",
+      "2": "Self-Interest: Pragmatic approach with understanding of societal rules. Your moral framework centers on personal success while following beneficial social norms.",
+      "3": "Social Contract: Your morality is based on cooperation and mutual benefit. You understand the importance of fairness and shared responsibilities.",
+      "4": "Justice: Strong focus on fairness and accountability. You prioritize equity and balance rights with responsibilities in your moral decisions.",
+      "5": "Empathy: Deep understanding of others' perspectives. Your morality is guided by emotional awareness and compassion.",
+      "6": "Altruism: Selfless actions for the greater good. You often prioritize others' well-being over personal comfort.",
+      "7": "Integrity: Consistent adherence to principles. Your actions align naturally with your core values and beliefs.",
+      "8": "Virtue: Natural embodiment of moral excellence. You aspire to higher standards and inspire others through example.",
+      "9": "Self-Actualization: Perfect alignment with universal truths. Your actions naturally serve the greater good and eternal principles.",
     };
     return descriptions[level] || "Understanding your moral development journey.";
   };
@@ -135,76 +136,125 @@ const AssessmentHistory = () => {
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Assessment History</h1>
-        <Button onClick={() => navigate("/dashboard")}>Back to Dashboard</Button>
-      </div>
+    <div className="container mx-auto p-6 space-y-8">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex justify-between items-center"
+      >
+        <div>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            Assessment History
+          </h1>
+          <p className="text-gray-600 mt-2">Your journey of moral development</p>
+        </div>
+        <Button onClick={() => navigate("/dashboard")} variant="outline" className="hover:scale-105 transition-transform">
+          Back to Dashboard
+        </Button>
+      </motion.div>
 
       {results.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center p-6">
-            <p className="text-lg text-gray-600 mb-4">No assessments taken yet.</p>
-            <Button onClick={() => navigate("/dashboard/quiz")}>Take Assessment</Button>
+        <Card className="mt-8">
+          <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+            <ChartBar className="h-16 w-16 text-primary mb-4" />
+            <p className="text-xl text-gray-600 mb-6">No assessments taken yet.</p>
+            <Button 
+              onClick={() => navigate("/dashboard/quiz")}
+              className="hover:scale-105 transition-transform"
+            >
+              Take Your First Assessment
+            </Button>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2">
           {results.map((result) => (
-            <Card key={result.id} className="flex flex-col">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  Level {result.personality_type}
-                  {!result.is_detailed && <Lock className="h-4 w-4 text-gray-400" />}
-                </CardTitle>
-                <CardDescription>
-                  {new Date(result.created_at).toLocaleDateString()}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex-grow flex flex-col">
-                <p className="text-sm text-gray-600 mb-4">
-                  {getLevelDescription(result.personality_type)}
-                </p>
-                
-                {result.is_detailed ? (
-                  <>
-                    {result.detailed_analysis && (
-                      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                        <h4 className="font-medium mb-2">Detailed Analysis</h4>
-                        <p className="text-sm text-gray-600">{result.detailed_analysis}</p>
-                      </div>
+            <motion.div
+              key={result.id}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Card className="overflow-hidden border-2 hover:border-primary/50 transition-colors">
+                <CardHeader className="bg-gradient-to-br from-gray-50 to-gray-100">
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-2xl font-bold">
+                      Level {result.personality_type}
+                    </CardTitle>
+                    {!result.is_detailed && (
+                      <Lock className="h-5 w-5 text-gray-400" />
                     )}
-                    {result.category_scores && (
-                      <div className="mt-4">
-                        <h4 className="font-medium mb-2">Category Scores</h4>
-                        {Object.entries(result.category_scores).map(([category, score]) => (
-                          <div key={category} className="flex justify-between text-sm">
-                            <span>{category}:</span>
-                            <span className="font-medium">{score}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="mt-auto">
-                    <div className="p-4 bg-gray-50 rounded-lg mb-4">
-                      <h4 className="font-medium mb-2">Unlock Full Analysis</h4>
-                      <p className="text-sm text-gray-600 mb-4">
-                        Get detailed insights into your moral development, personalized recommendations, 
-                        and a comprehensive breakdown of your results.
-                      </p>
-                      <Button 
-                        onClick={() => handlePurchaseReport(result.id)}
-                        className="w-full"
-                      >
-                        Purchase Full Report
-                      </Button>
-                    </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                  <CardDescription>
+                    {new Date(result.created_at).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6 p-6">
+                  <p className="text-gray-600 leading-relaxed">
+                    {getLevelDescription(result.personality_type)}
+                  </p>
+                  
+                  {result.is_detailed ? (
+                    <div className="space-y-4">
+                      {result.detailed_analysis && (
+                        <div className="bg-gray-50 p-4 rounded-lg">
+                          <h4 className="font-medium flex items-center gap-2 mb-2">
+                            <FileText className="h-4 w-4 text-primary" />
+                            Detailed Analysis
+                          </h4>
+                          <p className="text-gray-600">{result.detailed_analysis}</p>
+                        </div>
+                      )}
+                      {result.category_scores && (
+                        <div className="space-y-2">
+                          <h4 className="font-medium flex items-center gap-2">
+                            <ChartBar className="h-4 w-4 text-primary" />
+                            Category Scores
+                          </h4>
+                          {Object.entries(result.category_scores).map(([category, score]) => (
+                            <div key={category} className="flex justify-between text-sm bg-gray-50 p-2 rounded">
+                              <span className="text-gray-600">{category}</span>
+                              <span className="font-medium">{score}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="bg-primary/5 p-4 rounded-lg border border-primary/10">
+                        <h4 className="font-medium text-lg mb-2">Unlock Your Full Report</h4>
+                        <ul className="space-y-2">
+                          <li className="flex items-center gap-2 text-gray-600">
+                            <CheckCircle className="h-4 w-4 text-primary" />
+                            Detailed personality analysis
+                          </li>
+                          <li className="flex items-center gap-2 text-gray-600">
+                            <CheckCircle className="h-4 w-4 text-primary" />
+                            Category-specific insights
+                          </li>
+                          <li className="flex items-center gap-2 text-gray-600">
+                            <CheckCircle className="h-4 w-4 text-primary" />
+                            Personalized growth recommendations
+                          </li>
+                        </ul>
+                        <Button 
+                          onClick={() => handlePurchaseReport(result.id)}
+                          className="w-full mt-4 group"
+                        >
+                          Purchase Full Report
+                          <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
           ))}
         </div>
       )}
