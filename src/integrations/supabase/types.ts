@@ -39,6 +39,47 @@ export type Database = {
         }
         Relationships: []
       }
+      corporate_subscriptions: {
+        Row: {
+          active: boolean | null
+          assessments_used: number | null
+          created_at: string
+          id: string
+          max_assessments: number
+          organization_id: string
+          subscription_tier: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean | null
+          assessments_used?: number | null
+          created_at?: string
+          id?: string
+          max_assessments: number
+          organization_id: string
+          subscription_tier: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean | null
+          assessments_used?: number | null
+          created_at?: string
+          id?: string
+          max_assessments?: number
+          organization_id?: string
+          subscription_tier?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "corporate_subscriptions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string

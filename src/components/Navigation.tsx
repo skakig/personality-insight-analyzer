@@ -1,9 +1,15 @@
 import { NavigationMenu, NavigationMenuItem, NavigationMenuList } from "@/components/ui/navigation-menu";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
-export const Navigation = () => {
+export const Navigation = ({ session }: { session?: any }) => {
   const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate("/");
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
@@ -25,15 +31,39 @@ export const Navigation = () => {
                 Home
               </Button>
             </NavigationMenuItem>
-            <NavigationMenuItem>
-              <Button 
-                variant="ghost" 
-                onClick={() => navigate("/auth")}
-                className="text-gray-700 hover:text-gray-900 hover:bg-gray-100/80"
-              >
-                Sign In
-              </Button>
-            </NavigationMenuItem>
+            
+            {session ? (
+              <>
+                <NavigationMenuItem>
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => navigate("/dashboard")}
+                    className="text-gray-700 hover:text-gray-900 hover:bg-gray-100/80"
+                  >
+                    Dashboard
+                  </Button>
+                </NavigationMenuItem>
+                <NavigationMenuItem>
+                  <Button 
+                    variant="ghost" 
+                    onClick={handleSignOut}
+                    className="text-gray-700 hover:text-gray-900 hover:bg-gray-100/80"
+                  >
+                    Sign Out
+                  </Button>
+                </NavigationMenuItem>
+              </>
+            ) : (
+              <NavigationMenuItem>
+                <Button 
+                  variant="ghost" 
+                  onClick={() => navigate("/auth")}
+                  className="text-gray-700 hover:text-gray-900 hover:bg-gray-100/80"
+                >
+                  Sign In
+                </Button>
+              </NavigationMenuItem>
+            )}
           </NavigationMenuList>
         </NavigationMenu>
       </div>

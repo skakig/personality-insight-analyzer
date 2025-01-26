@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import Dashboard from "./pages/Dashboard";
 import { Navigation } from "./components/Navigation";
 
 const queryClient = new QueryClient();
@@ -39,11 +40,12 @@ const App = () => {
       <TooltipProvider>
         <BrowserRouter>
           <div className="min-h-screen flex flex-col bg-white">
-            <Navigation />
+            <Navigation session={session} />
             <div className="flex-1">
               <Routes>
                 <Route path="/" element={<Index session={session} />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/dashboard" element={<Dashboard session={session} />} />
               </Routes>
             </div>
           </div>
