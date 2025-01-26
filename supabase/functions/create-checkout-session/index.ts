@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { resultId, userId, mode = 'payment' } = await req.json();
+    const { resultId, userId, mode = 'subscription' } = await req.json();
     
     if (!resultId || !userId) {
       throw new Error('Missing required parameters: resultId and userId are required');
@@ -38,7 +38,7 @@ serve(async (req) => {
           quantity: 1,
         },
       ],
-      mode: mode as 'payment' | 'subscription',
+      mode: 'subscription', // Always use subscription mode for recurring prices
       success_url: `${req.headers.get('origin')}/assessment-history?success=true&resultId=${resultId}`,
       cancel_url: `${req.headers.get('origin')}/assessment-history?canceled=true`,
       metadata: {
