@@ -23,7 +23,7 @@ serve(async (req) => {
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
     );
 
     const { data: { user }, error: userError } = await supabaseClient.auth.admin.getUserById(userId);
@@ -57,20 +57,25 @@ serve(async (req) => {
         });
 
         if (subscriptions.data.length > 0) {
-          // Create a billing portal session instead
-          console.log('Creating billing portal session for existing customer');
-          const portalSession = await stripe.billingPortal.sessions.create({
-            customer: customerId,
-            return_url: `${req.headers.get('origin')}/dashboard`,
-          });
+          try {
+            // Try to create a billing portal session
+            console.log('Creating billing portal session for existing customer');
+            const portalSession = await stripe.billingPortal.sessions.create({
+              customer: customerId,
+              return_url: `${req.headers.get('origin')}/dashboard`,
+            });
 
-          return new Response(
-            JSON.stringify({ url: portalSession.url }),
-            { 
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              status: 200,
-            }
-          );
+            return new Response(
+              JSON.stringify({ url: portalSession.url }),
+              { 
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 200,
+              }
+            );
+          } catch (portalError: any) {
+            // If portal creation fails, proceed with creating a new checkout session
+            console.log('Portal creation failed, creating checkout session instead:', portalError.message);
+          }
         }
       }
     } else {
@@ -85,7 +90,6 @@ serve(async (req) => {
     }
 
     console.log('Creating checkout session...');
-    
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
