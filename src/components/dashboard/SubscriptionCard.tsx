@@ -19,35 +19,38 @@ export const SubscriptionCard = ({ subscription, error }: SubscriptionCardProps)
     : 0;
 
   return (
-    <Card className="col-span-full">
-      <CardHeader>
-        <CardTitle>Assessment Usage</CardTitle>
-        <CardDescription>Track your assessment usage and limits</CardDescription>
+    <Card className="overflow-hidden border-0 shadow-sm bg-white">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-xl font-medium">Assessment Usage</CardTitle>
+        <CardDescription className="text-sm text-gray-500">
+          Track your assessment usage and limits
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {error ? (
-          <div className="text-red-500">{error}</div>
+          <div className="text-red-500 text-sm">{error}</div>
         ) : subscription ? (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
+          <div className="space-y-6">
+            <div className="space-y-4">
+              <div className="flex justify-between text-sm text-gray-600">
                 <span>{subscription.assessments_used} used</span>
                 <span>{subscription.max_assessments} total</span>
               </div>
-              <Progress value={usagePercentage} className="h-2" />
+              <Progress value={usagePercentage} className="h-1.5" />
+              <p className="text-sm text-gray-600">
+                {subscription.max_assessments - subscription.assessments_used} assessments remaining
+              </p>
             </div>
-            <p className="text-sm text-gray-600">
-              {subscription.max_assessments - subscription.assessments_used} assessments remaining
-            </p>
+            
             {usagePercentage > 80 && (
-              <div className="bg-yellow-50 p-4 rounded-lg">
-                <p className="text-sm text-yellow-800">
-                  You're approaching your assessment limit.
+              <div className="bg-amber-50 p-4 rounded-lg border border-amber-100">
+                <p className="text-sm text-amber-800 font-medium">
+                  You're approaching your assessment limit
                 </p>
                 <Button 
                   onClick={() => navigate("/pricing")}
-                  className="mt-2"
-                  variant="outline"
+                  className="mt-3 w-full bg-amber-100 text-amber-900 hover:bg-amber-200"
+                  variant="ghost"
                 >
                   Upgrade Plan
                 </Button>
@@ -56,10 +59,11 @@ export const SubscriptionCard = ({ subscription, error }: SubscriptionCardProps)
           </div>
         ) : (
           <div className="space-y-4">
-            <p className="text-gray-600">No active subscription found.</p>
+            <p className="text-sm text-gray-600">No active subscription found.</p>
             <Button 
               onClick={() => navigate("/pricing")}
-              className="w-full group"
+              className="w-full"
+              variant="default"
             >
               View Plans
             </Button>

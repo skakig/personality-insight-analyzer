@@ -20,10 +20,12 @@ export const RecentAssessmentsCard = ({ assessments }: RecentAssessmentsCardProp
   if (assessments.length === 0) return null;
 
   return (
-    <Card className="col-span-2">
-      <CardHeader>
-        <CardTitle>Recent Assessments</CardTitle>
-        <CardDescription>Your latest assessment results</CardDescription>
+    <Card className="border-0 shadow-sm bg-white">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-xl font-medium">Recent Assessments</CardTitle>
+        <CardDescription className="text-sm text-gray-500">
+          Your latest assessment results
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {assessments.slice(0, 3).map((result) => (
@@ -32,7 +34,7 @@ export const RecentAssessmentsCard = ({ assessments }: RecentAssessmentsCardProp
         {assessments.length > 3 && (
           <Button 
             variant="outline" 
-            className="w-full"
+            className="w-full border border-gray-200 hover:bg-gray-50/50"
             onClick={() => navigate("/assessment-history")}
           >
             View All Assessments

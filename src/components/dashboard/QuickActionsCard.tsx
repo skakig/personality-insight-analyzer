@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { ChartBar, History } from "lucide-react";
 
 interface QuickActionsCardProps {
   subscription: {
@@ -14,25 +15,40 @@ export const QuickActionsCard = ({ subscription }: QuickActionsCardProps) => {
   const navigate = useNavigate();
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Quick Actions</CardTitle>
-        <CardDescription>Manage your assessments</CardDescription>
+    <Card className="border-0 shadow-sm bg-white">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-xl font-medium">Quick Actions</CardTitle>
+        <CardDescription className="text-sm text-gray-500">
+          Manage your assessments
+        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3">
         <Button 
-          className="w-full"
+          className="w-full h-auto py-4 px-4 bg-gradient-to-br from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 shadow-sm"
           onClick={() => navigate("/dashboard/quiz")}
           disabled={!subscription?.active || (subscription?.assessments_used >= subscription?.max_assessments)}
         >
-          Take Assessment
+          <div className="flex items-center space-x-3">
+            <ChartBar className="h-5 w-5" />
+            <div className="text-left">
+              <div className="font-medium">Take Assessment</div>
+              <div className="text-xs opacity-90">Start a new evaluation</div>
+            </div>
+          </div>
         </Button>
+        
         <Button 
           variant="outline" 
-          className="w-full"
+          className="w-full h-auto py-4 px-4 border border-gray-200 hover:bg-gray-50/50"
           onClick={() => navigate("/assessment-history")}
         >
-          View History
+          <div className="flex items-center space-x-3">
+            <History className="h-5 w-5" />
+            <div className="text-left">
+              <div className="font-medium">View History</div>
+              <div className="text-xs text-gray-600">See past results</div>
+            </div>
+          </div>
         </Button>
       </CardContent>
     </Card>

@@ -67,21 +67,35 @@ const Dashboard = ({ session }: DashboardProps) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary/40" />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-8">
-        {subscription ? getSubscriptionTitle(subscription.subscription_tier) : 'Dashboard'}
-      </h1>
-      
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <SubscriptionCard subscription={subscription} error={error} />
-        <QuickActionsCard subscription={subscription} />
-        <RecentAssessmentsCard assessments={previousAssessments} />
+    <div className="min-h-screen bg-gray-50/50">
+      <div className="container mx-auto px-4 py-8 space-y-8">
+        <header className="space-y-1">
+          <h1 className="text-4xl font-medium tracking-tight text-gray-900">
+            {subscription ? getSubscriptionTitle(subscription.subscription_tier) : 'Dashboard'}
+          </h1>
+          <p className="text-lg text-gray-500">
+            Track your progress and manage your assessments
+          </p>
+        </header>
+        
+        <div className="grid gap-8 md:grid-cols-3">
+          <div className="md:col-span-2 space-y-8">
+            <SubscriptionCard subscription={subscription} error={error} />
+            {previousAssessments.length > 0 && (
+              <RecentAssessmentsCard assessments={previousAssessments} />
+            )}
+          </div>
+          
+          <div className="space-y-8">
+            <QuickActionsCard subscription={subscription} />
+          </div>
+        </div>
       </div>
     </div>
   );
