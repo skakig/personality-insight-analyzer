@@ -15,7 +15,6 @@ const Index = ({ session }: IndexProps) => {
     currentQuestion,
     handleStart,
     handleAnswer,
-    handlePurchase,
     currentProgress,
     personalityType,
     loading,
@@ -57,7 +56,6 @@ const Index = ({ session }: IndexProps) => {
       {currentStep === "results" && personalityType && (
         <Results
           personalityType={personalityType}
-          onPurchase={handlePurchase}
           session={session}
         />
       )}
