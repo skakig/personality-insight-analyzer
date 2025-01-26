@@ -35,6 +35,16 @@ export const Navigation = ({ session }: { session?: any }) => {
             <NavigationMenuItem>
               <Button 
                 variant="ghost" 
+                onClick={() => navigate("/book")}
+                className="text-gray-700 hover:text-gray-900 hover:bg-gray-100/80"
+              >
+                Book
+              </Button>
+            </NavigationMenuItem>
+            
+            <NavigationMenuItem>
+              <Button 
+                variant="ghost" 
                 onClick={() => navigate("/pricing")}
                 className="text-gray-700 hover:text-gray-900 hover:bg-gray-100/80"
               >
