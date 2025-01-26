@@ -133,7 +133,7 @@ const Index = ({ session }: IndexProps) => {
         .from('profiles')
         .select('id')
         .eq('id', session.user.id)
-        .single();
+        .maybeSingle();
 
       if (!profile?.id) {
         toast({
@@ -148,7 +148,7 @@ const Index = ({ session }: IndexProps) => {
         .from('quiz_results')
         .insert({
           personality_type: calculatePersonalityType(),
-          answers: answers,
+          answers: answers as unknown as Json,
           user_id: profile.id
         });
 
