@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
 import { AssessmentCard } from "@/components/assessment/AssessmentCard";
 import { EmptyState } from "@/components/assessment/EmptyState";
 import { Json } from "@/integrations/supabase/types";
