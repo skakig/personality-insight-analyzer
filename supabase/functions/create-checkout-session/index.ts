@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from 'https://esm.sh/stripe@14.21.0';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
@@ -42,7 +42,7 @@ serve(async (req) => {
 
     if (!profile) {
       console.error('Profile not found for user:', userId);
-      throw new Error('User profile not found. Please try logging out and back in.');
+      throw new Error('User profile not found');
     }
 
     // Get user email from auth
@@ -67,20 +67,6 @@ serve(async (req) => {
     let customerId = undefined;
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
-      
-      // Only check for existing subscriptions if this is a subscription mode checkout
-      if (mode === 'subscription') {
-        const subscriptions = await stripe.subscriptions.list({
-          customer: customers.data[0].id,
-          status: 'active',
-          price: 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm', // Check for specific price
-          limit: 1
-        });
-
-        if (subscriptions.data.length > 0) {
-          throw new Error("Customer already has an active subscription");
-        }
-      }
     } else {
       // Create a new customer if one doesn't exist
       console.log('Creating new customer for:', user.email);
@@ -93,12 +79,31 @@ serve(async (req) => {
       customerId = customer.id;
     }
 
-    // Set the appropriate price ID based on the mode
-    const priceId = mode === 'subscription' 
-      ? 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm'  // Subscription price ID
-      : 'price_1Qlc4VJy5TVq3Z9H0PFhn9hs';  // One-time payment price ID
+    // Set the appropriate price ID and mode based on the request
+    let priceId;
+    let checkoutMode;
+    
+    if (mode === 'subscription') {
+      priceId = 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm';  // Subscription price ID
+      checkoutMode = 'subscription';
+      
+      // Check for existing subscription only in subscription mode
+      const subscriptions = await stripe.subscriptions.list({
+        customer: customerId,
+        status: 'active',
+        price: priceId,
+        limit: 1
+      });
 
-    console.log('Creating checkout session with mode:', mode, 'and price:', priceId);
+      if (subscriptions.data.length > 0) {
+        throw new Error("Customer already has an active subscription");
+      }
+    } else {
+      priceId = 'price_1Qlc4VJy5TVq3Z9H0PFhn9hs';  // One-time payment price ID
+      checkoutMode = 'payment';
+    }
+
+    console.log('Creating checkout session with mode:', checkoutMode, 'and price:', priceId);
     
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -111,7 +116,7 @@ serve(async (req) => {
           quantity: 1,
         },
       ],
-      mode: mode || 'subscription',
+      mode: checkoutMode,
       success_url: `${req.headers.get('origin')}/dashboard?success=true`,
       cancel_url: `${req.headers.get('origin')}/dashboard?success=false`,
     });
