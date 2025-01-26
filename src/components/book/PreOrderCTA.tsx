@@ -1,12 +1,36 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 
-interface PreOrderCTAProps {
-  onPreOrder: () => void;
-}
+export const PreOrderCTA = () => {
+  const handlePreOrder = async () => {
+    try {
+      const response = await fetch('/api/create-book-checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-export const PreOrderCTA = ({ onPreOrder }: PreOrderCTAProps) => {
+      const { url, error } = await response.json();
+      
+      if (error) {
+        throw new Error(error);
+      }
+
+      if (url) {
+        window.location.href = url;
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to initiate checkout. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <section className="py-24 bg-gradient-to-br from-primary to-secondary text-white">
       <div className="container mx-auto px-4">
@@ -22,7 +46,7 @@ export const PreOrderCTA = ({ onPreOrder }: PreOrderCTAProps) => {
           </p>
           <Button 
             size="lg"
-            onClick={onPreOrder}
+            onClick={handlePreOrder}
             className="text-lg px-8 py-6 rounded-full bg-white text-primary hover:bg-white/90 transition-all duration-300"
           >
             Pre-order for $29.99
