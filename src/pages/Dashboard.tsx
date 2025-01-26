@@ -188,7 +188,8 @@ const Dashboard = ({ session }: DashboardProps) => {
   );
 };
 
-const getSubscriptionTitle = (tier: string)toLowerCase()) {
+const getSubscriptionTitle = (tier: string): string => {
+  switch (tier.toLowerCase()) {
     case 'individual':
       return 'Individual Dashboard';
     case 'pro':
