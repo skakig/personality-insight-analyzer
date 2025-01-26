@@ -19,10 +19,6 @@ serve(async (req) => {
       throw new Error('Result ID and User ID are required');
     }
 
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-      apiVersion: '2023-10-16',
-    });
-
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
@@ -48,6 +44,10 @@ serve(async (req) => {
       throw new Error('User not found');
     }
 
+    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+      apiVersion: '2023-10-16',
+    });
+
     // Check if customer exists
     const customers = await stripe.customers.list({
       email: user.email,
@@ -67,6 +67,8 @@ serve(async (req) => {
       customerId = customer.id;
     }
 
+    const PRICE_ID = 'price_XXXXX'; // Replace this with your actual price ID
+
     console.log('Creating checkout session...');
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -75,7 +77,7 @@ serve(async (req) => {
       },
       line_items: [
         {
-          price: 'price_YOUR_PRICE_ID', // Replace with your actual price ID
+          price: PRICE_ID,
           quantity: 1,
         },
       ],
@@ -84,8 +86,7 @@ serve(async (req) => {
       cancel_url: `${req.headers.get('origin')}/dashboard?success=false`,
     });
 
-    console.log('Checkout session created:', session.id);
-
+    console.log('Payment session created:', session.id);
     return new Response(
       JSON.stringify({ url: session.url }),
       { 
