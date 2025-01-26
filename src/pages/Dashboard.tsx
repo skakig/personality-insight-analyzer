@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { SubscriptionCard } from "@/components/dashboard/SubscriptionCard";
-import { QuickActionsCard } from "@/components/dashboard/QuickActionsCard";
-import { RecentAssessmentsCard } from "@/components/dashboard/RecentAssessmentsCard";
-import { getSubscriptionTitle } from "@/utils/subscriptionUtils";
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { DashboardContent } from "@/components/dashboard/DashboardContent";
+import { LoadingState } from "@/components/dashboard/LoadingState";
 
 interface DashboardProps {
   session: any;
@@ -65,37 +63,18 @@ const Dashboard = ({ session }: DashboardProps) => {
   }, [session, navigate]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary/40" />
-      </div>
-    );
+    return <LoadingState />;
   }
 
   return (
     <div className="min-h-screen bg-gray-50/50">
       <div className="container mx-auto px-4 py-8 space-y-8">
-        <header className="space-y-1">
-          <h1 className="text-4xl font-medium tracking-tight text-gray-900">
-            {subscription ? getSubscriptionTitle(subscription.subscription_tier) : 'Dashboard'}
-          </h1>
-          <p className="text-lg text-gray-500">
-            Track your progress and manage your assessments
-          </p>
-        </header>
-        
-        <div className="grid gap-8 md:grid-cols-3">
-          <div className="md:col-span-2 space-y-8">
-            <SubscriptionCard subscription={subscription} error={error} />
-            {previousAssessments.length > 0 && (
-              <RecentAssessmentsCard assessments={previousAssessments} />
-            )}
-          </div>
-          
-          <div className="space-y-8">
-            <QuickActionsCard subscription={subscription} />
-          </div>
-        </div>
+        <DashboardHeader subscription={subscription} />
+        <DashboardContent 
+          subscription={subscription}
+          error={error}
+          previousAssessments={previousAssessments}
+        />
       </div>
     </div>
   );
