@@ -120,15 +120,37 @@ const Index = ({ session }: IndexProps) => {
 
   const handlePurchase = async () => {
     try {
-      const personalityType = calculatePersonalityType();
+      if (!session?.user?.id) {
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in to purchase detailed results.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', session.user.id)
+        .single();
+
+      if (!profile?.id) {
+        toast({
+          title: "Error",
+          description: "User profile not found.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('quiz_results')
-        .insert([
-          {
-            personality_type: personalityType,
-            answers: answers
-          }
-        ]);
+        .insert({
+          personality_type: calculatePersonalityType(),
+          answers: answers,
+          user_id: profile.id
+        });
 
       if (error) throw error;
 
