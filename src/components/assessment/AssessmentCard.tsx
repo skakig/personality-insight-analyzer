@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getLevelDescription } from "./utils";
 import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AssessmentCardProps {
   result: {
@@ -18,6 +19,26 @@ interface AssessmentCardProps {
 }
 
 export const AssessmentCard = ({ result, onPurchaseReport }: AssessmentCardProps) => {
+  const handlePurchase = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: { resultId: result.id }
+      });
+
+      if (error) throw error;
+      if (!data?.url) throw new Error('No checkout URL received');
+
+      window.location.href = data.url;
+    } catch (error: any) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to initiate checkout. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -98,7 +119,7 @@ export const AssessmentCard = ({ result, onPurchaseReport }: AssessmentCardProps
                   </li>
                 </ul>
                 <Button 
-                  onClick={() => onPurchaseReport(result.id)}
+                  onClick={handlePurchase}
                   className="w-full mt-4 group"
                 >
                   Purchase Full Report
