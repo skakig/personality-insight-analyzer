@@ -12,8 +12,24 @@ export const PurchaseSection = ({ resultId }: PurchaseSectionProps) => {
     try {
       console.log('Initiating checkout for result:', resultId);
       
+      // Get the current session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        console.error('No active session found');
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in to purchase the detailed report.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-        body: { resultId }
+        body: { 
+          resultId,
+          mode: 'payment'  // Explicitly set mode to one-time payment
+        }
       });
 
       if (error) {

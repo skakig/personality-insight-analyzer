@@ -13,12 +13,12 @@ serve(async (req) => {
   }
 
   try {
-    const { resultId } = await req.json();
+    const { resultId, mode = 'payment' } = await req.json();
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
       apiVersion: '2023-10-16',
     });
 
-    console.log('Creating checkout session for result:', resultId);
+    console.log('Creating checkout session for result:', resultId, 'mode:', mode);
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -28,7 +28,7 @@ serve(async (req) => {
           quantity: 1,
         },
       ],
-      mode: 'payment',
+      mode: mode as 'payment' | 'subscription',
       success_url: `${req.headers.get('origin')}/assessment-history?success=true&resultId=${resultId}`,
       cancel_url: `${req.headers.get('origin')}/assessment-history?canceled=true`,
       metadata: {
