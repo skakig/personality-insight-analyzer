@@ -1,7 +1,8 @@
-import { CheckCircle, ArrowRight, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Sparkles } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { BenefitsList } from "./purchase/BenefitsList";
+import { PurchaseButton } from "./purchase/PurchaseButton";
 
 interface PurchaseSectionProps {
   resultId: string;
@@ -69,39 +70,8 @@ export const PurchaseSection = ({ resultId }: PurchaseSectionProps) => {
         </div>
         
         <div className="space-y-4">
-          <div className="grid gap-3">
-            <div className="flex items-start gap-3">
-              <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium text-gray-900">Deep Personal Insights</p>
-                <p className="text-sm text-gray-600">Understand your unique moral framework and decision-making patterns</p>
-              </div>
-            </div>
-            
-            <div className="flex items-start gap-3">
-              <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium text-gray-900">Growth Roadmap</p>
-                <p className="text-sm text-gray-600">Get a personalized path to reaching your next moral level</p>
-              </div>
-            </div>
-            
-            <div className="flex items-start gap-3">
-              <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium text-gray-900">Practical Exercises</p>
-                <p className="text-sm text-gray-600">Access targeted activities to strengthen your moral reasoning</p>
-              </div>
-            </div>
-          </div>
-
-          <Button 
-            onClick={handlePurchase}
-            className="w-full mt-6 group bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-opacity"
-          >
-            <span>Unlock Full Report</span>
-            <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
-          </Button>
+          <BenefitsList />
+          <PurchaseButton onClick={handlePurchase} />
           
           <p className="text-xs text-center text-gray-500 mt-4">
             Join thousands of others who have transformed their approach to ethical decision-making
