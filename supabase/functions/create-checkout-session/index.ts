@@ -13,34 +13,18 @@ serve(async (req) => {
   }
 
   try {
-    const { userId, mode } = await req.json();
+    const { userId } = await req.json();
     
     if (!userId) {
       throw new Error('User ID is required');
     }
 
-    console.log('Processing checkout request for:', { userId, mode });
+    console.log('Processing checkout request for:', { userId });
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
-
-    const { data: profile, error: profileError } = await supabaseClient
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    if (profileError) {
-      console.error('Profile error:', profileError);
-      throw new Error(`Profile error: ${profileError.message}`);
-    }
-
-    if (!profile) {
-      console.error('Profile not found for user:', userId);
-      throw new Error('User profile not found');
-    }
 
     const { data: { user }, error: userError } = await supabaseClient.auth.admin.getUserById(userId);
     
@@ -93,7 +77,7 @@ serve(async (req) => {
       customer_email: customerId ? undefined : user.email,
       line_items: [
         {
-          price: 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm',  // Always use subscription price
+          price: 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm',
           quantity: 1,
         },
       ],
