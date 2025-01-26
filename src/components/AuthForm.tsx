@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { AuthInput } from "./auth/AuthInput";
+import { signIn, signUp } from "@/utils/auth";
 
 interface AuthFormProps {
   onSuccess: () => void;
@@ -20,22 +20,9 @@ export const AuthForm = ({ onSuccess }: AuthFormProps) => {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-        if (error) throw error;
-        toast({
-          title: "Success!",
-          description: "Please check your email to verify your account.",
-        });
+        await signUp({ email, password });
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        window.location.href = '/dashboard';
+        await signIn({ email, password });
       }
     } catch (error: any) {
       toast({
@@ -51,18 +38,16 @@ export const AuthForm = ({ onSuccess }: AuthFormProps) => {
   return (
     <form className="mt-8 space-y-6" onSubmit={handleAuth}>
       <div className="rounded-md shadow-sm space-y-4">
-        <Input
+        <AuthInput
           type="email"
-          required
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={setEmail}
           placeholder="Email address"
         />
-        <Input
+        <AuthInput
           type="password"
-          required
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={setPassword}
           placeholder="Password"
           minLength={6}
         />
