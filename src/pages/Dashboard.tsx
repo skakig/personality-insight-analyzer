@@ -17,6 +17,7 @@ const Dashboard = ({ session }: { session: any }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session) {
@@ -30,15 +31,25 @@ const Dashboard = ({ session }: { session: any }) => {
           .from('corporate_subscriptions')
           .select('*')
           .eq('organization_id', session.user.id)
-          .single();
+          .maybeSingle();
 
-        if (error) throw error;
-        setSubscription(data);
+        if (error) {
+          console.error('Error fetching subscription:', error);
+          setError('Failed to load subscription data');
+          toast({
+            title: "Error",
+            description: "Failed to load subscription data. Please try again.",
+            variant: "destructive",
+          });
+        } else {
+          setSubscription(data);
+        }
       } catch (error: any) {
-        console.error('Error fetching subscription:', error);
+        console.error('Error:', error);
+        setError('An unexpected error occurred');
         toast({
           title: "Error",
-          description: "Failed to load subscription data.",
+          description: "An unexpected error occurred. Please try again.",
           variant: "destructive",
         });
       } finally {
@@ -68,7 +79,9 @@ const Dashboard = ({ session }: { session: any }) => {
             <CardDescription>Your current subscription details</CardDescription>
           </CardHeader>
           <CardContent>
-            {subscription ? (
+            {error ? (
+              <div className="text-red-500">{error}</div>
+            ) : subscription ? (
               <div className="space-y-2">
                 <p className="text-lg font-medium">
                   Tier: {subscription.subscription_tier}
