@@ -1,8 +1,47 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { BookOpen, CheckCircle2, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const BookLanding = () => {
+  const navigate = useNavigate();
+
+  const handlePreOrder = async () => {
+    const session = await supabase.auth.getSession();
+    if (!session.data.session) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to pre-order the book",
+        variant: "destructive",
+      });
+      navigate("/auth");
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.data.session.access_token}`,
+        },
+      });
+
+      const { url } = await response.json();
+      if (url) {
+        window.location.href = url;
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to process pre-order. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
       {/* Hero Section */}
@@ -21,9 +60,10 @@ const BookLanding = () => {
           <div className="flex items-center justify-center gap-4 mb-12">
             <Button 
               size="lg"
+              onClick={handlePreOrder}
               className="text-lg px-8 py-6 rounded-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-all duration-300"
             >
-              Pre-order Now
+              Pre-order Now - $29.99
               <ArrowRight className="ml-2" />
             </Button>
             <Button 
@@ -35,20 +75,23 @@ const BookLanding = () => {
               <BookOpen className="ml-2" />
             </Button>
           </div>
-          <div className="flex items-center justify-center gap-8 text-gray-600">
+          <div className="flex flex-wrap items-center justify-center gap-8 text-gray-600">
             <span className="flex items-center gap-2">
               <CheckCircle2 className="text-green-500" />
-              Coming Soon
+              Early Bird Discount
             </span>
             <span className="flex items-center gap-2">
               <CheckCircle2 className="text-green-500" />
-              Special Pre-order Price
+              Exclusive Pre-launch Content
+            </span>
+            <span className="flex items-center gap-2">
+              <CheckCircle2 className="text-green-500" />
+              Digital + Physical Copy
             </span>
           </div>
         </motion.div>
       </section>
 
-      {/* Book Overview */}
       <section className="py-24 bg-gray-50">
         <div className="container mx-auto px-4">
           <motion.div 
@@ -114,7 +157,48 @@ const BookLanding = () => {
         </div>
       </section>
 
-      {/* Benefits Section */}
+      {/* Pre-order Benefits Section */}
+      <section className="py-24 bg-white">
+        <div className="container mx-auto px-4">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="max-w-3xl mx-auto text-center"
+          >
+            <h2 className="text-4xl font-bold mb-12">Pre-order Benefits</h2>
+            <div className="grid md:grid-cols-3 gap-8">
+              {[
+                {
+                  title: "Early Access",
+                  description: "Get the book before the official release date"
+                },
+                {
+                  title: "Exclusive Content",
+                  description: "Access to pre-launch workshops and materials"
+                },
+                {
+                  title: "Special Pricing",
+                  description: "Save 25% off the regular retail price"
+                }
+              ].map((benefit, index) => (
+                <motion.div 
+                  key={index}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                  className="p-6 bg-gray-50 rounded-xl"
+                >
+                  <h3 className="text-xl font-semibold mb-2 text-primary">{benefit.title}</h3>
+                  <p className="text-gray-600">{benefit.description}</p>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
       <section className="py-24">
         <div className="container mx-auto px-4">
           <motion.div 
@@ -159,20 +243,20 @@ const BookLanding = () => {
             viewport={{ once: true }}
             className="max-w-3xl mx-auto text-center"
           >
-            <h2 className="text-4xl font-bold mb-6">Be Among the First to Read</h2>
+            <h2 className="text-4xl font-bold mb-6">Secure Your Copy Today</h2>
             <p className="text-xl mb-8 text-white/90">
               Pre-order now and receive exclusive access to supplementary materials and exercises.
             </p>
             <Button 
               size="lg"
-              variant="outline"
+              onClick={handlePreOrder}
               className="text-lg px-8 py-6 rounded-full bg-white text-primary hover:bg-white/90 transition-all duration-300"
             >
-              Pre-order Your Copy
+              Pre-order for $29.99
               <ArrowRight className="ml-2" />
             </Button>
             <p className="mt-6 text-white/80">
-              Special pre-order price available for a limited time
+              Limited time offer - Price will increase after launch
             </p>
           </motion.div>
         </div>

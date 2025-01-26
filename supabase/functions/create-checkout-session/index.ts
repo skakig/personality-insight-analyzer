@@ -37,17 +37,17 @@ serve(async (req) => {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: 'Detailed Moral Hierarchy Analysis',
-              description: 'Get comprehensive insights into your moral development level',
+              name: 'The Moral Hierarchy Book - Pre-order',
+              description: 'Pre-order copy of The Moral Hierarchy book including exclusive content',
             },
-            unit_amount: 999, // $9.99
+            unit_amount: 2999, // $29.99
           },
           quantity: 1,
         },
       ],
       mode: 'payment',
-      success_url: `${req.headers.get('origin')}/?success=true`,
-      cancel_url: `${req.headers.get('origin')}/?canceled=true`,
+      success_url: `${req.headers.get('origin')}/book?success=true`,
+      cancel_url: `${req.headers.get('origin')}/book?canceled=true`,
       customer_email: user.email,
     });
 
