@@ -10,11 +10,11 @@ export const WelcomePage = ({ onStart }: { onStart: () => void }) => {
     >
       <div className="max-w-2xl">
         <h1 className="text-4xl md:text-6xl font-bold mb-6 text-white leading-tight">
-          Unlock Your True Potential Through Self-Discovery
+          The Moral Hierarchy
         </h1>
         <p className="text-lg md:text-xl text-gray-100 mb-8 opacity-90">
-          Join millions who have found clarity and purpose through our scientifically-backed personality assessment. 
-          Discover your unique traits, strengths, and opportunities for growth.
+          Discover where you stand in the moral spectrum through our comprehensive assessment. 
+          Take the free test now and unlock insights about your ethical framework.
         </p>
         <Button 
           onClick={onStart}
