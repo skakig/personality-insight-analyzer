@@ -18,17 +18,17 @@ const FeatureList = ({ features, icon }: FeatureListProps) => (
 
 export const DetailedReportFeatures = () => {
   const reportFeatures = [
-    "Detailed analysis of your moral development stage",
+    "Comprehensive analysis of your moral development stage",
+    "Detailed breakdown of your scores across key categories",
     "Personalized growth recommendations",
-    "Strengths and areas for improvement",
-    "Practical exercises for moral development",
+    "Practical exercises for advancing to the next level",
     "Comparison with population averages",
-    "Action plan for advancing to the next level"
+    "Access to expert insights and development resources"
   ];
 
   const reportBenefits = [
-    "Understand your moral decision-making patterns",
-    "Identify barriers to moral growth",
+    "Understand your decision-making patterns in depth",
+    "Identify specific areas for moral growth",
     "Learn strategies for ethical leadership",
     "Develop stronger relationships through moral awareness",
     "Access exclusive development resources",

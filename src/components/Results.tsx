@@ -40,7 +40,7 @@ export const Results = ({ personalityType, onPurchase, session }: ResultsProps) 
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen flex flex-col items-center justify-center p-6"
+      className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-br from-gray-50 to-gray-100"
     >
       <div className="max-w-4xl w-full space-y-8">
         <BasicResults 

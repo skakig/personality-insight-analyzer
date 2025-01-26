@@ -46,7 +46,11 @@ export const BasicResults = ({ personalityType, getLevelDescription }: BasicResu
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-8 text-center">
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-lg shadow-lg p-8 text-center"
+    >
       <h1 className="text-3xl md:text-4xl font-bold mb-6">
         Your Moral Level:
         <span className="block text-5xl md:text-6xl mt-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">
@@ -59,7 +63,32 @@ export const BasicResults = ({ personalityType, getLevelDescription }: BasicResu
       </p>
 
       <div className="space-y-6">
-        <form onSubmit={handleEmailSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          <div className="bg-gray-50 p-6 rounded-lg">
+            <h3 className="text-lg font-semibold mb-3">Key Characteristics</h3>
+            <ul className="text-sm text-gray-600 space-y-2">
+              {getKeyCharacteristics(personalityType).map((trait, index) => (
+                <li key={index} className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-primary rounded-full"></span>
+                  {trait}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="bg-gray-50 p-6 rounded-lg">
+            <h3 className="text-lg font-semibold mb-3">Growth Opportunities</h3>
+            <ul className="text-sm text-gray-600 space-y-2">
+              {getGrowthOpportunities(personalityType).map((opportunity, index) => (
+                <li key={index} className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-secondary rounded-full"></span>
+                  {opportunity}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <form onSubmit={handleEmailSubmit} className="space-y-4 mt-8">
           <Input
             type="email"
             placeholder="Enter your email for basic results"
@@ -78,6 +107,54 @@ export const BasicResults = ({ personalityType, getLevelDescription }: BasicResu
           </Button>
         </form>
       </div>
-    </div>
+    </motion.div>
   );
+};
+
+const getKeyCharacteristics = (level: string): string[] => {
+  switch (level) {
+    case "1":
+      return [
+        "Focus on basic needs and survival",
+        "Reactive decision-making",
+        "Strong self-preservation instincts"
+      ];
+    case "2":
+      return [
+        "Pragmatic approach to decisions",
+        "Understanding of societal rules",
+        "Focus on personal success"
+      ];
+    // ... Add cases for levels 3-9
+    default:
+      return [
+        "Developing moral awareness",
+        "Building ethical framework",
+        "Growing in understanding"
+      ];
+  }
+};
+
+const getGrowthOpportunities = (level: string): string[] => {
+  switch (level) {
+    case "1":
+      return [
+        "Develop long-term thinking",
+        "Build trust in others",
+        "Move beyond survival mode"
+      ];
+    case "2":
+      return [
+        "Consider broader impacts",
+        "Develop empathy",
+        "Build meaningful relationships"
+      ];
+    // ... Add cases for levels 3-9
+    default:
+      return [
+        "Explore moral principles",
+        "Practice ethical decision-making",
+        "Engage in self-reflection"
+      ];
+  }
 };
