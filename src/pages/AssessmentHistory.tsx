@@ -5,10 +5,13 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Loader2, Lock } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import { Json } from "@/integrations/supabase/types";
 
 interface QuizResult {
   id: string;
+  user_id: string;
   personality_type: string;
+  answers: Json;
   created_at: string;
   is_detailed: boolean;
   detailed_analysis: string | null;
@@ -30,6 +33,31 @@ const AssessmentHistory = () => {
           return;
         }
 
+        // First, check if user has quiz progress
+        const { data: progressData, error: progressError } = await supabase
+          .from('quiz_progress')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (progressError && progressError.code !== 'PGRST116') {
+          throw progressError;
+        }
+
+        // If no progress exists, create it
+        if (!progressData) {
+          const { error: insertError } = await supabase
+            .from('quiz_progress')
+            .insert({
+              user_id: user.id,
+              current_level: 1,
+              completed_levels: [1]
+            });
+
+          if (insertError) throw insertError;
+        }
+
+        // Fetch quiz results
         const { data, error } = await supabase
           .from('quiz_results')
           .select('*')
@@ -37,8 +65,15 @@ const AssessmentHistory = () => {
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        setResults(data || []);
-      } catch (error) {
+
+        // Cast the category_scores to the correct type
+        const typedResults = data?.map(result => ({
+          ...result,
+          category_scores: result.category_scores as Record<string, number> | null
+        })) || [];
+
+        setResults(typedResults);
+      } catch (error: any) {
         console.error('Error fetching results:', error);
         toast({
           title: "Error",
