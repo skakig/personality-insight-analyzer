@@ -36,6 +36,9 @@ export const PurchaseSection = ({ resultId }: PurchaseSectionProps) => {
           resultId,
           userId: session.user.id,
           mode: 'subscription'
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
         }
       });
 

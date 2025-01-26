@@ -28,6 +28,9 @@ export const Results = ({ personalityType, session }: ResultsProps) => {
         body: { 
           userId: session.user.id,
           mode: 'subscription'
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
         }
       });
 
