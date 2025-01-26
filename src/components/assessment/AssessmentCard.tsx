@@ -28,9 +28,12 @@ export const AssessmentCard = ({ result, onPurchaseReport }: AssessmentCardProps
         <CardHeader className="bg-gradient-to-br from-gray-50 to-gray-100 space-y-2">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <h3 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                Level {result.personality_type}
-              </h3>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-primary/80">The Moral Hierarchy Results</p>
+                <h3 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                  Level {result.personality_type}
+                </h3>
+              </div>
               <div className="flex items-center text-sm text-gray-500">
                 <CalendarDays className="h-4 w-4 mr-1" />
                 {new Date(result.created_at).toLocaleDateString('en-US', {

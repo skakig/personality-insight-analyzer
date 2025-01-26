@@ -7,12 +7,13 @@ import { toast } from "@/components/ui/use-toast";
 import { motion } from "framer-motion";
 import { AssessmentCard } from "@/components/assessment/AssessmentCard";
 import { EmptyState } from "@/components/assessment/EmptyState";
+import { Json } from "@/integrations/supabase/types";
 
 interface QuizResult {
   id: string;
   user_id: string;
   personality_type: string;
-  answers: any;
+  answers: Json;
   created_at: string;
   category_scores: Record<string, number> | null;
   detailed_analysis: string | null;
@@ -67,7 +68,13 @@ const AssessmentHistory = () => {
 
         if (error) throw error;
 
-        setResults(data || []);
+        // Cast the data to ensure it matches the QuizResult type
+        const typedResults = (data || []).map(result => ({
+          ...result,
+          category_scores: result.category_scores as Record<string, number> | null
+        }));
+
+        setResults(typedResults);
       } catch (error: any) {
         console.error('Error fetching results:', error);
         toast({
