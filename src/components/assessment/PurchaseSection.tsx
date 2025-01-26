@@ -7,14 +7,16 @@ import { useState } from "react";
 
 interface PurchaseSectionProps {
   resultId: string;
+  subscription: any;
+  loading: boolean;
 }
 
-export const PurchaseSection = ({ resultId }: PurchaseSectionProps) => {
-  const [loading, setLoading] = useState(false);
+export const PurchaseSection = ({ resultId, subscription, loading }: PurchaseSectionProps) => {
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
 
   const handlePurchase = async () => {
     try {
-      setLoading(true);
+      setPurchaseLoading(true);
       console.log('Initiating checkout for result:', resultId);
       
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -29,11 +31,38 @@ export const PurchaseSection = ({ resultId }: PurchaseSectionProps) => {
         return;
       }
 
-      console.log('Creating checkout session with:', {
-        resultId,
-        userId: session.user.id,
-      });
+      if (subscription?.active) {
+        // Use subscription
+        const { error: updateError } = await supabase
+          .from('corporate_subscriptions')
+          .update({ 
+            assessments_used: (subscription.assessments_used || 0) + 1 
+          })
+          .eq('organization_id', session.user.id);
 
+        if (updateError) throw updateError;
+
+        const { error: resultError } = await supabase
+          .from('quiz_results')
+          .update({ 
+            is_detailed: true,
+            detailed_analysis: 'Your detailed analysis will be generated shortly.',
+            category_scores: {
+              'Self-Awareness': 8.5,
+              'Emotional Intelligence': 7.8,
+              'Moral Reasoning': 8.2,
+              'Ethical Decision-Making': 7.9
+            }
+          })
+          .eq('id', resultId);
+
+        if (resultError) throw resultError;
+
+        window.location.reload();
+        return;
+      }
+
+      // Purchase individual report
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { 
           resultId,
@@ -45,27 +74,22 @@ export const PurchaseSection = ({ resultId }: PurchaseSectionProps) => {
         }
       });
 
-      if (error) {
-        console.error('Supabase function error:', error);
-        throw error;
-      }
+      if (error) throw error;
       
       if (!data?.url) {
-        console.error('No checkout URL received');
         throw new Error('No checkout URL received');
       }
 
-      console.log('Redirecting to checkout URL:', data.url);
       window.location.href = data.url;
     } catch (error: any) {
       console.error('Error:', error);
       toast({
         title: "Error",
-        description: "Failed to initiate checkout. Please try again.",
+        description: error.message || "Failed to initiate checkout. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setPurchaseLoading(false);
     }
   };
 
@@ -79,7 +103,11 @@ export const PurchaseSection = ({ resultId }: PurchaseSectionProps) => {
         
         <div className="space-y-4">
           <BenefitsList />
-          <PurchaseButton onClick={handlePurchase} loading={loading} />
+          <PurchaseButton 
+            onClick={handlePurchase} 
+            loading={loading || purchaseLoading}
+            subscription={subscription}
+          />
           
           <p className="text-xs text-center text-gray-500 mt-4">
             Join thousands of others who have transformed their approach to ethical decision-making

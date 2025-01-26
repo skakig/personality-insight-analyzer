@@ -6,6 +6,8 @@ import { DetailedAnalysis } from "./DetailedAnalysis";
 import { PurchaseSection } from "./PurchaseSection";
 import { GrowthPotential } from "./GrowthPotential";
 import { HighlightSection } from "./HighlightSection";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AssessmentCardProps {
   result: {
@@ -14,11 +16,36 @@ interface AssessmentCardProps {
     created_at: string;
     detailed_analysis: string | null;
     is_detailed: boolean;
+    is_purchased: boolean;
     category_scores: Record<string, number> | null;
   };
 }
 
 export const AssessmentCard = ({ result }: AssessmentCardProps) => {
+  const [subscription, setSubscription] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: subscriptionData } = await supabase
+          .from('corporate_subscriptions')
+          .select('*')
+          .eq('organization_id', session.user.id)
+          .eq('active', true)
+          .maybeSingle();
+        
+        setSubscription(subscriptionData);
+      }
+      setLoading(false);
+    };
+
+    fetchSubscription();
+  }, []);
+
+  const canAccessReport = result.is_purchased || (subscription?.active && subscription?.assessments_used < subscription?.max_assessments);
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -44,13 +71,17 @@ export const AssessmentCard = ({ result }: AssessmentCardProps) => {
             </div>
           </div>
           
-          {result.is_detailed ? (
+          {canAccessReport ? (
             <DetailedAnalysis 
               analysis={result.detailed_analysis || ''} 
               scores={result.category_scores || {}} 
             />
           ) : (
-            <PurchaseSection resultId={result.id} />
+            <PurchaseSection 
+              resultId={result.id} 
+              subscription={subscription}
+              loading={loading}
+            />
           )}
         </CardContent>
       </Card>

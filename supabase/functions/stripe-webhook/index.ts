@@ -18,7 +18,6 @@ const corsHeaders = {
 
 serve(async (req) => {
   try {
-    // Handle CORS preflight requests
     if (req.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
     }
@@ -47,33 +46,49 @@ serve(async (req) => {
       const session = event.data.object;
       console.log('Checkout session completed:', session.id);
 
-      // Get the result ID from the metadata
-      const resultId = session.metadata?.resultId;
-      if (!resultId) {
-        throw new Error('No result ID found in session metadata');
+      const customerId = session.customer;
+      const customer = await stripe.customers.retrieve(customerId as string);
+      const userId = customer.metadata.supabaseUid;
+
+      if (session.mode === 'payment' && session.metadata?.resultId) {
+        // Handle individual report purchase
+        const { error: updateError } = await supabaseAdmin
+          .from('quiz_results')
+          .update({
+            is_purchased: true,
+            is_detailed: true,
+            detailed_analysis: 'Your detailed analysis will be generated shortly.',
+            category_scores: {
+              'Self-Awareness': 8.5,
+              'Emotional Intelligence': 7.8,
+              'Moral Reasoning': 8.2,
+              'Ethical Decision-Making': 7.9
+            }
+          })
+          .eq('id', session.metadata.resultId);
+
+        if (updateError) {
+          console.error('Error updating quiz result:', updateError);
+          throw updateError;
+        }
+      } else if (session.mode === 'subscription') {
+        // Handle subscription purchase/update
+        const { error: subscriptionError } = await supabaseAdmin
+          .from('corporate_subscriptions')
+          .upsert({
+            organization_id: userId,
+            subscription_tier: 'pro',
+            max_assessments: 10,
+            assessments_used: 0,
+            active: true
+          })
+          .eq('organization_id', userId);
+
+        if (subscriptionError) {
+          console.error('Error updating subscription:', subscriptionError);
+          throw subscriptionError;
+        }
       }
-
-      // Update the quiz result to mark it as detailed and generate initial analysis
-      const { error: updateError } = await supabaseAdmin
-        .from('quiz_results')
-        .update({
-          is_detailed: true,
-          detailed_analysis: 'Your detailed analysis will be generated shortly.',
-          category_scores: {
-            'Self-Awareness': 8.5,
-            'Emotional Intelligence': 7.8,
-            'Moral Reasoning': 8.2,
-            'Ethical Decision-Making': 7.9
-          }
-        })
-        .eq('id', resultId);
-
-      if (updateError) {
-        console.error('Error updating quiz result:', updateError);
-        throw updateError;
-      }
-
-      console.log('Successfully updated quiz result:', resultId);
     }
 
     return new Response(JSON.stringify({ received: true }), {
