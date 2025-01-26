@@ -59,16 +59,30 @@ serve(async (req) => {
       apiVersion: '2023-10-16',
     });
 
-    // Check if customer exists
     const customers = await stripe.customers.list({
       email: user.email,
-      limit: 1,
+      limit: 1
     });
 
-    let customerId = customers.data[0]?.id;
+    let customerId = undefined;
+    if (customers.data.length > 0) {
+      customerId = customers.data[0].id;
+      
+      // Only check for existing subscriptions if this is a subscription mode checkout
+      if (mode === 'subscription') {
+        const subscriptions = await stripe.subscriptions.list({
+          customer: customers.data[0].id,
+          status: 'active',
+          price: 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm', // Check for specific price
+          limit: 1
+        });
 
-    // Create customer if doesn't exist
-    if (!customerId) {
+        if (subscriptions.data.length > 0) {
+          throw new Error("Customer already has an active subscription");
+        }
+      }
+    } else {
+      // Create a new customer if one doesn't exist
       console.log('Creating new customer for:', user.email);
       const customer = await stripe.customers.create({
         email: user.email,
@@ -79,11 +93,12 @@ serve(async (req) => {
       customerId = customer.id;
     }
 
-    const PRICE_ID = mode === 'subscription' 
+    // Set the appropriate price ID based on the mode
+    const priceId = mode === 'subscription' 
       ? 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm'  // Subscription price ID
       : 'price_1Qlc4VJy5TVq3Z9H0PFhn9hs';  // One-time payment price ID
 
-    console.log('Creating checkout session with price:', PRICE_ID);
+    console.log('Creating checkout session with mode:', mode, 'and price:', priceId);
     
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -92,7 +107,7 @@ serve(async (req) => {
       },
       line_items: [
         {
-          price: PRICE_ID,
+          price: priceId,
           quantity: 1,
         },
       ],
