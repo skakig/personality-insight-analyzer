@@ -1,4 +1,4 @@
-import { CheckCircle, ArrowRight } from "lucide-react";
+import { CheckCircle, ArrowRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,7 +12,6 @@ export const PurchaseSection = ({ resultId }: PurchaseSectionProps) => {
     try {
       console.log('Initiating checkout for result:', resultId);
       
-      // Get the current session
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
@@ -62,30 +61,52 @@ export const PurchaseSection = ({ resultId }: PurchaseSectionProps) => {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="bg-primary/5 p-4 rounded-lg border border-primary/10">
-        <h4 className="font-medium text-lg mb-2">Unlock Your Full Report</h4>
-        <ul className="space-y-2">
-          <li className="flex items-center gap-2 text-gray-600">
-            <CheckCircle className="h-4 w-4 text-primary" />
-            Comprehensive personality analysis
-          </li>
-          <li className="flex items-center gap-2 text-gray-600">
-            <CheckCircle className="h-4 w-4 text-primary" />
-            Detailed category breakdowns
-          </li>
-          <li className="flex items-center gap-2 text-gray-600">
-            <CheckCircle className="h-4 w-4 text-primary" />
-            Personalized growth recommendations
-          </li>
-        </ul>
-        <Button 
-          onClick={handlePurchase}
-          className="w-full mt-4 group"
-        >
-          Purchase Full Report
-          <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
-        </Button>
+    <div className="space-y-6">
+      <div className="bg-gradient-to-br from-primary/5 to-secondary/5 p-6 rounded-xl border border-primary/10">
+        <div className="flex items-center gap-2 mb-4">
+          <Sparkles className="h-5 w-5 text-primary" />
+          <h4 className="font-medium text-lg">Unlock Your Full Potential</h4>
+        </div>
+        
+        <div className="space-y-4">
+          <div className="grid gap-3">
+            <div className="flex items-start gap-3">
+              <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-gray-900">Deep Personal Insights</p>
+                <p className="text-sm text-gray-600">Understand your unique moral framework and decision-making patterns</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start gap-3">
+              <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-gray-900">Growth Roadmap</p>
+                <p className="text-sm text-gray-600">Get a personalized path to reaching your next moral level</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start gap-3">
+              <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-gray-900">Practical Exercises</p>
+                <p className="text-sm text-gray-600">Access targeted activities to strengthen your moral reasoning</p>
+              </div>
+            </div>
+          </div>
+
+          <Button 
+            onClick={handlePurchase}
+            className="w-full mt-6 group bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-opacity"
+          >
+            <span>Unlock Full Report</span>
+            <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
+          </Button>
+          
+          <p className="text-xs text-center text-gray-500 mt-4">
+            Join thousands of others who have transformed their approach to ethical decision-making
+          </p>
+        </div>
       </div>
     </div>
   );
