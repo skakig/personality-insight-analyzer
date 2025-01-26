@@ -29,7 +29,7 @@ export const PurchaseSection = ({ resultId }: PurchaseSectionProps) => {
         return;
       }
 
-      console.log('Calling create-checkout-session with:', {
+      console.log('Creating checkout session with:', {
         resultId,
         userId: session.user.id,
       });
@@ -38,6 +38,7 @@ export const PurchaseSection = ({ resultId }: PurchaseSectionProps) => {
         body: { 
           resultId,
           userId: session.user.id,
+          mode: 'payment'
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`

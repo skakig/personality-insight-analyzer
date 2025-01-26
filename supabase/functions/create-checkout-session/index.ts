@@ -13,11 +13,13 @@ serve(async (req) => {
   }
 
   try {
-    const { resultId, userId } = await req.json();
+    const { resultId, userId, mode } = await req.json();
     
     if (!resultId || !userId) {
       throw new Error('Result ID and User ID are required');
     }
+
+    console.log('Processing checkout request for:', { resultId, userId, mode });
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -58,6 +60,7 @@ serve(async (req) => {
 
     // Create customer if doesn't exist
     if (!customerId) {
+      console.log('Creating new customer for:', user.email);
       const customer = await stripe.customers.create({
         email: user.email,
         metadata: {
@@ -95,7 +98,7 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error creating payment session:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
