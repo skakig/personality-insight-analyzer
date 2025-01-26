@@ -7,16 +7,34 @@ import Dashboard from "@/pages/Dashboard";
 import Pricing from "@/pages/Pricing";
 import BookLanding from "@/pages/BookLanding";
 import AssessmentHistory from "@/pages/AssessmentHistory";
+import { useEffect, useState } from "react";
+import { supabase } from "./integrations/supabase/client";
 import "./App.css";
 
 function App() {
+  const [session, setSession] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   return (
     <Router>
-      <Navigation />
+      <Navigation session={session} />
       <Routes>
-        <Route path="/" element={<Index />} />
+        <Route path="/" element={<Index session={session} />} />
         <Route path="/auth" element={<Auth />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard" element={<Dashboard session={session} />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/book" element={<BookLanding />} />
         <Route path="/assessment-history" element={<AssessmentHistory />} />
