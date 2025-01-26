@@ -23,19 +23,26 @@ serve(async (req) => {
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get user profile
+    // Get user profile with better error handling
     const { data: profile, error: profileError } = await supabaseClient
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
 
-    if (profileError || !profile) {
+    console.log('Profile query result:', { profile, profileError });
+
+    if (profileError) {
       console.error('Profile error:', profileError);
-      throw new Error('User profile not found');
+      throw new Error(`Profile error: ${profileError.message}`);
+    }
+
+    if (!profile) {
+      console.error('Profile not found for user:', userId);
+      throw new Error('User profile not found. Please try logging out and back in.');
     }
 
     // Get user email from auth
@@ -43,8 +50,10 @@ serve(async (req) => {
     
     if (userError || !user?.email) {
       console.error('User error:', userError);
-      throw new Error('User not found');
+      throw new Error('User not found or email missing');
     }
+
+    console.log('Found user:', { email: user.email });
 
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
       apiVersion: '2023-10-16',
@@ -70,9 +79,12 @@ serve(async (req) => {
       customerId = customer.id;
     }
 
-    const PRICE_ID = 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm'; // PRO subscription price ID
+    const PRICE_ID = mode === 'subscription' 
+      ? 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm'  // Subscription price ID
+      : 'price_1Qlc4VJy5TVq3Z9H0PFhn9hs';  // One-time payment price ID
 
-    console.log('Creating checkout session...');
+    console.log('Creating checkout session with price:', PRICE_ID);
+    
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       metadata: {
