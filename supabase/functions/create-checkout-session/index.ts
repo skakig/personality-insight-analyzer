@@ -14,11 +14,21 @@ serve(async (req) => {
 
   try {
     const { resultId, userId, mode = 'payment' } = await req.json();
+    
+    if (!resultId || !userId) {
+      throw new Error('Missing required parameters: resultId and userId are required');
+    }
+
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
       apiVersion: '2023-10-16',
     });
 
-    console.log('Creating checkout session for result:', resultId, 'mode:', mode, 'userId:', userId);
+    console.log('Creating checkout session with params:', {
+      resultId,
+      userId,
+      mode,
+      origin: req.headers.get('origin')
+    });
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],

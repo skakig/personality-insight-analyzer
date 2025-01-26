@@ -25,6 +25,12 @@ export const PurchaseSection = ({ resultId }: PurchaseSectionProps) => {
         return;
       }
 
+      console.log('Calling create-checkout-session with:', {
+        resultId,
+        userId: session.user.id,
+        mode: 'payment'
+      });
+
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { 
           resultId,
