@@ -3,32 +3,21 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { supabase } from "@/integrations/supabase/client";
 import { Loader2, ArrowRight } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { AssessmentCard } from "@/components/assessment/AssessmentCard";
 
 interface DashboardProps {
   session: any;
 }
-
-const getSubscriptionTitle = (tier: string) => {
-  switch (tier?.toLowerCase()) {
-    case 'individual':
-      return 'Individual Dashboard';
-    case 'pro':
-      return 'Professional Dashboard';
-    case 'enterprise':
-      return 'Enterprise Dashboard';
-    default:
-      return 'Dashboard';
-  }
-};
 
 const Dashboard = ({ session }: DashboardProps) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [previousAssessments, setPreviousAssessments] = useState<any[]>([]);
 
   useEffect(() => {
     if (!session) {
@@ -36,44 +25,53 @@ const Dashboard = ({ session }: DashboardProps) => {
       return;
     }
 
-    const fetchSubscription = async () => {
+    const fetchData = async () => {
       try {
-        const { data, error } = await supabase
+        // Fetch subscription data
+        const { data: subscriptionData, error: subscriptionError } = await supabase
           .from('corporate_subscriptions')
           .select('*')
           .eq('organization_id', session.user.id)
           .maybeSingle();
 
-        if (error) {
-          console.error('Error fetching subscription:', error);
+        if (subscriptionError) {
+          console.error('Error fetching subscription:', subscriptionError);
           setError('Failed to load subscription data');
-          toast({
-            title: "Error",
-            description: "Failed to load subscription data. Please try again.",
-            variant: "destructive",
-          });
         } else {
-          setSubscription(data);
+          setSubscription(subscriptionData);
         }
-      } catch (error: any) {
-        console.error('Error:', error);
+
+        // Fetch previous assessments
+        const { data: assessments, error: assessmentsError } = await supabase
+          .from('quiz_results')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false });
+
+        if (assessmentsError) {
+          console.error('Error fetching assessments:', assessmentsError);
+          setError('Failed to load assessment history');
+        } else {
+          setPreviousAssessments(assessments || []);
+        }
+      } catch (err: any) {
+        console.error('Error:', err);
         setError('An unexpected error occurred');
-        toast({
-          title: "Error",
-          description: "An unexpected error occurred. Please try again.",
-          variant: "destructive",
-        });
       } finally {
         setLoading(false);
       }
     };
 
-    fetchSubscription();
+    fetchData();
   }, [session, navigate]);
 
-  const handleUpgrade = () => {
-    navigate("/pricing");
+  const handleTakeAssessment = () => {
+    navigate("/dashboard/quiz");
   };
+
+  const usagePercentage = subscription 
+    ? (subscription.assessments_used / subscription.max_assessments) * 100 
+    : 0;
 
   if (loading) {
     return (
@@ -82,10 +80,6 @@ const Dashboard = ({ session }: DashboardProps) => {
       </div>
     );
   }
-
-  const usagePercentage = subscription 
-    ? (subscription.assessments_used / subscription.max_assessments) * 100 
-    : 0;
 
   return (
     <div className="container mx-auto p-6">
@@ -117,10 +111,10 @@ const Dashboard = ({ session }: DashboardProps) => {
                 {usagePercentage > 80 && (
                   <div className="bg-yellow-50 p-4 rounded-lg">
                     <p className="text-sm text-yellow-800">
-                      You're approaching your assessment limit. Consider upgrading your plan to ensure uninterrupted access.
+                      You're approaching your assessment limit.
                     </p>
                     <Button 
-                      onClick={handleUpgrade}
+                      onClick={() => navigate("/pricing")}
                       className="mt-2"
                       variant="outline"
                     >
@@ -152,7 +146,7 @@ const Dashboard = ({ session }: DashboardProps) => {
           <CardContent className="space-y-4">
             <Button 
               className="w-full"
-              onClick={() => navigate("/dashboard/quiz")}
+              onClick={handleTakeAssessment}
               disabled={!subscription?.active || (subscription?.assessments_used >= subscription?.max_assessments)}
             >
               Take Assessment
@@ -167,49 +161,43 @@ const Dashboard = ({ session }: DashboardProps) => {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Subscription Details</CardTitle>
-            <CardDescription>Your current plan information</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {subscription ? (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <p className="text-sm text-gray-600">Current Plan</p>
-                  <p className="font-medium">{subscription.subscription_tier}</p>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm text-gray-600">Status</p>
-                  <p className="font-medium">
-                    {subscription.active ? (
-                      <span className="text-green-600">Active</span>
-                    ) : (
-                      <span className="text-red-600">Inactive</span>
-                    )}
-                  </p>
-                </div>
+        {previousAssessments.length > 0 && (
+          <Card className="col-span-2">
+            <CardHeader>
+              <CardTitle>Recent Assessments</CardTitle>
+              <CardDescription>Your latest assessment results</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {previousAssessments.slice(0, 3).map((result) => (
+                <AssessmentCard key={result.id} result={result} />
+              ))}
+              {previousAssessments.length > 3 && (
                 <Button 
                   variant="outline" 
                   className="w-full"
-                  onClick={handleUpgrade}
+                  onClick={() => navigate("/assessment-history")}
                 >
-                  Upgrade Plan
+                  View All Assessments
                 </Button>
-              </div>
-            ) : (
-              <div className="text-center">
-                <p className="text-gray-600 mb-4">No active subscription</p>
-                <Button onClick={() => navigate("/pricing")}>
-                  View Plans
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
+};
+
+const getSubscriptionTitle = (tier: string)toLowerCase()) {
+    case 'individual':
+      return 'Individual Dashboard';
+    case 'pro':
+      return 'Professional Dashboard';
+    case 'enterprise':
+      return 'Enterprise Dashboard';
+    default:
+      return 'Dashboard';
+  }
 };
 
 export default Dashboard;
