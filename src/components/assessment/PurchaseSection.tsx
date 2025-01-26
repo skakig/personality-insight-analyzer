@@ -17,10 +17,10 @@ export const PurchaseSection = ({ resultId }: PurchaseSectionProps) => {
       setLoading(true);
       console.log('Initiating checkout for result:', resultId);
       
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      if (!session) {
-        console.error('No active session found');
+      if (sessionError || !session) {
+        console.error('No active session found:', sessionError);
         toast({
           title: "Authentication Required",
           description: "Please sign in to purchase the detailed report.",
