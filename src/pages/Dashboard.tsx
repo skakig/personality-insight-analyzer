@@ -2,13 +2,27 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowRight } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
 interface DashboardProps {
   session: any;
 }
+
+const getSubscriptionTitle = (tier: string) => {
+  switch (tier?.toLowerCase()) {
+    case 'individual':
+      return 'Individual Dashboard';
+    case 'pro':
+      return 'Professional Dashboard';
+    case 'enterprise':
+      return 'Enterprise Dashboard';
+    default:
+      return 'Dashboard';
+  }
+};
 
 const Dashboard = ({ session }: DashboardProps) => {
   const navigate = useNavigate();
@@ -57,6 +71,10 @@ const Dashboard = ({ session }: DashboardProps) => {
     fetchSubscription();
   }, [session, navigate]);
 
+  const handleUpgrade = () => {
+    navigate("/pricing");
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -65,37 +83,61 @@ const Dashboard = ({ session }: DashboardProps) => {
     );
   }
 
+  const usagePercentage = subscription 
+    ? (subscription.assessments_used / subscription.max_assessments) * 100 
+    : 0;
+
   return (
     <div className="container mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-8">Corporate Dashboard</h1>
+      <h1 className="text-3xl font-bold mb-8">
+        {subscription ? getSubscriptionTitle(subscription.subscription_tier) : 'Dashboard'}
+      </h1>
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
+        <Card className="col-span-full">
           <CardHeader>
-            <CardTitle>Subscription Status</CardTitle>
-            <CardDescription>Your current subscription details</CardDescription>
+            <CardTitle>Assessment Usage</CardTitle>
+            <CardDescription>Track your assessment usage and limits</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
             {error ? (
               <div className="text-red-500">{error}</div>
             ) : subscription ? (
-              <div className="space-y-2">
-                <p className="text-lg font-medium">
-                  Tier: {subscription.subscription_tier}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>{subscription.assessments_used} used</span>
+                    <span>{subscription.max_assessments} total</span>
+                  </div>
+                  <Progress value={usagePercentage} className="h-2" />
+                </div>
+                <p className="text-sm text-gray-600">
+                  {subscription.max_assessments - subscription.assessments_used} assessments remaining
                 </p>
-                <p>
-                  Assessments: {subscription.assessments_used} / {subscription.max_assessments} used
-                </p>
-                <p>Status: {subscription.active ? "Active" : "Inactive"}</p>
+                {usagePercentage > 80 && (
+                  <div className="bg-yellow-50 p-4 rounded-lg">
+                    <p className="text-sm text-yellow-800">
+                      You're approaching your assessment limit. Consider upgrading your plan to ensure uninterrupted access.
+                    </p>
+                    <Button 
+                      onClick={handleUpgrade}
+                      className="mt-2"
+                      variant="outline"
+                    >
+                      Upgrade Plan
+                    </Button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-4">
                 <p className="text-gray-600">No active subscription found.</p>
                 <Button 
                   onClick={() => navigate("/pricing")}
-                  className="w-full"
+                  className="w-full group"
                 >
                   View Plans
+                  <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </div>
             )}
@@ -111,7 +153,7 @@ const Dashboard = ({ session }: DashboardProps) => {
             <Button 
               className="w-full"
               onClick={() => navigate("/dashboard/quiz")}
-              disabled={!subscription?.active}
+              disabled={!subscription?.active || (subscription?.assessments_used >= subscription?.max_assessments)}
             >
               Take Assessment
             </Button>
@@ -127,11 +169,42 @@ const Dashboard = ({ session }: DashboardProps) => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Analytics Overview</CardTitle>
-            <CardDescription>Assessment insights</CardDescription>
+            <CardTitle>Subscription Details</CardTitle>
+            <CardDescription>Your current plan information</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-gray-600">Coming soon...</p>
+            {subscription ? (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">Current Plan</p>
+                  <p className="font-medium">{subscription.subscription_tier}</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">Status</p>
+                  <p className="font-medium">
+                    {subscription.active ? (
+                      <span className="text-green-600">Active</span>
+                    ) : (
+                      <span className="text-red-600">Inactive</span>
+                    )}
+                  </p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={handleUpgrade}
+                >
+                  Upgrade Plan
+                </Button>
+              </div>
+            ) : (
+              <div className="text-center">
+                <p className="text-gray-600 mb-4">No active subscription</p>
+                <Button onClick={() => navigate("/pricing")}>
+                  View Plans
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
