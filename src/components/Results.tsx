@@ -31,7 +31,7 @@ export const Results = ({ personalityType, onPurchase }: ResultsProps) => {
           onClick={onPurchase}
           className="text-lg px-8 py-6 rounded-full gradient-bg hover:opacity-90 transition-opacity"
         >
-          Get Detailed Report
+          Save Results
         </Button>
       </div>
     </motion.div>

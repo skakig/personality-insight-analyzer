@@ -3,6 +3,8 @@ import { WelcomePage } from "@/components/WelcomePage";
 import { Question } from "@/components/Question";
 import { Results } from "@/components/Results";
 import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 
 const questions = [
   // Extraversion (E) vs. Introversion (I)
@@ -66,11 +68,8 @@ const Index = () => {
     }
   };
 
-  const handlePurchase = () => {
-    toast({
-      title: "Coming Soon!",
-      description: "Detailed reports will be available in the next update.",
-    });
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
   };
 
   const calculatePersonalityType = () => {
@@ -115,8 +114,41 @@ const Index = () => {
     return type;
   };
 
+  const handlePurchase = async () => {
+    try {
+      const personalityType = calculatePersonalityType();
+      const { error } = await supabase
+        .from('quiz_results')
+        .insert([
+          {
+            personality_type: personalityType,
+            answers: answers
+          }
+        ]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Results Saved!",
+        description: "Your personality type has been saved to your profile.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
+      <div className="absolute top-4 right-4">
+        <Button onClick={handleLogout} variant="outline">
+          Logout
+        </Button>
+      </div>
+
       {currentStep === "welcome" && <WelcomePage onStart={handleStart} />}
       
       {currentStep === "questions" && (
