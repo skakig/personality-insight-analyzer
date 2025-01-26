@@ -10,13 +10,23 @@ interface PurchaseSectionProps {
 export const PurchaseSection = ({ resultId }: PurchaseSectionProps) => {
   const handlePurchase = async () => {
     try {
+      console.log('Initiating checkout for result:', resultId);
+      
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { resultId }
       });
 
-      if (error) throw error;
-      if (!data?.url) throw new Error('No checkout URL received');
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw error;
+      }
+      
+      if (!data?.url) {
+        console.error('No checkout URL received');
+        throw new Error('No checkout URL received');
+      }
 
+      console.log('Redirecting to checkout URL:', data.url);
       window.location.href = data.url;
     } catch (error: any) {
       console.error('Error:', error);

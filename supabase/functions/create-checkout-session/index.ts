@@ -18,18 +18,13 @@ serve(async (req) => {
       apiVersion: '2023-10-16',
     });
 
+    console.log('Creating checkout session for result:', resultId);
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
         {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: 'Detailed Moral Analysis Report',
-              description: 'Get a comprehensive analysis of your moral development level',
-            },
-            unit_amount: 2999, // $29.99
-          },
+          price: 'price_1Qlc4VJy5TVq3Z9H0PFhn9hs', // Using the Individual plan price ID
           quantity: 1,
         },
       ],
@@ -40,6 +35,8 @@ serve(async (req) => {
         resultId: resultId,
       },
     });
+
+    console.log('Checkout session created:', session.id);
 
     return new Response(
       JSON.stringify({ url: session.url }),
