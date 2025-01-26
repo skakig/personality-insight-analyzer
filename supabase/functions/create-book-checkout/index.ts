@@ -22,7 +22,7 @@ serve(async (req) => {
     const session = await stripe.checkout.sessions.create({
       line_items: [
         {
-          price: 'price_1OxRhyJy5TVq3Z9HzMjHJ1YB', // Replace with your actual Price ID
+          price: 'price_1OxRhyJy5TVq3Z9HzMjHJ1YB', // We need to replace this with your actual Price ID
           quantity: 1,
         },
       ],
