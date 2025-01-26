@@ -12,6 +12,7 @@ interface BasicResultsProps {
 
 export const BasicResults = ({ personalityType, getLevelDescription }: BasicResultsProps) => {
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [isSending, setIsSending] = useState(false);
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
@@ -22,6 +23,7 @@ export const BasicResults = ({ personalityType, getLevelDescription }: BasicResu
       const { data, error } = await supabase.functions.invoke('send-results', {
         body: {
           email,
+          name,
           personalityType,
         },
       });
@@ -33,6 +35,7 @@ export const BasicResults = ({ personalityType, getLevelDescription }: BasicResu
         description: "Check your email for your basic personality insights.",
       });
       setEmail("");
+      setName("");
     } catch (error) {
       console.error('Error sending results:', error);
       toast({
@@ -89,14 +92,24 @@ export const BasicResults = ({ personalityType, getLevelDescription }: BasicResu
         </div>
 
         <form onSubmit={handleEmailSubmit} className="space-y-4 mt-8">
-          <Input
-            type="email"
-            placeholder="Enter your email for basic results"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="max-w-md mx-auto"
-          />
+          <div className="flex flex-col space-y-4 max-w-md mx-auto">
+            <Input
+              type="text"
+              placeholder="Your name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              className="bg-white"
+            />
+            <Input
+              type="email"
+              placeholder="Your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="bg-white"
+            />
+          </div>
           <Button
             type="submit"
             variant="outline"
