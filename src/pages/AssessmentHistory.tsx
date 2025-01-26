@@ -119,7 +119,11 @@ const AssessmentHistory = () => {
           </h1>
           <p className="text-gray-600 mt-2">Your journey of moral development</p>
         </div>
-        <Button onClick={() => navigate("/dashboard")} variant="outline" className="hover:scale-105 transition-transform">
+        <Button 
+          onClick={() => navigate("/dashboard")} 
+          variant="outline" 
+          className="hover:scale-105 transition-transform"
+        >
           Back to Dashboard
         </Button>
       </motion.div>
