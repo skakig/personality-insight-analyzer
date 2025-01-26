@@ -28,7 +28,8 @@ export const PurchaseSection = ({ resultId }: PurchaseSectionProps) => {
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { 
           resultId,
-          mode: 'payment'  // Explicitly set mode to one-time payment
+          userId: session.user.id,
+          mode: 'payment'
         }
       });
 
