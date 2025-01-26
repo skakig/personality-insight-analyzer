@@ -13,13 +13,13 @@ serve(async (req) => {
   }
 
   try {
-    const { userId } = await req.json();
+    const { resultId, userId, mode } = await req.json();
     
     if (!userId) {
       throw new Error('User ID is required');
     }
 
-    console.log('Processing checkout request for:', { userId });
+    console.log('Processing checkout request for:', { userId, mode, resultId });
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -48,27 +48,30 @@ serve(async (req) => {
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
       
-      // Check for existing subscription
-      const subscriptions = await stripe.subscriptions.list({
-        customer: customerId,
-        status: 'active',
-        limit: 1
-      });
-
-      if (subscriptions.data.length > 0) {
-        // Create a billing portal session instead
-        const portalSession = await stripe.billingPortal.sessions.create({
+      if (mode === 'subscription') {
+        // Check for existing subscription
+        const subscriptions = await stripe.subscriptions.list({
           customer: customerId,
-          return_url: `${req.headers.get('origin')}/dashboard`,
+          status: 'active',
+          limit: 1
         });
 
-        return new Response(
-          JSON.stringify({ url: portalSession.url }),
-          { 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200,
-          }
-        );
+        if (subscriptions.data.length > 0) {
+          // Create a billing portal session instead
+          console.log('Creating billing portal session for existing customer');
+          const portalSession = await stripe.billingPortal.sessions.create({
+            customer: customerId,
+            return_url: `${req.headers.get('origin')}/dashboard`,
+          });
+
+          return new Response(
+            JSON.stringify({ url: portalSession.url }),
+            { 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 200,
+            }
+          );
+        }
       }
     } else {
       console.log('Creating new customer for:', user.email);
@@ -88,13 +91,17 @@ serve(async (req) => {
       customer_email: customerId ? undefined : user.email,
       line_items: [
         {
-          price: 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm',
+          price: mode === 'subscription' ? 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm' : 'price_1Qlc4VJy5TVq3Z9H0PFhn9hs',
           quantity: 1,
         },
       ],
-      mode: 'subscription',
+      mode: mode as 'subscription' | 'payment',
       success_url: `${req.headers.get('origin')}/dashboard?success=true`,
       cancel_url: `${req.headers.get('origin')}/dashboard?success=false`,
+      metadata: resultId ? {
+        resultId,
+        userId,
+      } : undefined,
     });
 
     console.log('Payment session created:', session.id);
