@@ -15,8 +15,8 @@ serve(async (req) => {
   try {
     const { resultId, userId, mode } = await req.json();
     
-    if (!resultId || !userId) {
-      throw new Error('Result ID and User ID are required');
+    if (!userId) {
+      throw new Error('User ID is required');
     }
 
     console.log('Processing checkout request for:', { resultId, userId, mode });
@@ -70,7 +70,7 @@ serve(async (req) => {
       customerId = customer.id;
     }
 
-    const PRICE_ID = 'price_1QlbLBJy5TVq3Z9HMyohfk3R';
+    const PRICE_ID = 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm'; // PRO subscription price ID
 
     console.log('Creating checkout session...');
     const session = await stripe.checkout.sessions.create({
@@ -84,7 +84,7 @@ serve(async (req) => {
           quantity: 1,
         },
       ],
-      mode: 'payment',
+      mode: mode || 'subscription',
       success_url: `${req.headers.get('origin')}/dashboard?success=true`,
       cancel_url: `${req.headers.get('origin')}/dashboard?success=false`,
     });
