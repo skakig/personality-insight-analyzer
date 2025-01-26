@@ -3,9 +3,10 @@ import { Question } from "@/components/Question";
 import { Results } from "@/components/Results";
 import { useQuiz } from "@/hooks/useQuiz";
 import { Loader2 } from "lucide-react";
+import { Session } from "@supabase/supabase-js";
 
 interface IndexProps {
-  session: any;
+  session: Session | null;
 }
 
 const Index = ({ session }: IndexProps) => {
