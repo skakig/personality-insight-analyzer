@@ -30,12 +30,26 @@ export const AuthForm = ({ onSuccess }: AuthFormProps) => {
           description: "Please check your email to verify your account.",
         });
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { error, data } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
-        onSuccess();
+        
+        // Check if this is an existing user by looking up their quiz results
+        const { data: quizResults } = await supabase
+          .from('quiz_results')
+          .select('id')
+          .eq('user_id', data.user.id)
+          .maybeSingle();
+
+        // If they have quiz results, they're an existing user - redirect to dashboard
+        if (quizResults) {
+          window.location.href = '/dashboard';
+        } else {
+          // New user - redirect to homepage to take the quiz
+          onSuccess();
+        }
       }
     } catch (error: any) {
       toast({
