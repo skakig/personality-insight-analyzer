@@ -35,7 +35,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Index session={session} />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard session={session} />} />
           <Route path="/pricing" element={<Pricing />} />
         </Routes>
         <Toaster />
