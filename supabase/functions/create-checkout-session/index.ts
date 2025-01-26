@@ -26,14 +26,11 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get user profile
     const { data: profile, error: profileError } = await supabaseClient
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
-
-    console.log('Profile query result:', { profile, profileError });
 
     if (profileError) {
       console.error('Profile error:', profileError);
@@ -45,7 +42,6 @@ serve(async (req) => {
       throw new Error('User profile not found');
     }
 
-    // Get user email from auth
     const { data: { user }, error: userError } = await supabaseClient.auth.admin.getUserById(userId);
     
     if (userError || !user?.email) {
@@ -64,7 +60,7 @@ serve(async (req) => {
       limit: 1
     });
 
-    let customerId = undefined;
+    let customerId;
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
     } else {
@@ -78,12 +74,12 @@ serve(async (req) => {
       customerId = customer.id;
     }
 
-    // Set the appropriate price ID and mode based on the request
-    let priceId;
-    
+    // Set the appropriate price ID based on the mode
+    const priceId = mode === 'subscription' 
+      ? 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm'  // Subscription price ID
+      : 'price_1Qlc4VJy5TVq3Z9H0PFhn9hs';  // One-time payment price ID
+
     if (mode === 'subscription') {
-      priceId = 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm';  // Subscription price ID
-      
       // Check for existing subscription
       const subscriptions = await stripe.subscriptions.list({
         customer: customerId,
@@ -95,8 +91,6 @@ serve(async (req) => {
       if (subscriptions.data.length > 0) {
         throw new Error("Customer already has an active subscription");
       }
-    } else {
-      priceId = 'price_1Qlc4VJy5TVq3Z9H0PFhn9hs';  // One-time payment price ID
     }
 
     console.log('Creating checkout session with mode:', mode, 'and price:', priceId);
