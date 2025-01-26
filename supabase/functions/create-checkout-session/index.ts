@@ -67,7 +67,7 @@ serve(async (req) => {
       customerId = customer.id;
     }
 
-    const PRICE_ID = 'price_XXXXX'; // Replace this with your actual price ID
+    const PRICE_ID = 'price_1QlbLBJy5TVq3Z9HMyohfk3R';
 
     console.log('Creating checkout session...');
     const session = await stripe.checkout.sessions.create({
