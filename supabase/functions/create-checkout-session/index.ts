@@ -52,12 +52,23 @@ serve(async (req) => {
       const subscriptions = await stripe.subscriptions.list({
         customer: customerId,
         status: 'active',
-        price: 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm',
         limit: 1
       });
 
       if (subscriptions.data.length > 0) {
-        throw new Error("Customer already has an active subscription");
+        // Create a billing portal session instead
+        const portalSession = await stripe.billingPortal.sessions.create({
+          customer: customerId,
+          return_url: `${req.headers.get('origin')}/dashboard`,
+        });
+
+        return new Response(
+          JSON.stringify({ url: portalSession.url }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+          }
+        );
       }
     } else {
       console.log('Creating new customer for:', user.email);
