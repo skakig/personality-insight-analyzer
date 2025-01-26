@@ -33,7 +33,7 @@ function App() {
         <Route path="/" element={<Index session={session} />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/dashboard" element={<Dashboard session={session} />} />
-        <Route path="/pricing" element={<Pricing session={session} />} />
+        <Route path="/pricing" element={<Pricing />} />
         <Route path="/book" element={<BookLanding />} />
       </Routes>
       <Toaster />
