@@ -1,5 +1,6 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from 'https://esm.sh/stripe@14.21.0';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,44 +8,68 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { resultId, userId, mode = 'subscription' } = await req.json();
+    const { resultId, userId } = await req.json();
     
     if (!resultId || !userId) {
-      throw new Error('Missing required parameters: resultId and userId are required');
+      throw new Error('Result ID and User ID are required');
     }
 
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
       apiVersion: '2023-10-16',
     });
 
-    console.log('Creating checkout session with params:', {
-      resultId,
-      userId,
-      mode,
-      origin: req.headers.get('origin')
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    );
+
+    // Get user email
+    const { data: { user }, error: userError } = await supabaseClient.auth.admin.getUserById(userId);
+    
+    if (userError || !user?.email) {
+      throw new Error('User not found');
+    }
+
+    // Check if customer exists
+    const customers = await stripe.customers.list({
+      email: user.email,
+      limit: 1,
     });
 
+    let customerId = customers.data[0]?.id;
+
+    // Create customer if doesn't exist
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: user.email,
+        metadata: {
+          supabaseUid: userId,
+        },
+      });
+      customerId = customer.id;
+    }
+
+    console.log('Creating checkout session for result:', resultId);
+
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
+      customer: customerId,
+      metadata: {
+        resultId: resultId,
+      },
       line_items: [
         {
-          price: 'price_1Qlc4VJy5TVq3Z9H0PFhn9hs',
+          price: 'price_YOUR_PRICE_ID', // Replace with your actual price ID
           quantity: 1,
         },
       ],
-      mode: 'subscription', // Always use subscription mode for recurring prices
-      success_url: `${req.headers.get('origin')}/assessment-history?success=true&resultId=${resultId}`,
-      cancel_url: `${req.headers.get('origin')}/assessment-history?canceled=true`,
-      metadata: {
-        resultId: resultId,
-        userId: userId
-      },
+      mode: 'payment',
+      success_url: `${req.headers.get('origin')}/dashboard?success=true`,
+      cancel_url: `${req.headers.get('origin')}/dashboard?success=false`,
     });
 
     console.log('Checkout session created:', session.id);
@@ -62,7 +87,7 @@ serve(async (req) => {
       JSON.stringify({ error: error.message }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
+        status: 400,
       }
     );
   }
