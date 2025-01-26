@@ -12,7 +12,7 @@ interface QuizResult {
   created_at: string;
   is_detailed: boolean;
   detailed_analysis: string | null;
-  category_scores: any;
+  category_scores: Record<string, number> | null;
 }
 
 const AssessmentHistory = () => {
