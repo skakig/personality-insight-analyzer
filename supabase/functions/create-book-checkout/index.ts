@@ -22,11 +22,11 @@ serve(async (req) => {
     const session = await stripe.checkout.sessions.create({
       line_items: [
         {
-          price: 'price_1QlcfyJy5TVq3Z9HzMjHJ1YB',
+          price: 'price_1OxRhyJy5TVq3Z9HzMjHJ1YB', // Replace with your actual Price ID
           quantity: 1,
         },
       ],
-      mode: 'payment',
+      mode: 'payment', // One-time payment for the book
       success_url: `${req.headers.get('origin')}/book?success=true`,
       cancel_url: `${req.headers.get('origin')}/book?canceled=true`,
     });
