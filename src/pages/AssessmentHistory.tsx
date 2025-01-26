@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { AssessmentCard } from "@/components/assessment/AssessmentCard";
 import { EmptyState } from "@/components/assessment/EmptyState";
@@ -16,6 +14,17 @@ interface QuizResult {
   answers: Json;
   created_at: string;
   category_scores: Record<string, number> | null;
+  detailed_analysis: string | null;
+  is_detailed: boolean;
+}
+
+interface SupabaseQuizResult {
+  id: string;
+  user_id: string;
+  personality_type: string;
+  answers: Json;
+  created_at: string;
+  category_scores: Json;
   detailed_analysis: string | null;
   is_detailed: boolean;
 }
@@ -35,31 +44,6 @@ const AssessmentHistory = () => {
           return;
         }
 
-        // Check for quiz progress
-        const { data: progressData, error: progressError } = await supabase
-          .from('quiz_progress')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (progressError && progressError.code !== 'PGRST116') {
-          throw progressError;
-        }
-
-        // Create progress if it doesn't exist
-        if (!progressData) {
-          const { error: insertError } = await supabase
-            .from('quiz_progress')
-            .insert({
-              user_id: user.id,
-              current_level: 1,
-              completed_levels: [1]
-            });
-
-          if (insertError) throw insertError;
-        }
-
-        // Fetch quiz results
         const { data, error } = await supabase
           .from('quiz_results')
           .select('*')
@@ -68,8 +52,8 @@ const AssessmentHistory = () => {
 
         if (error) throw error;
 
-        // Cast the data to ensure it matches the QuizResult type
-        const typedResults = (data || []).map(result => ({
+        // Transform the data to match our QuizResult type
+        const typedResults: QuizResult[] = (data as SupabaseQuizResult[] || []).map(result => ({
           ...result,
           category_scores: result.category_scores as Record<string, number> | null
         }));
@@ -116,7 +100,7 @@ const AssessmentHistory = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     );
   }
