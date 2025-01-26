@@ -5,6 +5,7 @@ import { Results } from "@/components/Results";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Json } from "@/integrations/supabase/types";
 
 const questions = [
   // Extraversion (E) vs. Introversion (I)
