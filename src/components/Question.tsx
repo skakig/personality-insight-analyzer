@@ -20,7 +20,7 @@ export const Question = ({ question, onAnswer, currentProgress }: QuestionProps)
     <motion.div
       initial={{ opacity: 0, x: 100 }}
       animate={{ opacity: 1, x: 0 }}
-      className="max-w-2xl mx-auto p-6"
+      className="max-w-3xl mx-auto p-6"
     >
       <div className="w-full h-2 bg-gray-200 rounded-full mb-8">
         <div 
@@ -30,21 +30,32 @@ export const Question = ({ question, onAnswer, currentProgress }: QuestionProps)
       </div>
       
       <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-        <h2 className="text-xl md:text-2xl font-medium mb-8 text-center">
+        <h2 className="text-xl md:text-2xl font-medium mb-12 text-center">
           {question}
         </h2>
         
-        <div className="space-y-4">
-          {options.map((option) => (
-            <Button
-              key={option.value}
-              onClick={() => onAnswer(option.value)}
-              variant="outline"
-              className="w-full py-6 text-lg hover:bg-primary hover:text-white transition-all"
-            >
-              {option.label}
-            </Button>
-          ))}
+        <div className="flex flex-col space-y-8">
+          <div className="flex justify-between text-sm text-gray-600 px-4">
+            <span>Strongly Disagree</span>
+            <span>Strongly Agree</span>
+          </div>
+          
+          <div className="flex justify-between items-center gap-2 px-4">
+            {options.map((option) => (
+              <div key={option.value} className="flex flex-col items-center gap-2">
+                <Button
+                  onClick={() => onAnswer(option.value)}
+                  variant="outline"
+                  className="w-12 h-12 rounded-full hover:bg-primary hover:text-white transition-all p-0"
+                >
+                  {option.value}
+                </Button>
+                <span className="text-xs text-gray-500 text-center hidden md:block">
+                  {option.label}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </motion.div>
