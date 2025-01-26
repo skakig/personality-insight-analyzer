@@ -2,25 +2,21 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 export const PreOrderCTA = () => {
   const handlePreOrder = async () => {
     try {
-      const response = await fetch('/api/create-book-checkout', {
+      const { data, error } = await supabase.functions.invoke('create-book-checkout', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
       });
-
-      const { url, error } = await response.json();
       
       if (error) {
-        throw new Error(error);
+        throw new Error(error.message);
       }
 
-      if (url) {
-        window.location.href = url;
+      if (data?.url) {
+        window.location.href = data.url;
       }
     } catch (error) {
       toast({
