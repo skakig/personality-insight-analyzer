@@ -3,11 +3,11 @@ import { motion } from "framer-motion";
 import { useState } from "react";
 
 const options = [
-  { value: 1, label: "Strongly Disagree" },
-  { value: 2, label: "Disagree" },
-  { value: 3, label: "Neutral" },
-  { value: 4, label: "Agree" },
-  { value: 5, label: "Strongly Agree" },
+  { value: 1, label: "Strongly Disagree", color: "#ea384c" },
+  { value: 2, label: "Disagree", color: "#f87171" },
+  { value: 3, label: "Neutral", color: "#9ca3af" },
+  { value: 4, label: "Agree", color: "#86efac" },
+  { value: 5, label: "Strongly Agree", color: "#22c55e" },
 ];
 
 interface QuestionProps {
@@ -34,11 +34,16 @@ export const Question = ({ question, onAnswer, currentProgress }: QuestionProps)
       animate={{ opacity: 1, x: 0 }}
       className="max-w-3xl mx-auto p-6"
     >
-      <div className="w-full h-2 bg-gray-200 rounded-full mb-8">
-        <div 
-          className="h-full gradient-bg rounded-full transition-all duration-300"
-          style={{ width: `${currentProgress}%` }}
-        />
+      <div className="flex items-center gap-2 mb-8">
+        <div className="w-full h-2 bg-gray-200 rounded-full">
+          <div 
+            className="h-full bg-primary rounded-full transition-all duration-300"
+            style={{ width: `${currentProgress}%` }}
+          />
+        </div>
+        <span className="text-sm font-medium text-gray-600 min-w-[4rem]">
+          {Math.round(currentProgress)}%
+        </span>
       </div>
       
       <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
@@ -58,9 +63,16 @@ export const Question = ({ question, onAnswer, currentProgress }: QuestionProps)
                 <Button
                   onClick={() => handleAnswer(option.value)}
                   variant={selectedValue === option.value ? "default" : "outline"}
-                  className={`w-12 h-12 rounded-full transition-all p-0 ${
-                    selectedValue === option.value ? "bg-primary text-white" : ""
+                  className={`w-12 h-12 rounded-full transition-all p-0 hover:scale-110 ${
+                    selectedValue === option.value 
+                      ? "bg-primary text-white transform scale-110" 
+                      : ""
                   }`}
+                  style={{
+                    backgroundColor: selectedValue === option.value ? option.color : undefined,
+                    borderColor: option.color,
+                    color: selectedValue === option.value ? "white" : option.color
+                  }}
                 >
                   {option.value}
                 </Button>
