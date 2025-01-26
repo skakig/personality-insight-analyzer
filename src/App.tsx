@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import { Navigation } from "./components/Navigation";
 
 const queryClient = new QueryClient();
 
@@ -36,14 +37,19 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <BrowserRouter>
+          <div className="min-h-screen flex flex-col bg-white">
+            <Navigation />
+            <div className="flex-1">
+              <Routes>
+                <Route path="/" element={<Index session={session} />} />
+                <Route path="/auth" element={<Auth />} />
+              </Routes>
+            </div>
+          </div>
+        </BrowserRouter>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index session={session} />} />
-            <Route path="/auth" element={<Auth />} />
-          </Routes>
-        </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
   );

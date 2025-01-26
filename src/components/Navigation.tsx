@@ -6,20 +6,21 @@ export const Navigation = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="w-full border-b">
-      <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+    <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+      <div className="container mx-auto px-4 h-14 flex items-center justify-between">
         <h1 
           onClick={() => navigate("/")} 
-          className="text-xl font-bold text-primary cursor-pointer"
+          className="text-xl font-semibold text-gray-900 cursor-pointer hover:opacity-80 transition-opacity"
         >
           The Moral Hierarchy
         </h1>
         <NavigationMenu>
-          <NavigationMenuList>
+          <NavigationMenuList className="gap-2">
             <NavigationMenuItem>
               <Button 
                 variant="ghost" 
                 onClick={() => navigate("/")}
+                className="text-gray-700 hover:text-gray-900 hover:bg-gray-100/80"
               >
                 Home
               </Button>
@@ -28,6 +29,7 @@ export const Navigation = () => {
               <Button 
                 variant="ghost" 
                 onClick={() => navigate("/auth")}
+                className="text-gray-700 hover:text-gray-900 hover:bg-gray-100/80"
               >
                 Sign In
               </Button>
@@ -35,6 +37,6 @@ export const Navigation = () => {
           </NavigationMenuList>
         </NavigationMenu>
       </div>
-    </div>
+    </header>
   );
 };
