@@ -9,12 +9,12 @@ export const WelcomePage = ({ onStart }: { onStart: () => void }) => {
       className="min-h-screen flex flex-col items-center justify-center p-6 text-center"
     >
       <div className="max-w-2xl">
-        <h1 className="text-4xl md:text-5xl font-bold mb-6 bg-clip-text text-transparent gradient-bg">
-          Discover Your True Personality
+        <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent gradient-bg leading-tight">
+          Unlock Your True Potential Through Self-Discovery
         </h1>
         <p className="text-lg md:text-xl text-gray-600 mb-8">
-          Take our scientifically validated personality test and unlock insights about who you really are.
-          Join millions of people who have discovered their true personality type.
+          Join millions who have found clarity and purpose through our scientifically-backed personality assessment. 
+          Discover your unique traits, strengths, and opportunities for growth.
         </p>
         <Button 
           onClick={onStart}
