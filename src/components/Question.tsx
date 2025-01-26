@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { useState } from "react";
+import { Card } from "@/components/ui/card";
 
 const options = [
   { value: 1, label: "Strongly Disagree", color: "#ea384c" },
@@ -14,10 +15,21 @@ interface QuestionProps {
   question: string;
   onAnswer: (value: number) => void;
   currentProgress: number;
+  category?: string;
+  subcategory?: string;
+  explanation?: string;
 }
 
-export const Question = ({ question, onAnswer, currentProgress }: QuestionProps) => {
+export const Question = ({ 
+  question, 
+  onAnswer, 
+  currentProgress,
+  category,
+  subcategory,
+  explanation 
+}: QuestionProps) => {
   const [selectedValue, setSelectedValue] = useState<number | null>(null);
+  const [showExplanation, setShowExplanation] = useState(false);
 
   const handleAnswer = (value: number) => {
     setSelectedValue(value);
@@ -46,7 +58,16 @@ export const Question = ({ question, onAnswer, currentProgress }: QuestionProps)
         </span>
       </div>
       
-      <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
+      <Card className="bg-white p-8 mb-8">
+        {(category || subcategory) && (
+          <div className="mb-4 text-sm text-gray-500">
+            <span className="font-medium text-primary">{category}</span>
+            {subcategory && (
+              <> • <span>{subcategory}</span></>
+            )}
+          </div>
+        )}
+        
         <h2 className="text-xl md:text-2xl font-medium mb-12 text-center">
           {question}
         </h2>
@@ -83,7 +104,28 @@ export const Question = ({ question, onAnswer, currentProgress }: QuestionProps)
             ))}
           </div>
         </div>
-      </div>
+
+        {explanation && (
+          <div className="mt-8 pt-6 border-t border-gray-100">
+            <Button
+              variant="ghost"
+              className="text-primary hover:text-primary/80"
+              onClick={() => setShowExplanation(!showExplanation)}
+            >
+              {showExplanation ? "Hide" : "Show"} Explanation
+            </Button>
+            {showExplanation && (
+              <motion.p
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                className="mt-4 text-gray-600 text-sm"
+              >
+                {explanation}
+              </motion.p>
+            )}
+          </div>
+        )}
+      </Card>
     </motion.div>
   );
 };

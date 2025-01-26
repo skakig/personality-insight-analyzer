@@ -80,6 +80,42 @@ export type Database = {
           },
         ]
       }
+      detailed_analysis_templates: {
+        Row: {
+          category: string
+          content: string
+          created_at: string
+          id: string
+          level: number
+          recommendations: string | null
+          score_range_max: number
+          score_range_min: number
+          subcategory: string | null
+        }
+        Insert: {
+          category: string
+          content: string
+          created_at?: string
+          id?: string
+          level: number
+          recommendations?: string | null
+          score_range_max: number
+          score_range_min: number
+          subcategory?: string | null
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string
+          id?: string
+          level?: number
+          recommendations?: string | null
+          score_range_max?: number
+          score_range_min?: number
+          subcategory?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -137,25 +173,31 @@ export type Database = {
         Row: {
           category: string
           created_at: string
+          explanation: string | null
           id: string
           level: number
           question: string
+          subcategory: string | null
           weight: number | null
         }
         Insert: {
           category: string
           created_at?: string
+          explanation?: string | null
           id?: string
           level: number
           question: string
+          subcategory?: string | null
           weight?: number | null
         }
         Update: {
           category?: string
           created_at?: string
+          explanation?: string | null
           id?: string
           level?: number
           question?: string
+          subcategory?: string | null
           weight?: number | null
         }
         Relationships: []
@@ -163,22 +205,31 @@ export type Database = {
       quiz_results: {
         Row: {
           answers: Json
+          category_scores: Json | null
           created_at: string
+          detailed_analysis: string | null
           id: string
+          is_detailed: boolean | null
           personality_type: string
           user_id: string
         }
         Insert: {
           answers: Json
+          category_scores?: Json | null
           created_at?: string
+          detailed_analysis?: string | null
           id?: string
+          is_detailed?: boolean | null
           personality_type: string
           user_id: string
         }
         Update: {
           answers?: Json
+          category_scores?: Json | null
           created_at?: string
+          detailed_analysis?: string | null
           id?: string
+          is_detailed?: boolean | null
           personality_type?: string
           user_id?: string
         }
