@@ -75,29 +75,6 @@ const AssessmentHistory = () => {
     fetchResults();
   }, [navigate]);
 
-  const handlePurchaseReport = async (resultId: string) => {
-    try {
-      const response = await fetch('/api/create-checkout-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ resultId }),
-      });
-
-      const { url } = await response.json();
-      if (url) {
-        window.location.href = url;
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to initiate checkout. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -141,7 +118,6 @@ const AssessmentHistory = () => {
             <AssessmentCard
               key={result.id}
               result={result}
-              onPurchaseReport={handlePurchaseReport}
             />
           ))}
         </div>
