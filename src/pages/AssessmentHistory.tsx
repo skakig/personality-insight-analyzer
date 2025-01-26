@@ -113,11 +113,13 @@ const AssessmentHistory = () => {
         animate={{ opacity: 1, y: 0 }}
         className="flex justify-between items-center"
       >
-        <div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            Assessment History
+        <div className="space-y-2">
+          <h1 className="text-5xl font-bold tracking-tight">
+            <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              Assessment History
+            </span>
           </h1>
-          <p className="text-gray-600 mt-2">Your journey of moral development</p>
+          <p className="text-lg text-gray-600">Your journey of moral development</p>
         </div>
         <Button 
           onClick={() => navigate("/dashboard")} 
