@@ -111,16 +111,19 @@ const AssessmentHistory = () => {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex justify-between items-center"
+        className="text-center max-w-3xl mx-auto mb-12"
       >
-        <div className="space-y-2">
-          <h1 className="text-5xl font-bold tracking-tight">
+        <div className="space-y-4">
+          <h1 className="text-6xl font-bold tracking-tight">
             <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               Assessment History
             </span>
           </h1>
-          <p className="text-lg text-gray-600">Your journey of moral development</p>
+          <p className="text-xl text-gray-600">Your journey of moral development</p>
         </div>
+      </motion.div>
+
+      <div className="flex justify-end mb-8">
         <Button 
           onClick={() => navigate("/dashboard")} 
           variant="outline" 
@@ -128,7 +131,7 @@ const AssessmentHistory = () => {
         >
           Back to Dashboard
         </Button>
-      </motion.div>
+      </div>
 
       {results.length === 0 ? (
         <EmptyState />
