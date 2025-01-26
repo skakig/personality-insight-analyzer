@@ -28,6 +28,7 @@ serve(async (req) => {
       cancel_url: `${req.headers.get('origin')}/book?canceled=true`,
     });
 
+    console.log('Payment session created:', session.id);
     return new Response(
       JSON.stringify({ url: session.url }),
       { 
@@ -36,6 +37,7 @@ serve(async (req) => {
       }
     );
   } catch (error) {
+    console.error('Error creating payment session:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
