@@ -22,18 +22,14 @@ export const Results = ({ personalityType, onPurchase, session }: ResultsProps) 
     setIsSending(true);
 
     try {
-      const response = await fetch('/api/send-results', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke('send-results', {
+        body: {
           email,
           personalityType,
-        }),
+        },
       });
 
-      if (!response.ok) throw new Error('Failed to send results');
+      if (error) throw error;
 
       toast({
         title: "Results Sent!",
@@ -41,6 +37,7 @@ export const Results = ({ personalityType, onPurchase, session }: ResultsProps) 
       });
       setEmail("");
     } catch (error) {
+      console.error('Error sending results:', error);
       toast({
         title: "Error",
         description: "Failed to send results. Please try again.",
