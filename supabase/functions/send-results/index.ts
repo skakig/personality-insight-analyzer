@@ -35,7 +35,7 @@ serve(async (req) => {
 
     const { data, error } = await resend.emails.send({
       from: 'Moral Hierarchy <onboarding@resend.dev>',
-      to: email,
+      to: [email],
       subject: `Your Level ${personalityType} Moral Analysis Results`,
       html: `
         <!DOCTYPE html>
@@ -79,7 +79,7 @@ serve(async (req) => {
                   <p style="color: white; font-size: 16px; margin: 0 0 24px;">
                     Discover your full potential with our detailed report, including personalized growth strategies and comprehensive insights.
                   </p>
-                  <a href="${Deno.env.get('PUBLIC_SITE_URL') || 'https://moralhierarchy.com'}/pricing" 
+                  <a href="${Deno.env.get('PUBLIC_SITE_URL') || 'https://moralhierarchy.com'}/auth?redirect=/checkout" 
                      style="display: inline-block; background: white; color: #6366f1; padding: 12px 32px; border-radius: 24px; text-decoration: none; font-weight: 600; font-size: 16px;">
                     Get Your Full Report
                   </a>
@@ -127,3 +127,68 @@ serve(async (req) => {
     )
   }
 })
+
+const getKeyCharacteristics = (level: string): string[] => {
+  switch (level) {
+    case "1":
+      return [
+        "Focus on basic needs and survival",
+        "Reactive decision-making",
+        "Strong self-preservation instincts"
+      ];
+    case "2":
+      return [
+        "Pragmatic approach to decisions",
+        "Understanding of societal rules",
+        "Focus on personal success"
+      ];
+    case "3":
+      return [
+        "Emphasis on fairness and cooperation",
+        "Strong sense of responsibility",
+        "Value mutual benefit"
+      ];
+    case "4":
+      return [
+        "Strong sense of justice",
+        "Balance rights with responsibilities",
+        "Focus on accountability"
+      ];
+    case "5":
+      return [
+        "Deep emotional understanding",
+        "Strong relational awareness",
+        "Guided by empathy"
+      ];
+    case "6":
+      return [
+        "Selfless decision-making",
+        "Focus on others' well-being",
+        "Willing to sacrifice for greater good"
+      ];
+    case "7":
+      return [
+        "Strong moral principles",
+        "Consistent ethical framework",
+        "Integrity in action"
+      ];
+    case "8":
+      return [
+        "Natural moral excellence",
+        "Inspiring through example",
+        "Balance of wisdom and virtue"
+      ];
+    case "9":
+      return [
+        "Alignment with universal truths",
+        "Transcendent perspective",
+        "Legacy of positive impact"
+      ];
+    default:
+      return [
+        "Developing moral awareness",
+        "Building ethical framework",
+        "Growing in understanding"
+      ];
+  }
+};
