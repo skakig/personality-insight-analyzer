@@ -3,14 +3,18 @@ import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { BenefitsList } from "./purchase/BenefitsList";
 import { PurchaseButton } from "./purchase/PurchaseButton";
+import { useState } from "react";
 
 interface PurchaseSectionProps {
   resultId: string;
 }
 
 export const PurchaseSection = ({ resultId }: PurchaseSectionProps) => {
+  const [loading, setLoading] = useState(false);
+
   const handlePurchase = async () => {
     try {
+      setLoading(true);
       console.log('Initiating checkout for result:', resultId);
       
       const { data: { session } } = await supabase.auth.getSession();
@@ -28,14 +32,12 @@ export const PurchaseSection = ({ resultId }: PurchaseSectionProps) => {
       console.log('Calling create-checkout-session with:', {
         resultId,
         userId: session.user.id,
-        mode: 'subscription'
       });
 
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { 
           resultId,
           userId: session.user.id,
-          mode: 'subscription'
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`
@@ -61,6 +63,8 @@ export const PurchaseSection = ({ resultId }: PurchaseSectionProps) => {
         description: "Failed to initiate checkout. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -74,7 +78,7 @@ export const PurchaseSection = ({ resultId }: PurchaseSectionProps) => {
         
         <div className="space-y-4">
           <BenefitsList />
-          <PurchaseButton onClick={handlePurchase} />
+          <PurchaseButton onClick={handlePurchase} loading={loading} />
           
           <p className="text-xs text-center text-gray-500 mt-4">
             Join thousands of others who have transformed their approach to ethical decision-making

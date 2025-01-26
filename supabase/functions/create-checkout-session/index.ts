@@ -28,10 +28,23 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
-    // Get user email
+    // Get user profile
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (profileError || !profile) {
+      console.error('Profile error:', profileError);
+      throw new Error('User profile not found');
+    }
+
+    // Get user email from auth
     const { data: { user }, error: userError } = await supabaseClient.auth.admin.getUserById(userId);
     
     if (userError || !user?.email) {
+      console.error('User error:', userError);
       throw new Error('User not found');
     }
 
@@ -54,8 +67,7 @@ serve(async (req) => {
       customerId = customer.id;
     }
 
-    console.log('Creating checkout session for result:', resultId);
-
+    console.log('Creating checkout session...');
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       metadata: {
