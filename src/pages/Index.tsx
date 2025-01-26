@@ -48,7 +48,11 @@ const questions = [
   "You like to have everything decided and settled."
 ];
 
-const Index = () => {
+interface IndexProps {
+  session: any;
+}
+
+const Index = ({ session }: IndexProps) => {
   const [currentStep, setCurrentStep] = useState<"welcome" | "questions" | "results">("welcome");
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
@@ -143,11 +147,13 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="absolute top-4 right-4">
-        <Button onClick={handleLogout} variant="outline">
-          Logout
-        </Button>
-      </div>
+      {session && (
+        <div className="absolute top-4 right-4">
+          <Button onClick={handleLogout} variant="outline">
+            Logout
+          </Button>
+        </div>
+      )}
 
       {currentStep === "welcome" && <WelcomePage onStart={handleStart} />}
       
@@ -163,6 +169,7 @@ const Index = () => {
         <Results
           personalityType={calculatePersonalityType()}
           onPurchase={handlePurchase}
+          session={session}
         />
       )}
     </div>
