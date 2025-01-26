@@ -13,20 +13,20 @@ serve(async (req) => {
   }
 
   try {
-    const { resultId, userId, mode } = await req.json();
+    const { userId, mode } = await req.json();
     
     if (!userId) {
       throw new Error('User ID is required');
     }
 
-    console.log('Processing checkout request for:', { resultId, userId, mode });
+    console.log('Processing checkout request for:', { userId, mode });
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get user profile with better error handling
+    // Get user profile
     const { data: profile, error: profileError } = await supabaseClient
       .from('profiles')
       .select('*')
@@ -68,7 +68,6 @@ serve(async (req) => {
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
     } else {
-      // Create a new customer if one doesn't exist
       console.log('Creating new customer for:', user.email);
       const customer = await stripe.customers.create({
         email: user.email,
@@ -81,13 +80,11 @@ serve(async (req) => {
 
     // Set the appropriate price ID and mode based on the request
     let priceId;
-    let checkoutMode;
     
     if (mode === 'subscription') {
       priceId = 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm';  // Subscription price ID
-      checkoutMode = 'subscription';
       
-      // Check for existing subscription only in subscription mode
+      // Check for existing subscription
       const subscriptions = await stripe.subscriptions.list({
         customer: customerId,
         status: 'active',
@@ -100,23 +97,20 @@ serve(async (req) => {
       }
     } else {
       priceId = 'price_1Qlc4VJy5TVq3Z9H0PFhn9hs';  // One-time payment price ID
-      checkoutMode = 'payment';
     }
 
-    console.log('Creating checkout session with mode:', checkoutMode, 'and price:', priceId);
+    console.log('Creating checkout session with mode:', mode, 'and price:', priceId);
     
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
-      metadata: {
-        resultId: resultId,
-      },
+      customer_email: customerId ? undefined : user.email,
       line_items: [
         {
           price: priceId,
           quantity: 1,
         },
       ],
-      mode: checkoutMode,
+      mode: mode,
       success_url: `${req.headers.get('origin')}/dashboard?success=true`,
       cancel_url: `${req.headers.get('origin')}/dashboard?success=false`,
     });
