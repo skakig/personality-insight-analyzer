@@ -63,6 +63,18 @@ serve(async (req) => {
     let customerId;
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
+      
+      // Check for existing subscription
+      const subscriptions = await stripe.subscriptions.list({
+        customer: customerId,
+        status: 'active',
+        price: 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm',
+        limit: 1
+      });
+
+      if (subscriptions.data.length > 0) {
+        throw new Error("Customer already has an active subscription");
+      }
     } else {
       console.log('Creating new customer for:', user.email);
       const customer = await stripe.customers.create({
@@ -74,37 +86,18 @@ serve(async (req) => {
       customerId = customer.id;
     }
 
-    // Set the appropriate price ID based on the mode
-    const priceId = mode === 'subscription' 
-      ? 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm'  // Subscription price ID
-      : 'price_1Qlc4VJy5TVq3Z9H0PFhn9hs';  // One-time payment price ID
-
-    if (mode === 'subscription') {
-      // Check for existing subscription
-      const subscriptions = await stripe.subscriptions.list({
-        customer: customerId,
-        status: 'active',
-        price: priceId,
-        limit: 1
-      });
-
-      if (subscriptions.data.length > 0) {
-        throw new Error("Customer already has an active subscription");
-      }
-    }
-
-    console.log('Creating checkout session with mode:', mode, 'and price:', priceId);
+    console.log('Creating checkout session...');
     
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       line_items: [
         {
-          price: priceId,
+          price: 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm',  // Always use subscription price
           quantity: 1,
         },
       ],
-      mode: mode,
+      mode: 'subscription',
       success_url: `${req.headers.get('origin')}/dashboard?success=true`,
       cancel_url: `${req.headers.get('origin')}/dashboard?success=false`,
     });
