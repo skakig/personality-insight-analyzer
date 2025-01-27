@@ -45,6 +45,7 @@ export const AssessmentCard = ({ result }: AssessmentCardProps) => {
     fetchSubscription();
   }, []);
 
+  // Check if the user can access the detailed report
   const canAccessReport = result.is_purchased || 
     result.access_method === 'purchase' || 
     (subscription?.active && subscription?.assessments_used < subscription?.max_assessments);
