@@ -67,7 +67,7 @@ serve(async (req) => {
 
     let priceId;
     if (mode === 'subscription') {
-      priceId = 'price_1Qlc4VJy5TVq3Z9H0PFhn9hs'; // subscription price
+      priceId = 'price_1Qlc65Jy5TVq3Z9H0PFhn9hs'; // subscription price
     } else {
       priceId = 'price_1Qlc4VJy5TVq3Z9H0PFhn9hs'; // one-time price for individual reports
     }

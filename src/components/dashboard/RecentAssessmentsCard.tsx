@@ -12,6 +12,7 @@ interface RecentAssessmentsCardProps {
     is_detailed: boolean;
     is_purchased: boolean;
     category_scores: Record<string, number> | null;
+    access_method: string | null;
   }>;
 }
 

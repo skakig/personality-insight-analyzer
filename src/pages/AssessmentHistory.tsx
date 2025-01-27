@@ -18,6 +18,7 @@ interface QuizResult {
   detailed_analysis: string | null;
   is_detailed: boolean;
   is_purchased: boolean;
+  access_method: string | null;
 }
 
 interface SupabaseQuizResult {
@@ -30,6 +31,7 @@ interface SupabaseQuizResult {
   detailed_analysis: string | null;
   is_detailed: boolean;
   is_purchased: boolean;
+  access_method: string | null;
 }
 
 const AssessmentHistory = () => {
