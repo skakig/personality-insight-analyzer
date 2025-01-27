@@ -13,9 +13,9 @@ serve(async (req) => {
   }
 
   try {
-    const { resultId, userId, mode = 'payment' } = await req.json();
-    console.log('Request received:', { resultId, userId, mode });
-
+    const { resultId, userId, mode = 'payment', productType } = await req.json();
+    console.log('Request received:', { resultId, userId, mode, productType });
+    
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       throw new Error('No authorization header');
@@ -40,8 +40,6 @@ serve(async (req) => {
       throw new Error('User email missing');
     }
 
-    console.log('User found:', { id: user.id, email: user.email });
-
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
       apiVersion: '2023-10-16',
     });
@@ -55,7 +53,6 @@ serve(async (req) => {
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
     } else {
-      console.log('Creating new customer for:', user.email);
       const customer = await stripe.customers.create({
         email: user.email,
         metadata: {
@@ -65,10 +62,13 @@ serve(async (req) => {
       customerId = customer.id;
     }
 
-    // Use different price IDs based on the mode
-    const priceId = mode === 'subscription' 
-      ? 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm'  // Subscription price
-      : 'price_1QlcfyJy5TVq3Z9HzMjHJ1YB';  // One-time payment price for report unlock
+    // Use different price IDs based on the product type
+    let priceId;
+    if (productType === 'credits') {
+      priceId = 'price_1QlcfyJy5TVq3Z9HzMjHJ1YB'; // Credits price ID
+    } else {
+      priceId = resultId ? 'price_1QlcfyJy5TVq3Z9HzMjHJ1YB' : 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm';
+    }
 
     console.log('Creating checkout session with mode:', mode, 'and priceId:', priceId);
     const session = await stripe.checkout.sessions.create({
@@ -79,14 +79,17 @@ serve(async (req) => {
           quantity: 1,
         },
       ],
-      mode: mode,
+      mode,
       success_url: `${req.headers.get('origin')}/dashboard?success=true`,
       cancel_url: `${req.headers.get('origin')}/dashboard?success=false`,
       metadata: resultId ? {
         resultId,
         userId: user.id,
         accessMethod: mode === 'subscription' ? 'subscription_credit' : 'purchase'
-      } : undefined,
+      } : {
+        userId: user.id,
+        productType
+      },
     });
 
     console.log('Payment session created:', session.id);
