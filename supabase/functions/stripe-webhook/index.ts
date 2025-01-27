@@ -53,43 +53,10 @@ serve(async (req) => {
       const resultId = session.metadata?.resultId;
 
       if (session.mode === 'payment' && resultId) {
-        // Check if user has an active subscription
-        const { data: subscription, error: subscriptionError } = await supabaseAdmin
-          .from('corporate_subscriptions')
-          .select('*')
-          .eq('organization_id', userId)
-          .eq('active', true)
-          .single();
-
-        if (subscriptionError && subscriptionError.code !== 'PGRST116') {
-          console.error('Error checking subscription:', subscriptionError);
-          throw subscriptionError;
-        }
-
-        if (subscription) {
-          if (subscription.assessments_used >= subscription.max_assessments) {
-            console.error('User has exceeded assessment limit');
-            throw new Error('Assessment limit exceeded');
-          }
-
-          const { error: updateError } = await supabaseAdmin
-            .from('corporate_subscriptions')
-            .update({
-              assessments_used: subscription.assessments_used + 1,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', subscription.id);
-
-          if (updateError) {
-            console.error('Error updating assessment count:', updateError);
-            throw updateError;
-          }
-        }
-
-        // Get the detailed analysis based on personality type
+        // Get the quiz result and user details
         const { data: quizResult } = await supabaseAdmin
           .from('quiz_results')
-          .select('personality_type, user_id')
+          .select('personality_type, category_scores, detailed_analysis')
           .eq('id', resultId)
           .single();
 
@@ -97,25 +64,14 @@ serve(async (req) => {
           throw new Error('Quiz result not found');
         }
 
-        // Generate detailed analysis based on personality type
-        const detailedAnalysis = `Your Level ${quizResult.personality_type} analysis reveals a unique perspective on moral development...`; // You can expand this
-        const categoryScores = {
-          'Self-Awareness': 8.5,
-          'Emotional Intelligence': 7.8,
-          'Moral Reasoning': 8.2,
-          'Ethical Decision-Making': 7.9
-        };
-
-        // Update quiz result with detailed information
+        // Update quiz result with purchase details
         const { error: updateError } = await supabaseAdmin
           .from('quiz_results')
           .update({
             is_purchased: true,
             is_detailed: true,
             access_method: accessMethod,
-            stripe_session_id: session.id,
-            detailed_analysis: detailedAnalysis,
-            category_scores: categoryScores
+            stripe_session_id: session.id
           })
           .eq('id', resultId);
 
@@ -126,7 +82,7 @@ serve(async (req) => {
 
         // Get user's email
         const { data: userProfile } = await supabaseAdmin
-          .auth.admin.getUserById(quizResult.user_id);
+          .auth.admin.getUserById(userId);
 
         if (userProfile?.user?.email) {
           // Send detailed report email
@@ -139,8 +95,8 @@ serve(async (req) => {
             body: JSON.stringify({
               email: userProfile.user.email,
               personalityType: quizResult.personality_type,
-              analysis: detailedAnalysis,
-              scores: categoryScores
+              analysis: quizResult.detailed_analysis,
+              scores: quizResult.category_scores
             }),
           });
 

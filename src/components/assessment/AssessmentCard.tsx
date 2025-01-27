@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { AssessmentCardHeader } from "./CardHeader";
 import { AssessmentContent } from "./card/AssessmentContent";
+import { toast } from "@/components/ui/use-toast";
 
 interface AssessmentCardProps {
   result: {
@@ -26,18 +27,29 @@ export const AssessmentCard = ({ result }: AssessmentCardProps) => {
 
   useEffect(() => {
     const fetchSubscription = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { data: subscriptionData } = await supabase
-          .from('corporate_subscriptions')
-          .select('*')
-          .eq('organization_id', session.user.id)
-          .eq('active', true)
-          .maybeSingle();
-        
-        setSubscription(subscriptionData);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const { data: subscriptionData, error } = await supabase
+            .from('corporate_subscriptions')
+            .select('*')
+            .eq('organization_id', session.user.id)
+            .eq('active', true)
+            .maybeSingle();
+          
+          if (error) throw error;
+          setSubscription(subscriptionData);
+        }
+      } catch (error: any) {
+        console.error('Error fetching subscription:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load subscription data",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchSubscription();
