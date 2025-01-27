@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { Resend } from "https://esm.sh/@resend/node@0.16.0";
+import { Resend } from "npm:resend@2.0.0";
 
 const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
 
@@ -21,20 +21,52 @@ serve(async (req) => {
     }
 
     const scoresList = scores ? Object.entries(scores)
-      .map(([category, score]) => `${category}: ${score}`)
-      .join('\n') : 'No detailed scores available';
+      .map(([category, score]) => `
+        <div style="margin-bottom: 10px;">
+          <strong>${category}:</strong> ${score}
+        </div>
+      `).join('') : 'No detailed scores available';
 
     const emailHtml = `
-      <h1>Your Detailed Moral Development Report</h1>
-      <h2>Personality Type: ${personalityType}</h2>
-      
-      <h3>Category Scores:</h3>
-      <pre>${scoresList}</pre>
-      
-      <h3>Detailed Analysis:</h3>
-      <p>${analysis || 'No detailed analysis available'}</p>
-      
-      <p>Thank you for using our platform to explore your moral development journey!</p>
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Your Detailed Moral Development Report</title>
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f5f5f7;">
+          <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; padding: 32px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 32px;">
+              <h1 style="color: #1d1d1f; font-size: 24px; margin-bottom: 16px;">
+                Your Level ${personalityType} Detailed Report
+              </h1>
+            </div>
+            
+            <div style="margin-bottom: 32px;">
+              <h2 style="color: #1d1d1f; font-size: 20px; margin-bottom: 16px;">Category Scores</h2>
+              <div style="background: #f5f5f7; padding: 20px; border-radius: 12px;">
+                ${scoresList}
+              </div>
+            </div>
+            
+            <div style="margin-bottom: 32px;">
+              <h2 style="color: #1d1d1f; font-size: 20px; margin-bottom: 16px;">Detailed Analysis</h2>
+              <div style="background: #f5f5f7; padding: 20px; border-radius: 12px;">
+                <p style="margin: 0; color: #424245;">
+                  ${analysis || 'No detailed analysis available'}
+                </p>
+              </div>
+            </div>
+            
+            <div style="text-align: center; color: #86868b; font-size: 12px; margin-top: 32px;">
+              <p style="margin: 0;">
+                © ${new Date().getFullYear()} Moral Development Assessment. All rights reserved.
+              </p>
+            </div>
+          </div>
+        </body>
+      </html>
     `;
 
     const data = await resend.emails.send({
@@ -43,6 +75,8 @@ serve(async (req) => {
       subject: `Your Level ${personalityType} Detailed Report`,
       html: emailHtml,
     });
+
+    console.log('Email sent successfully:', data);
 
     return new Response(
       JSON.stringify({ success: true, data }),
