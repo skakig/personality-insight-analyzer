@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Sparkles } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { BenefitsList } from "./purchase/BenefitsList";
@@ -33,12 +32,10 @@ export const PurchaseSection = ({ resultId, loading }: PurchaseSectionProps) => 
         return;
       }
 
-      // Purchase individual report (one-time payment)
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { 
           resultId,
-          userId: session.user.id,
-          mode: 'payment'  // Explicitly set to 'payment' for one-time purchase
+          userId: session.user.id
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`
@@ -71,7 +68,6 @@ export const PurchaseSection = ({ resultId, loading }: PurchaseSectionProps) => 
     <div className="space-y-6">
       <div className="bg-gradient-to-br from-primary/5 to-secondary/5 p-6 rounded-xl border border-primary/10">
         <div className="flex items-center gap-2 mb-4">
-          <Sparkles className="h-5 w-5 text-primary" />
           <h4 className="font-medium text-lg">Unlock Your Full Potential</h4>
         </div>
         

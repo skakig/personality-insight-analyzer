@@ -65,12 +65,10 @@ serve(async (req) => {
       customerId = customer.id;
     }
 
-    // Use one-time price for 'payment' mode and subscription price for 'subscription' mode
-    const priceId = mode === 'payment' 
-      ? 'price_1Qlc4VJy5TVq3Z9H0PFhn9hs'  // one-time price
-      : 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm';  // subscription price
+    // For individual report purchases, always use the one-time price
+    const priceId = 'price_1Qlc4VJy5TVq3Z9H0PFhn9hs';  // one-time price for individual reports
 
-    console.log('Creating checkout session with mode:', mode, 'and priceId:', priceId);
+    console.log('Creating checkout session for individual report purchase...');
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       line_items: [
@@ -79,7 +77,7 @@ serve(async (req) => {
           quantity: 1,
         },
       ],
-      mode: mode as 'payment' | 'subscription',
+      mode: 'payment',  // Always use payment mode for individual reports
       success_url: `${req.headers.get('origin')}/dashboard?success=true`,
       cancel_url: `${req.headers.get('origin')}/dashboard?success=false`,
       metadata: resultId ? {
