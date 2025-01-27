@@ -2,6 +2,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from 'https://esm.sh/stripe@14.21.0';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
 });
@@ -13,6 +18,11 @@ const supabaseClient = createClient(
 
 serve(async (req) => {
   try {
+    // Handle CORS preflight requests
+    if (req.method === 'OPTIONS') {
+      return new Response(null, { headers: corsHeaders });
+    }
+
     const { headers } = req;
     const authorization = headers.get('Authorization');
 
@@ -55,7 +65,7 @@ serve(async (req) => {
     } else if (mode === 'subscription') {
       priceId = 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm'; // Pro subscription
     } else {
-      priceId = 'price_1QlcKLJy5TVq3Z9HXYgYvN2x'; // Single report ($9.99)
+      priceId = 'price_1QloJQJy5TVq3Z9HTnIN6BX5'; // Single report ($9.99)
     }
 
     console.log('Creating checkout session with mode:', mode, 'and priceId:', priceId);
@@ -83,27 +93,18 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ url: session.url }),
       { 
-        headers: { 
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST',
-          'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-        },
-      },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      }
     );
   } catch (error) {
     console.error('Error:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST',
-          'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-        },
-      },
+      }
     );
   }
 });
