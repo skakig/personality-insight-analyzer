@@ -42,7 +42,10 @@ export const PurchaseSection = ({ resultId, loading }: PurchaseSectionProps) => 
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Checkout error:', error);
+        throw error;
+      }
       
       if (!data?.url) {
         throw new Error('No checkout URL received');

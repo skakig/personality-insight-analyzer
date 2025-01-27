@@ -47,37 +47,6 @@ serve(async (req) => {
     let customerId;
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
-      
-      if (mode === 'subscription') {
-        // Check for existing subscription
-        const subscriptions = await stripe.subscriptions.list({
-          customer: customerId,
-          status: 'active',
-          limit: 1
-        });
-
-        if (subscriptions.data.length > 0) {
-          try {
-            // Try to create a billing portal session
-            console.log('Creating billing portal session for existing customer');
-            const portalSession = await stripe.billingPortal.sessions.create({
-              customer: customerId,
-              return_url: `${req.headers.get('origin')}/dashboard`,
-            });
-
-            return new Response(
-              JSON.stringify({ url: portalSession.url }),
-              { 
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 200,
-              }
-            );
-          } catch (portalError: any) {
-            // If portal creation fails, proceed with creating a new checkout session
-            console.log('Portal creation failed, creating checkout session instead:', portalError.message);
-          }
-        }
-      }
     } else {
       console.log('Creating new customer for:', user.email);
       const customer = await stripe.customers.create({
