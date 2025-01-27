@@ -49,17 +49,9 @@ serve(async (req) => {
       limit: 1
     });
 
-    let customerId;
+    let customer_id;
     if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
-    } else {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        metadata: {
-          supabaseUid: user.id,
-        },
-      });
-      customerId = customer.id;
+      customer_id = customers.data[0].id;
     }
 
     // Get user's subscription status
@@ -80,7 +72,8 @@ serve(async (req) => {
 
     console.log('Creating checkout session with mode:', mode, 'and priceId:', priceId);
     const session = await stripe.checkout.sessions.create({
-      customer: customerId,
+      customer: customer_id,
+      customer_email: customer_id ? undefined : user.email,
       line_items: [
         {
           price: priceId,
