@@ -33,12 +33,12 @@ export const PurchaseSection = ({ resultId, loading }: PurchaseSectionProps) => 
         return;
       }
 
-      // Purchase individual report
+      // Purchase individual report (one-time payment)
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { 
           resultId,
           userId: session.user.id,
-          mode: 'payment'
+          mode: 'payment'  // Explicitly set to 'payment' for one-time purchase
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`

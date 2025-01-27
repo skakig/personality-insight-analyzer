@@ -13,11 +13,9 @@ serve(async (req) => {
   }
 
   try {
-    // Get the request body
     const { resultId, userId, mode = 'payment' } = await req.json();
     console.log('Request received:', { resultId, userId, mode });
 
-    // Get auth token from request header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       throw new Error('No authorization header');
@@ -28,7 +26,6 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
     );
 
-    // Get user data
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser(
       authHeader.replace('Bearer ', '')
     );
@@ -49,7 +46,6 @@ serve(async (req) => {
       apiVersion: '2023-10-16',
     });
 
-    // Check for existing customer
     const customers = await stripe.customers.list({
       email: user.email,
       limit: 1
@@ -69,18 +65,21 @@ serve(async (req) => {
       customerId = customer.id;
     }
 
-    console.log('Creating checkout session...');
+    // Use one-time price for 'payment' mode and subscription price for 'subscription' mode
+    const priceId = mode === 'payment' 
+      ? 'price_1Qlc4VJy5TVq3Z9H0PFhn9hs'  // one-time price
+      : 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm';  // subscription price
+
+    console.log('Creating checkout session with mode:', mode, 'and priceId:', priceId);
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       line_items: [
         {
-          price: mode === 'subscription' 
-            ? 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm'  // subscription price
-            : 'price_1Qlc4VJy5TVq3Z9H0PFhn9hs',  // one-time price
+          price: priceId,
           quantity: 1,
         },
       ],
-      mode: mode as 'subscription' | 'payment',
+      mode: mode as 'payment' | 'subscription',
       success_url: `${req.headers.get('origin')}/dashboard?success=true`,
       cancel_url: `${req.headers.get('origin')}/dashboard?success=false`,
       metadata: resultId ? {
