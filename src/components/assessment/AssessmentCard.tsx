@@ -1,16 +1,10 @@
 import { motion } from "framer-motion";
-import { Card, CardContent } from "@/components/ui/card";
-import { getLevelDescription } from "./utils";
-import { AssessmentCardHeader } from "./CardHeader";
-import { DetailedReport } from "@/components/results/DetailedReport";
-import { PurchaseSection } from "./PurchaseSection";
-import { GrowthPotential } from "./GrowthPotential";
-import { HighlightSection } from "./HighlightSection";
+import { Card } from "@/components/ui/card";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { FileText } from "lucide-react";
+import { AssessmentCardHeader } from "./CardHeader";
+import { AssessmentContent } from "./card/AssessmentContent";
 
 interface AssessmentCardProps {
   result: {
@@ -49,7 +43,6 @@ export const AssessmentCard = ({ result }: AssessmentCardProps) => {
     fetchSubscription();
   }, []);
 
-  // Check if the user can access the detailed report
   const canAccessReport = result.is_purchased || 
     result.access_method === 'purchase' || 
     (subscription?.active && subscription?.assessments_used < subscription?.max_assessments);
@@ -70,34 +63,13 @@ export const AssessmentCard = ({ result }: AssessmentCardProps) => {
           createdAt={result.created_at}
           isDetailed={result.is_detailed}
         />
-        <CardContent className="space-y-6 p-6">
-          <div className="space-y-4">
-            <HighlightSection level={result.personality_type} />
-            
-            <div className="space-y-2">
-              <p className="text-gray-600 leading-relaxed">
-                {getLevelDescription(result.personality_type)}
-              </p>
-              
-              <GrowthPotential level={result.personality_type} />
-            </div>
-          </div>
-          
-          {canAccessReport ? (
-            <Button
-              onClick={handleViewReport}
-              className="w-full bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white"
-            >
-              <FileText className="mr-2 h-4 w-4" />
-              View Full Report
-            </Button>
-          ) : (
-            <PurchaseSection 
-              resultId={result.id} 
-              loading={loading}
-            />
-          )}
-        </CardContent>
+        <AssessmentContent 
+          personalityType={result.personality_type}
+          canAccessReport={canAccessReport}
+          resultId={result.id}
+          loading={loading}
+          onViewReport={handleViewReport}
+        />
       </Card>
     </motion.div>
   );
