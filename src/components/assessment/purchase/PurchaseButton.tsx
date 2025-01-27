@@ -19,7 +19,7 @@ export const PurchaseButton = ({ onClick, loading }: PurchaseButtonProps) => {
           Processing...
         </>
       ) : (
-        'Purchase Detailed Report'
+        "Unlock Full Report"
       )}
     </Button>
   );
