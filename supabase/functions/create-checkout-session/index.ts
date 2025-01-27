@@ -81,8 +81,8 @@ serve(async (req) => {
         },
       ],
       mode,
-      success_url: `${req.headers.get('origin')}/dashboard?success=true`,
-      cancel_url: `${req.headers.get('origin')}/dashboard?success=false`,
+      success_url: `${req.headers.get('origin')}/assessment/${resultId}?success=true`,
+      cancel_url: `${req.headers.get('origin')}/assessment/${resultId}?success=false`,
       metadata: resultId ? {
         resultId,
         userId: user.id,
