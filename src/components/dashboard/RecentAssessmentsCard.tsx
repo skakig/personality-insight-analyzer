@@ -14,9 +14,10 @@ interface RecentAssessmentsCardProps {
     category_scores: Record<string, number> | null;
     access_method: string | null;
   }>;
+  subscription: any;
 }
 
-export const RecentAssessmentsCard = ({ assessments }: RecentAssessmentsCardProps) => {
+export const RecentAssessmentsCard = ({ assessments, subscription }: RecentAssessmentsCardProps) => {
   const navigate = useNavigate();
 
   if (assessments.length === 0) return null;
@@ -31,7 +32,10 @@ export const RecentAssessmentsCard = ({ assessments }: RecentAssessmentsCardProp
       </CardHeader>
       <CardContent className="space-y-4">
         {assessments.slice(0, 3).map((result) => (
-          <AssessmentCard key={result.id} result={result} />
+          <AssessmentCard 
+            key={result.id} 
+            result={result}
+          />
         ))}
         {assessments.length > 3 && (
           <Button 

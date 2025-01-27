@@ -18,7 +18,10 @@ export const DashboardContent = ({
       <div className="md:col-span-2 space-y-8">
         <SubscriptionCard subscription={subscription} error={error} />
         {previousAssessments.length > 0 && (
-          <RecentAssessmentsCard assessments={previousAssessments} />
+          <RecentAssessmentsCard 
+            assessments={previousAssessments}
+            subscription={subscription}
+          />
         )}
       </div>
       
