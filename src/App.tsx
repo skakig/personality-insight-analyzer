@@ -1,13 +1,13 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { Navigation } from "@/components/Navigation";
-import { Index } from "@/pages/Index";
-import { Auth } from "@/pages/Auth";
-import { Dashboard } from "@/pages/Dashboard";
-import { AssessmentHistory } from "@/pages/AssessmentHistory";
-import { BookLanding } from "@/pages/BookLanding";
-import { Pricing } from "@/pages/Pricing";
-import { Assessment } from "@/pages/Assessment"; // Add this import
+import Index from "@/pages/Index";
+import Auth from "@/pages/Auth";
+import Dashboard from "@/pages/Dashboard";
+import AssessmentHistory from "@/pages/AssessmentHistory";
+import BookLanding from "@/pages/BookLanding";
+import Pricing from "@/pages/Pricing";
+import Assessment from "@/pages/Assessment";
 
 export default function App() {
   return (
