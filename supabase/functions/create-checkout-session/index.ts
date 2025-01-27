@@ -68,7 +68,7 @@ serve(async (req) => {
     // Use different price IDs based on the mode
     const priceId = mode === 'subscription' 
       ? 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm'  // Subscription price
-      : 'price_1Qlc4VJy5TVq3Z9H0PFhn9hs';  // One-time payment price
+      : 'price_1QlcfyJy5TVq3Z9HzMjHJ1YB';  // One-time payment price for report unlock
 
     console.log('Creating checkout session with mode:', mode, 'and priceId:', priceId);
     const session = await stripe.checkout.sessions.create({
