@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { getLevelDescription } from "./utils";
 import { AssessmentCardHeader } from "./CardHeader";
-import { DetailedReport } from "@/components/results/DetailedReport";
+import { DetailedAnalysis } from "./DetailedAnalysis";
 import { PurchaseSection } from "./PurchaseSection";
 import { GrowthPotential } from "./GrowthPotential";
 import { HighlightSection } from "./HighlightSection";
@@ -55,41 +55,38 @@ export const AssessmentCard = ({ result }: AssessmentCardProps) => {
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.3 }}
     >
-      {canAccessReport && result.detailed_analysis ? (
-        <DetailedReport 
+      <Card className="overflow-hidden border border-gray-100 hover:border-primary/20 transition-all duration-300 bg-gradient-to-br from-white to-gray-50/50">
+        <AssessmentCardHeader 
           personalityType={result.personality_type}
-          analysis={result.detailed_analysis}
-          scores={result.category_scores || {}}
+          createdAt={result.created_at}
+          isDetailed={result.is_detailed}
         />
-      ) : (
-        <Card className="overflow-hidden border border-gray-100 hover:border-primary/20 transition-all duration-300 bg-gradient-to-br from-white to-gray-50/50">
-          <AssessmentCardHeader 
-            personalityType={result.personality_type}
-            createdAt={result.created_at}
-            isDetailed={result.is_detailed}
-          />
-          <CardContent className="space-y-6 p-6">
-            <div className="space-y-4">
-              <HighlightSection level={result.personality_type} />
-              
-              <div className="space-y-2">
-                <p className="text-gray-600 leading-relaxed">
-                  {getLevelDescription(result.personality_type)}
-                </p>
-                
-                <GrowthPotential level={result.personality_type} />
-              </div>
-            </div>
+        <CardContent className="space-y-6 p-6">
+          <div className="space-y-4">
+            <HighlightSection level={result.personality_type} />
             
-            {!canAccessReport && (
-              <PurchaseSection 
-                resultId={result.id} 
-                loading={loading}
-              />
-            )}
-          </CardContent>
-        </Card>
-      )}
+            <div className="space-y-2">
+              <p className="text-gray-600 leading-relaxed">
+                {getLevelDescription(result.personality_type)}
+              </p>
+              
+              <GrowthPotential level={result.personality_type} />
+            </div>
+          </div>
+          
+          {canAccessReport ? (
+            <DetailedAnalysis 
+              analysis={result.detailed_analysis || ''} 
+              scores={result.category_scores || {}} 
+            />
+          ) : (
+            <PurchaseSection 
+              resultId={result.id} 
+              loading={loading}
+            />
+          )}
+        </CardContent>
+      </Card>
     </motion.div>
   );
 };

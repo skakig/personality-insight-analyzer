@@ -1,57 +1,64 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from 'https://esm.sh/stripe@14.21.0';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+// Validate environment variables
+const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+const supabaseUrl = Deno.env.get('SUPABASE_URL');
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+if (!stripeKey || !supabaseUrl || !supabaseServiceKey) {
+  throw new Error('Missing required environment variables');
+}
+
+const stripe = new Stripe(stripeKey, {
+  apiVersion: '2023-10-16',
+  httpClient: Stripe.createFetchHttpClient(),
+});
+
+const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      headers: corsHeaders,
+      status: 204,
+    });
   }
 
   try {
-    const { resultId, userId, mode = 'payment', productType } = await req.json();
-    console.log('Request received:', { resultId, userId, mode, productType });
-    
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    const { headers } = req;
+    const authorization = headers.get('Authorization');
+
+    if (!authorization) {
       throw new Error('No authorization header');
     }
 
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-    );
+    const token = authorization.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
-
-    if (userError || !user) {
-      console.error('User error:', userError);
-      throw new Error('User not found');
+    if (authError || !user) {
+      throw new Error('Invalid credentials');
     }
 
-    if (!user.email) {
-      console.error('No email found for user:', user.id);
-      throw new Error('User email missing');
-    }
+    const { resultId, mode = 'payment', productType } = await req.json();
+    console.log('Request payload:', { resultId, mode, productType });
 
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-      apiVersion: '2023-10-16',
-    });
-
-    const customers = await stripe.customers.list({
-      email: user.email,
-      limit: 1
-    });
-
+    // Get or create customer
     let customerId;
-    if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
+    const { data: customers } = await stripe.customers.search({
+      query: `metadata['supabaseUid']:'${user.id}'`,
+    });
+
+    if (customers && customers.length > 0) {
+      customerId = customers[0].id;
     } else {
       const customer = await stripe.customers.create({
         email: user.email,
@@ -62,48 +69,38 @@ serve(async (req) => {
       customerId = customer.id;
     }
 
-    // Get user's subscription status
-    const { data: subscription } = await supabaseClient
-      .from('corporate_subscriptions')
-      .select('*')
-      .eq('organization_id', user.id)
-      .single();
-
-    // Use different price IDs based on the product type and subscription status
+    // Determine the correct price ID based on the purchase type
     let priceId;
     if (productType === 'credits') {
-      priceId = 'price_1QlcfyJy5TVq3Z9HzMjHJ1YB'; // Credits price ID
-    } else if (subscription?.active) {
-      // If user has an active subscription, use subscription credit
-      priceId = 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm'; // Pro subscription price
+      priceId = 'price_1QlcfyJy5TVq3Z9HzMjHJ1YB'; // Credits purchase
+    } else if (mode === 'subscription') {
+      priceId = 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm'; // Pro subscription
     } else {
-      // Regular user unlocking a single report
-      priceId = 'price_1QlcKLJy5TVq3Z9HXYgYvN2x'; // $9.99 single report price
+      priceId = 'price_1QloJQJy5TVq3Z9HTnIN6BX5'; // Single report
     }
 
     console.log('Creating checkout session with mode:', mode, 'and priceId:', priceId);
+
+    // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
+      mode: mode as Stripe.Checkout.SessionCreateParams.Mode,
+      payment_method_types: ['card'],
       line_items: [
         {
           price: priceId,
           quantity: 1,
         },
       ],
-      mode,
-      success_url: `${req.headers.get('origin')}/dashboard?success=true`,
-      cancel_url: `${req.headers.get('origin')}/dashboard?success=false`,
-      metadata: resultId ? {
-        resultId,
+      success_url: `${req.headers.get('origin')}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${req.headers.get('origin')}/dashboard`,
+      metadata: {
         userId: user.id,
-        accessMethod: mode === 'subscription' ? 'subscription_credit' : 'purchase'
-      } : {
-        userId: user.id,
-        productType
+        resultId: resultId || '',
+        accessMethod: mode === 'subscription' ? 'subscription' : 'purchase',
       },
     });
 
-    console.log('Payment session created:', session.id);
     return new Response(
       JSON.stringify({ url: session.url }),
       { 
@@ -112,9 +109,12 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Error creating payment session:', error);
+    console.error('Error:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        details: error.stack
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
