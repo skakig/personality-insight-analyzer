@@ -69,16 +69,13 @@ serve(async (req) => {
       .eq('organization_id', user.id)
       .single();
 
-    // Use different price IDs based on the product type and subscription status
-    let priceId;
+    // Use the correct price ID based on the product type
+    let priceId = 'price_1QloJQJy5TVq3Z9HTnIN6BX5'; // Default price ID for report unlock
+
     if (productType === 'credits') {
       priceId = 'price_1QlcfyJy5TVq3Z9HzMjHJ1YB'; // Credits price ID
     } else if (subscription?.active) {
-      // If user has an active subscription, use subscription credit
       priceId = 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm'; // Pro subscription price
-    } else {
-      // Regular user unlocking a single report
-      priceId = 'price_1QlcKLJy5TVq3Z9HXYgYvN2x'; // $9.99 single report price
     }
 
     console.log('Creating checkout session with mode:', mode, 'and priceId:', priceId);
