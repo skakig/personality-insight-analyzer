@@ -50,10 +50,9 @@ serve(async (req) => {
       const customer = await stripe.customers.retrieve(customerId as string);
       const userId = customer.metadata.supabaseUid;
       const accessMethod = session.metadata?.accessMethod;
-      const isGift = session.metadata?.isGift === 'true';
-      const giftRecipientEmail = session.metadata?.giftRecipientEmail;
+      const resultId = session.metadata?.resultId;
 
-      if (session.mode === 'payment' && session.metadata?.resultId) {
+      if (session.mode === 'payment' && resultId) {
         // Check if user has an active subscription
         const { data: subscription, error: subscriptionError } = await supabaseAdmin
           .from('corporate_subscriptions')
@@ -87,7 +86,27 @@ serve(async (req) => {
           }
         }
 
-        // Update quiz result
+        // Get the detailed analysis based on personality type
+        const { data: quizResult } = await supabaseAdmin
+          .from('quiz_results')
+          .select('personality_type, user_id')
+          .eq('id', resultId)
+          .single();
+
+        if (!quizResult) {
+          throw new Error('Quiz result not found');
+        }
+
+        // Generate detailed analysis based on personality type
+        const detailedAnalysis = `Your Level ${quizResult.personality_type} analysis reveals a unique perspective on moral development...`; // You can expand this
+        const categoryScores = {
+          'Self-Awareness': 8.5,
+          'Emotional Intelligence': 7.8,
+          'Moral Reasoning': 8.2,
+          'Ethical Decision-Making': 7.9
+        };
+
+        // Update quiz result with detailed information
         const { error: updateError } = await supabaseAdmin
           .from('quiz_results')
           .update({
@@ -95,26 +114,39 @@ serve(async (req) => {
             is_detailed: true,
             access_method: accessMethod,
             stripe_session_id: session.id,
-            detailed_analysis: 'Your detailed analysis will be generated shortly.',
-            category_scores: {
-              'Self-Awareness': 8.5,
-              'Emotional Intelligence': 7.8,
-              'Moral Reasoning': 8.2,
-              'Ethical Decision-Making': 7.9
-            }
+            detailed_analysis: detailedAnalysis,
+            category_scores: categoryScores
           })
-          .eq('id', session.metadata.resultId);
+          .eq('id', resultId);
 
         if (updateError) {
           console.error('Error updating quiz result:', updateError);
           throw updateError;
         }
 
-        // If this is a gift purchase, send an email to the recipient
-        if (isGift && giftRecipientEmail) {
-          // Here you would implement the email sending logic
-          // For now, we'll just log it
-          console.log('Gift purchase completed, should send email to:', giftRecipientEmail);
+        // Get user's email
+        const { data: userProfile } = await supabaseAdmin
+          .auth.admin.getUserById(quizResult.user_id);
+
+        if (userProfile?.user?.email) {
+          // Send detailed report email
+          const emailResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-detailed-report`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
+            },
+            body: JSON.stringify({
+              email: userProfile.user.email,
+              personalityType: quizResult.personality_type,
+              analysis: detailedAnalysis,
+              scores: categoryScores
+            }),
+          });
+
+          if (!emailResponse.ok) {
+            console.error('Error sending detailed report email:', await emailResponse.text());
+          }
         }
       }
     }
