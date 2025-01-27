@@ -1,9 +1,10 @@
+import { useState } from "react";
 import { Sparkles } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { BenefitsList } from "./purchase/BenefitsList";
 import { PurchaseButton } from "./purchase/PurchaseButton";
-import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 interface PurchaseSectionProps {
   resultId: string;
@@ -12,6 +13,7 @@ interface PurchaseSectionProps {
 
 export const PurchaseSection = ({ resultId, loading }: PurchaseSectionProps) => {
   const [purchaseLoading, setPurchaseLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handlePurchase = async () => {
     try {
@@ -27,6 +29,7 @@ export const PurchaseSection = ({ resultId, loading }: PurchaseSectionProps) => 
           description: "Please sign in to purchase the detailed report.",
           variant: "destructive",
         });
+        navigate("/auth");
         return;
       }
 

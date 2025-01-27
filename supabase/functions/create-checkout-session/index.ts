@@ -13,32 +13,43 @@ serve(async (req) => {
   }
 
   try {
-    const { resultId, userId, mode } = await req.json();
-    
-    if (!userId) {
-      throw new Error('User ID is required');
-    }
+    // Get the request body
+    const { resultId, userId, mode = 'payment' } = await req.json();
+    console.log('Request received:', { resultId, userId, mode });
 
-    console.log('Processing checkout request for:', { userId, mode, resultId });
+    // Get auth token from request header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('No authorization header');
+    }
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
     );
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.admin.getUserById(userId);
-    
-    if (userError || !user?.email) {
+    // Get user data
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
+
+    if (userError || !user) {
       console.error('User error:', userError);
-      throw new Error('User not found or email missing');
+      throw new Error('User not found');
     }
 
-    console.log('Found user:', { email: user.email });
+    if (!user.email) {
+      console.error('No email found for user:', user.id);
+      throw new Error('User email missing');
+    }
+
+    console.log('User found:', { id: user.id, email: user.email });
 
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
       apiVersion: '2023-10-16',
     });
 
+    // Check for existing customer
     const customers = await stripe.customers.list({
       email: user.email,
       limit: 1
@@ -52,7 +63,7 @@ serve(async (req) => {
       const customer = await stripe.customers.create({
         email: user.email,
         metadata: {
-          supabaseUid: userId,
+          supabaseUid: user.id,
         },
       });
       customerId = customer.id;
@@ -61,10 +72,11 @@ serve(async (req) => {
     console.log('Creating checkout session...');
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
-      customer_email: customerId ? undefined : user.email,
       line_items: [
         {
-          price: mode === 'subscription' ? 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm' : 'price_1Qlc4VJy5TVq3Z9H0PFhn9hs',
+          price: mode === 'subscription' 
+            ? 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm'  // subscription price
+            : 'price_1Qlc4VJy5TVq3Z9H0PFhn9hs',  // one-time price
           quantity: 1,
         },
       ],
@@ -73,7 +85,7 @@ serve(async (req) => {
       cancel_url: `${req.headers.get('origin')}/dashboard?success=false`,
       metadata: resultId ? {
         resultId,
-        userId,
+        userId: user.id,
       } : undefined,
     });
 
