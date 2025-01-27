@@ -49,6 +49,7 @@ serve(async (req) => {
       const customerId = session.customer;
       const customer = await stripe.customers.retrieve(customerId as string);
       const userId = customer.metadata.supabaseUid;
+      const accessMethod = session.metadata?.accessMethod;
 
       if (session.mode === 'payment' && session.metadata?.resultId) {
         // Handle individual report purchase
@@ -57,6 +58,8 @@ serve(async (req) => {
           .update({
             is_purchased: true,
             is_detailed: true,
+            access_method: accessMethod,
+            stripe_session_id: session.id,
             detailed_analysis: 'Your detailed analysis will be generated shortly.',
             category_scores: {
               'Self-Awareness': 8.5,

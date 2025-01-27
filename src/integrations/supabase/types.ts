@@ -204,6 +204,7 @@ export type Database = {
       }
       quiz_results: {
         Row: {
+          access_method: string | null
           answers: Json
           category_scores: Json | null
           created_at: string
@@ -212,9 +213,11 @@ export type Database = {
           is_detailed: boolean | null
           is_purchased: boolean | null
           personality_type: string
+          stripe_session_id: string | null
           user_id: string
         }
         Insert: {
+          access_method?: string | null
           answers: Json
           category_scores?: Json | null
           created_at?: string
@@ -223,9 +226,11 @@ export type Database = {
           is_detailed?: boolean | null
           is_purchased?: boolean | null
           personality_type: string
+          stripe_session_id?: string | null
           user_id: string
         }
         Update: {
+          access_method?: string | null
           answers?: Json
           category_scores?: Json | null
           created_at?: string
@@ -234,6 +239,7 @@ export type Database = {
           is_detailed?: boolean | null
           is_purchased?: boolean | null
           personality_type?: string
+          stripe_session_id?: string | null
           user_id?: string
         }
         Relationships: [

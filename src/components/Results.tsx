@@ -27,6 +27,7 @@ export const Results = ({ personalityType, session }: ResultsProps) => {
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { 
           userId: session.user.id,
+          mode: 'payment'
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`

@@ -18,6 +18,7 @@ interface AssessmentCardProps {
     is_detailed: boolean;
     is_purchased: boolean;
     category_scores: Record<string, number> | null;
+    access_method: string | null;
   };
 }
 
@@ -44,7 +45,9 @@ export const AssessmentCard = ({ result }: AssessmentCardProps) => {
     fetchSubscription();
   }, []);
 
-  const canAccessReport = result.is_purchased || (subscription?.active && subscription?.assessments_used < subscription?.max_assessments);
+  const canAccessReport = result.is_purchased || 
+    result.access_method === 'purchase' || 
+    (subscription?.active && subscription?.assessments_used < subscription?.max_assessments);
 
   return (
     <motion.div
