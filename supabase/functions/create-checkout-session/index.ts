@@ -5,24 +5,35 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+// Validate environment variables
+const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+const supabaseUrl = Deno.env.get('SUPABASE_URL');
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+if (!stripeKey || !supabaseUrl || !supabaseServiceKey) {
+  throw new Error('Missing required environment variables');
+}
+
+const stripe = new Stripe(stripeKey, {
   apiVersion: '2023-10-16',
+  httpClient: Stripe.createFetchHttpClient(),
 });
 
-const supabaseClient = createClient(
-  Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-);
+const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
 serve(async (req) => {
-  try {
-    // Handle CORS preflight requests
-    if (req.method === 'OPTIONS') {
-      return new Response(null, { headers: corsHeaders });
-    }
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { 
+      headers: corsHeaders,
+      status: 204,
+    });
+  }
 
+  try {
     const { headers } = req;
     const authorization = headers.get('Authorization');
 
@@ -65,7 +76,7 @@ serve(async (req) => {
     } else if (mode === 'subscription') {
       priceId = 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm'; // Pro subscription
     } else {
-      priceId = 'price_1QloJQJy5TVq3Z9HTnIN6BX5'; // Single report ($9.99)
+      priceId = 'price_1QloJQJy5TVq3Z9HTnIN6BX5'; // Single report
     }
 
     console.log('Creating checkout session with mode:', mode, 'and priceId:', priceId);
@@ -100,7 +111,10 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        details: error.stack
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
