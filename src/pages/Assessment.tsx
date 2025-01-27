@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { DetailedReport } from "@/components/results/DetailedReport";
 import { toast } from "@/components/ui/use-toast";
 
-export const Assessment = () => {
+const Assessment = () => {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const [result, setResult] = useState<any>(null);
@@ -93,3 +93,5 @@ export const Assessment = () => {
     </div>
   );
 };
+
+export { Assessment };
