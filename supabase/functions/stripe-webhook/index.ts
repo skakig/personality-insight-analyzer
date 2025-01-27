@@ -50,6 +50,8 @@ serve(async (req) => {
       const customer = await stripe.customers.retrieve(customerId as string);
       const userId = customer.metadata.supabaseUid;
       const accessMethod = session.metadata?.accessMethod;
+      const isGift = session.metadata?.isGift === 'true';
+      const giftRecipientEmail = session.metadata?.giftRecipientEmail;
 
       if (session.mode === 'payment' && session.metadata?.resultId) {
         // Check if user has an active subscription
@@ -60,19 +62,17 @@ serve(async (req) => {
           .eq('active', true)
           .single();
 
-        if (subscriptionError) {
+        if (subscriptionError && subscriptionError.code !== 'PGRST116') {
           console.error('Error checking subscription:', subscriptionError);
           throw subscriptionError;
         }
 
         if (subscription) {
-          // Check if user has available assessments
           if (subscription.assessments_used >= subscription.max_assessments) {
             console.error('User has exceeded assessment limit');
             throw new Error('Assessment limit exceeded');
           }
 
-          // Increment the assessments_used count
           const { error: updateError } = await supabaseAdmin
             .from('corporate_subscriptions')
             .update({
@@ -109,22 +109,12 @@ serve(async (req) => {
           console.error('Error updating quiz result:', updateError);
           throw updateError;
         }
-      } else if (session.mode === 'subscription') {
-        // Handle subscription purchase/update
-        const { error: subscriptionError } = await supabaseAdmin
-          .from('corporate_subscriptions')
-          .upsert({
-            organization_id: userId,
-            subscription_tier: 'pro',
-            max_assessments: 10,
-            assessments_used: 0,
-            active: true
-          })
-          .eq('organization_id', userId);
 
-        if (subscriptionError) {
-          console.error('Error updating subscription:', subscriptionError);
-          throw subscriptionError;
+        // If this is a gift purchase, send an email to the recipient
+        if (isGift && giftRecipientEmail) {
+          // Here you would implement the email sending logic
+          // For now, we'll just log it
+          console.log('Gift purchase completed, should send email to:', giftRecipientEmail);
         }
       }
     }

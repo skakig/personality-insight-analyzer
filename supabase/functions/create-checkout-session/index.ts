@@ -13,8 +13,8 @@ serve(async (req) => {
   }
 
   try {
-    const { resultId, userId, mode = 'payment', productType } = await req.json();
-    console.log('Request received:', { resultId, userId, mode, productType });
+    const { resultId, userId, mode = 'payment', productType, giftRecipientEmail } = await req.json();
+    console.log('Request received:', { resultId, userId, mode, productType, giftRecipientEmail });
     
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -54,23 +54,47 @@ serve(async (req) => {
       customer_id = customers.data[0].id;
     }
 
-    // Get user's subscription status
     const { data: subscription } = await supabaseClient
       .from('corporate_subscriptions')
       .select('*')
       .eq('organization_id', user.id)
       .single();
 
-    // Use the correct price ID based on the product type
-    let priceId = 'price_1QloJQJy5TVq3Z9HTnIN6BX5'; // Default price ID for report unlock
+    let priceId = 'price_1QloJQJy5TVq3Z9HTnIN6BX5';
 
     if (productType === 'credits') {
-      priceId = 'price_1QlcfyJy5TVq3Z9HzMjHJ1YB'; // Credits price ID
+      priceId = 'price_1QlcfyJy5TVq3Z9HzMjHJ1YB';
     } else if (subscription?.active) {
-      priceId = 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm'; // Pro subscription price
+      priceId = 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm';
     }
 
     console.log('Creating checkout session with mode:', mode, 'and priceId:', priceId);
+
+    // Base metadata
+    const metadata: Record<string, string> = {
+      userId: user.id,
+    };
+
+    if (resultId) {
+      metadata.resultId = resultId;
+      metadata.accessMethod = mode === 'subscription' ? 'subscription_credit' : 'purchase';
+    }
+
+    if (giftRecipientEmail) {
+      metadata.giftRecipientEmail = giftRecipientEmail;
+      metadata.isGift = 'true';
+    }
+
+    if (productType) {
+      metadata.productType = productType;
+    }
+
+    const successUrl = new URL(`${req.headers.get('origin')}/assessment/${resultId || ''}`);
+    successUrl.searchParams.append('success', 'true');
+    if (giftRecipientEmail) {
+      successUrl.searchParams.append('gift', 'true');
+    }
+
     const session = await stripe.checkout.sessions.create({
       customer: customer_id,
       customer_email: customer_id ? undefined : user.email,
@@ -81,16 +105,9 @@ serve(async (req) => {
         },
       ],
       mode,
-      success_url: `${req.headers.get('origin')}/assessment/${resultId}?success=true`,
+      success_url: successUrl.toString(),
       cancel_url: `${req.headers.get('origin')}/assessment/${resultId}?success=false`,
-      metadata: resultId ? {
-        resultId,
-        userId: user.id,
-        accessMethod: mode === 'subscription' ? 'subscription_credit' : 'purchase'
-      } : {
-        userId: user.id,
-        productType
-      },
+      metadata,
     });
 
     console.log('Payment session created:', session.id);

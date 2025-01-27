@@ -4,6 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { BenefitsList } from "./purchase/BenefitsList";
 import { PurchaseButton } from "./purchase/PurchaseButton";
 import { useNavigate } from "react-router-dom";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Gift } from "lucide-react";
 
 interface PurchaseSectionProps {
   resultId: string;
@@ -12,12 +16,14 @@ interface PurchaseSectionProps {
 
 export const PurchaseSection = ({ resultId, loading }: PurchaseSectionProps) => {
   const [purchaseLoading, setPurchaseLoading] = useState(false);
+  const [giftEmail, setGiftEmail] = useState("");
+  const [isGiftDialogOpen, setIsGiftDialogOpen] = useState(false);
   const navigate = useNavigate();
 
-  const handlePurchase = async () => {
+  const handlePurchase = async (giftRecipientEmail?: string) => {
     try {
       setPurchaseLoading(true);
-      console.log('Initiating checkout for result:', resultId);
+      console.log('Initiating checkout for result:', resultId, giftRecipientEmail ? 'as gift' : '');
       
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
@@ -35,7 +41,8 @@ export const PurchaseSection = ({ resultId, loading }: PurchaseSectionProps) => 
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { 
           resultId,
-          userId: session.user.id
+          userId: session.user.id,
+          giftRecipientEmail
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`
@@ -61,7 +68,30 @@ export const PurchaseSection = ({ resultId, loading }: PurchaseSectionProps) => 
       });
     } finally {
       setPurchaseLoading(false);
+      setIsGiftDialogOpen(false);
     }
+  };
+
+  const handleGiftPurchase = () => {
+    if (!giftEmail) {
+      toast({
+        title: "Email Required",
+        description: "Please enter the recipient's email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(giftEmail)) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    handlePurchase(giftEmail);
   };
 
   return (
@@ -73,10 +103,48 @@ export const PurchaseSection = ({ resultId, loading }: PurchaseSectionProps) => 
         
         <div className="space-y-4">
           <BenefitsList />
-          <PurchaseButton 
-            onClick={handlePurchase} 
-            loading={loading || purchaseLoading}
-          />
+          
+          <div className="flex flex-col sm:flex-row gap-3">
+            <PurchaseButton 
+              onClick={() => handlePurchase()} 
+              loading={loading || purchaseLoading}
+            />
+            
+            <Dialog open={isGiftDialogOpen} onOpenChange={setIsGiftDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto">
+                  <Gift className="mr-2 h-4 w-4" />
+                  Gift This Test
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Gift This Assessment</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <label htmlFor="giftEmail" className="text-sm font-medium text-gray-700">
+                      Recipient's Email
+                    </label>
+                    <Input
+                      id="giftEmail"
+                      type="email"
+                      placeholder="friend@example.com"
+                      value={giftEmail}
+                      onChange={(e) => setGiftEmail(e.target.value)}
+                    />
+                  </div>
+                  <Button 
+                    onClick={handleGiftPurchase}
+                    className="w-full"
+                    disabled={purchaseLoading}
+                  >
+                    {purchaseLoading ? "Processing..." : "Send Gift"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
           
           <p className="text-xs text-center text-gray-500 mt-4">
             Join thousands of others who have transformed their approach to ethical decision-making
