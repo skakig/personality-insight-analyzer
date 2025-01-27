@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Gift, ArrowRight } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Session } from "@supabase/supabase-js";
 
 interface MoralExample {
   level: string;
@@ -21,8 +22,8 @@ export const GiftSuccess = () => {
   useEffect(() => {
     const checkGiftStatus = async () => {
       try {
-        const { data: session } = await supabase.auth.getSession();
-        if (!session?.user) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData?.session?.user) {
           navigate("/auth");
           return;
         }

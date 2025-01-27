@@ -1,12 +1,12 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Navigation } from "./components/Navigation";
-import { Index } from "./pages/Index";
-import { Auth } from "./pages/Auth";
+import Index from "./pages/Index";
+import Auth from "./pages/Auth";
 import { Assessment } from "./pages/Assessment";
-import { AssessmentHistory } from "./pages/AssessmentHistory";
-import { Dashboard } from "./pages/Dashboard";
-import { BookLanding } from "./pages/BookLanding";
-import { Pricing } from "./pages/Pricing";
+import AssessmentHistory from "./pages/AssessmentHistory";
+import Dashboard from "./pages/Dashboard";
+import BookLanding from "./pages/BookLanding";
+import Pricing from "./pages/Pricing";
 import { GiftSuccess } from "./pages/GiftSuccess";
 
 function App() {
