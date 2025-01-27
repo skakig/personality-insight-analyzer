@@ -52,7 +52,42 @@ serve(async (req) => {
       const accessMethod = session.metadata?.accessMethod;
 
       if (session.mode === 'payment' && session.metadata?.resultId) {
-        // Handle individual report purchase
+        // Check if user has an active subscription
+        const { data: subscription, error: subscriptionError } = await supabaseAdmin
+          .from('corporate_subscriptions')
+          .select('*')
+          .eq('organization_id', userId)
+          .eq('active', true)
+          .single();
+
+        if (subscriptionError) {
+          console.error('Error checking subscription:', subscriptionError);
+          throw subscriptionError;
+        }
+
+        if (subscription) {
+          // Check if user has available assessments
+          if (subscription.assessments_used >= subscription.max_assessments) {
+            console.error('User has exceeded assessment limit');
+            throw new Error('Assessment limit exceeded');
+          }
+
+          // Increment the assessments_used count
+          const { error: updateError } = await supabaseAdmin
+            .from('corporate_subscriptions')
+            .update({
+              assessments_used: subscription.assessments_used + 1,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', subscription.id);
+
+          if (updateError) {
+            console.error('Error updating assessment count:', updateError);
+            throw updateError;
+          }
+        }
+
+        // Update quiz result
         const { error: updateError } = await supabaseAdmin
           .from('quiz_results')
           .update({
