@@ -17,7 +17,7 @@ interface RecentAssessmentsCardProps {
   subscription: any;
 }
 
-export const RecentAssessmentsCard = ({ assessments, subscription }: RecentAssessmentsCardProps) => {
+export const RecentAssessmentsCard = ({ assessments }: RecentAssessmentsCardProps) => {
   const navigate = useNavigate();
 
   if (assessments.length === 0) return null;

@@ -8,6 +8,9 @@ import { GrowthPotential } from "./GrowthPotential";
 import { HighlightSection } from "./HighlightSection";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { FileText } from "lucide-react";
 
 interface AssessmentCardProps {
   result: {
@@ -25,6 +28,7 @@ interface AssessmentCardProps {
 export const AssessmentCard = ({ result }: AssessmentCardProps) => {
   const [subscription, setSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchSubscription = async () => {
@@ -49,6 +53,10 @@ export const AssessmentCard = ({ result }: AssessmentCardProps) => {
   const canAccessReport = result.is_purchased || 
     result.access_method === 'purchase' || 
     (subscription?.active && subscription?.assessments_used < subscription?.max_assessments);
+
+  const handleViewReport = () => {
+    navigate(`/assessment/${result.id}`);
+  };
 
   return (
     <motion.div
@@ -82,7 +90,15 @@ export const AssessmentCard = ({ result }: AssessmentCardProps) => {
               </div>
             </div>
             
-            {!canAccessReport && (
+            {canAccessReport ? (
+              <Button
+                onClick={handleViewReport}
+                className="w-full bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white"
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                View Full Report
+              </Button>
+            ) : (
               <PurchaseSection 
                 resultId={result.id} 
                 loading={loading}
