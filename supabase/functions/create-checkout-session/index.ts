@@ -89,11 +89,20 @@ serve(async (req) => {
       metadata.productType = productType;
     }
 
-    const successUrl = new URL(`${req.headers.get('origin')}/assessment/${resultId || ''}`);
-    successUrl.searchParams.append('success', 'true');
-    if (giftRecipientEmail) {
-      successUrl.searchParams.append('gift', 'true');
-    }
+    // Get the personality type for the success URL
+    const { data: quizResult } = await supabaseClient
+      .from('quiz_results')
+      .select('personality_type')
+      .eq('id', resultId)
+      .single();
+
+    const level = quizResult?.personality_type || '1';
+
+    // Construct success URL based on whether it's a gift or not
+    const baseUrl = req.headers.get('origin');
+    const successUrl = giftRecipientEmail 
+      ? `${baseUrl}/gift-success?level=${level}`
+      : `${baseUrl}/assessment/${resultId}?success=true`;
 
     const session = await stripe.checkout.sessions.create({
       customer: customer_id,
@@ -105,8 +114,8 @@ serve(async (req) => {
         },
       ],
       mode,
-      success_url: successUrl.toString(),
-      cancel_url: `${req.headers.get('origin')}/assessment/${resultId}?success=false`,
+      success_url: successUrl,
+      cancel_url: `${baseUrl}/assessment/${resultId}?success=false`,
       metadata,
     });
 

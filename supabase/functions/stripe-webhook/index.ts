@@ -51,8 +51,10 @@ serve(async (req) => {
       const userId = customer.metadata.supabaseUid;
       const accessMethod = session.metadata?.accessMethod;
       const resultId = session.metadata?.resultId;
+      const isGift = session.metadata?.isGift === 'true';
+      const giftRecipientEmail = session.metadata?.giftRecipientEmail;
 
-      if (session.mode === 'payment' && resultId) {
+      if (resultId) {
         // Get the quiz result and user details
         const { data: quizResult } = await supabaseAdmin
           .from('quiz_results')
@@ -64,28 +66,28 @@ serve(async (req) => {
           throw new Error('Quiz result not found');
         }
 
-        // Update quiz result with purchase details
-        const { error: updateError } = await supabaseAdmin
-          .from('quiz_results')
-          .update({
-            is_purchased: true,
-            is_detailed: true,
-            access_method: accessMethod,
-            stripe_session_id: session.id
-          })
-          .eq('id', resultId);
+        if (isGift && giftRecipientEmail) {
+          // Create a new quiz result for the gift recipient
+          const { data: giftResult, error: giftError } = await supabaseAdmin
+            .from('quiz_results')
+            .insert({
+              personality_type: quizResult.personality_type,
+              category_scores: quizResult.category_scores,
+              detailed_analysis: quizResult.detailed_analysis,
+              is_purchased: true,
+              is_detailed: true,
+              access_method: 'gift',
+              stripe_session_id: session.id
+            })
+            .select()
+            .single();
 
-        if (updateError) {
-          console.error('Error updating quiz result:', updateError);
-          throw updateError;
-        }
+          if (giftError) {
+            console.error('Error creating gift result:', giftError);
+            throw giftError;
+          }
 
-        // Get user's email
-        const { data: userProfile } = await supabaseAdmin
-          .auth.admin.getUserById(userId);
-
-        if (userProfile?.user?.email) {
-          // Send detailed report email
+          // Send email to gift recipient
           const emailResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-detailed-report`, {
             method: 'POST',
             headers: {
@@ -93,7 +95,44 @@ serve(async (req) => {
               'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
             },
             body: JSON.stringify({
-              email: userProfile.user.email,
+              email: giftRecipientEmail,
+              personalityType: quizResult.personality_type,
+              analysis: quizResult.detailed_analysis,
+              scores: quizResult.category_scores,
+              giftCode: giftResult.id
+            }),
+          });
+
+          if (!emailResponse.ok) {
+            console.error('Error sending gift email:', await emailResponse.text());
+            throw new Error('Failed to send gift email');
+          }
+        } else {
+          // Update the original quiz result
+          const { error: updateError } = await supabaseAdmin
+            .from('quiz_results')
+            .update({
+              is_purchased: true,
+              is_detailed: true,
+              access_method: accessMethod,
+              stripe_session_id: session.id
+            })
+            .eq('id', resultId);
+
+          if (updateError) {
+            console.error('Error updating quiz result:', updateError);
+            throw updateError;
+          }
+
+          // Send email to purchaser
+          const emailResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-detailed-report`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
+            },
+            body: JSON.stringify({
+              email: customer.email,
               personalityType: quizResult.personality_type,
               analysis: quizResult.detailed_analysis,
               scores: quizResult.category_scores
@@ -101,7 +140,8 @@ serve(async (req) => {
           });
 
           if (!emailResponse.ok) {
-            console.error('Error sending detailed report email:', await emailResponse.text());
+            console.error('Error sending email:', await emailResponse.text());
+            throw new Error('Failed to send email');
           }
         }
       }

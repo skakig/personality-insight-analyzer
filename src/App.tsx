@@ -1,47 +1,30 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { Toaster } from "@/components/ui/toaster";
-import { Navigation } from "@/components/Navigation";
-import Index from "@/pages/Index";
-import Auth from "@/pages/Auth";
-import Dashboard from "@/pages/Dashboard";
-import AssessmentHistory from "@/pages/AssessmentHistory";
-import BookLanding from "@/pages/BookLanding";
-import Pricing from "@/pages/Pricing";
-import { Assessment } from "@/pages/Assessment";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Session } from "@supabase/supabase-js";
+import { Navigation } from "./components/Navigation";
+import { Index } from "./pages/Index";
+import { Auth } from "./pages/Auth";
+import { Assessment } from "./pages/Assessment";
+import { AssessmentHistory } from "./pages/AssessmentHistory";
+import { Dashboard } from "./pages/Dashboard";
+import { BookLanding } from "./pages/BookLanding";
+import { Pricing } from "./pages/Pricing";
+import { GiftSuccess } from "./pages/GiftSuccess";
 
-export default function App() {
-  const [session, setSession] = useState<Session | null>(null);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
+function App() {
   return (
     <Router>
-      <Navigation session={session} />
+      <Navigation />
       <Routes>
-        <Route path="/" element={<Index session={session} />} />
+        <Route path="/" element={<Index />} />
         <Route path="/auth" element={<Auth />} />
-        <Route path="/dashboard" element={<Dashboard session={session} />} />
+        <Route path="/assessment/:id?" element={<Assessment />} />
         <Route path="/assessment-history" element={<AssessmentHistory />} />
-        <Route path="/assessment/:id" element={<Assessment />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/book" element={<BookLanding />} />
         <Route path="/pricing" element={<Pricing />} />
+        <Route path="/gift-success" element={<GiftSuccess />} />
       </Routes>
-      <Toaster />
     </Router>
   );
 }
+
+export default App;
