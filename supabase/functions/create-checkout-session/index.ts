@@ -60,12 +60,18 @@ serve(async (req) => {
       .eq('organization_id', user.id)
       .single();
 
-    let priceId = 'price_1QloJQJy5TVq3Z9HTnIN6BX5';
-
-    if (productType === 'credits') {
-      priceId = 'price_1QlcfyJy5TVq3Z9HzMjHJ1YB';
-    } else if (subscription?.active) {
-      priceId = 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm';
+    // Define price IDs based on mode and type
+    let priceId;
+    if (mode === 'subscription') {
+      // Use subscription price IDs
+      priceId = 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm'; // Pro subscription
+    } else {
+      // Use one-time payment price IDs
+      if (productType === 'credits') {
+        priceId = 'price_1QlcfyJy5TVq3Z9HzMjHJ1YB';
+      } else {
+        priceId = 'price_1QloJQJy5TVq3Z9HTnIN6BX5'; // Single assessment
+      }
     }
 
     console.log('Creating checkout session with mode:', mode, 'and priceId:', priceId);
@@ -113,7 +119,7 @@ serve(async (req) => {
           quantity: 1,
         },
       ],
-      mode,
+      mode: mode,
       success_url: successUrl,
       cancel_url: `${baseUrl}/assessment/${resultId}?success=false`,
       metadata,
