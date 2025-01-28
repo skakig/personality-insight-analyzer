@@ -20,9 +20,11 @@ export const QuickActionsCard = ({
 }: QuickActionsCardProps) => {
   const navigate = useNavigate();
 
-  const isButtonDisabled = !subscription?.active || !hasAvailableCredits;
+  const isButtonDisabled = !subscription?.active && !hasPurchasedReport && !hasAvailableCredits;
   const buttonHelpText = !subscription?.active 
-    ? "Subscribe to take assessments"
+    ? hasPurchasedReport 
+      ? "View your purchased assessment"
+      : "Subscribe or purchase individual assessment"
     : !hasAvailableCredits 
       ? "Purchase more credits"
       : "Start a new evaluation";
