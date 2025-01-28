@@ -20,6 +20,13 @@ export const QuickActionsCard = ({
 }: QuickActionsCardProps) => {
   const navigate = useNavigate();
 
+  const isButtonDisabled = !subscription?.active || !hasAvailableCredits;
+  const buttonHelpText = !subscription?.active 
+    ? "Subscribe to take assessments"
+    : !hasAvailableCredits 
+      ? "Purchase more credits"
+      : "Start a new evaluation";
+
   return (
     <Card className="border-0 shadow-sm bg-white">
       <CardHeader className="pb-4">
@@ -32,19 +39,14 @@ export const QuickActionsCard = ({
         <Button 
           className="w-full h-auto py-4 px-4 bg-gradient-to-br from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 shadow-sm"
           onClick={() => navigate("/dashboard/quiz")}
-          disabled={!subscription?.active || !hasAvailableCredits}
+          disabled={isButtonDisabled}
         >
           <div className="flex items-center space-x-3">
             <ChartBar className="h-5 w-5" />
             <div className="text-left">
               <div className="font-medium">Take Assessment</div>
               <div className="text-xs opacity-90">
-                {!subscription?.active 
-                  ? "Subscribe to take assessments"
-                  : !hasAvailableCredits 
-                    ? "Purchase more credits"
-                    : "Start a new evaluation"
-                }
+                {buttonHelpText}
               </div>
             </div>
           </div>
