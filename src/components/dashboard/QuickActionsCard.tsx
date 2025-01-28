@@ -10,9 +10,14 @@ interface QuickActionsCardProps {
     max_assessments: number;
   } | null;
   hasPurchasedReport: boolean;
+  hasAvailableCredits: boolean;
 }
 
-export const QuickActionsCard = ({ subscription, hasPurchasedReport }: QuickActionsCardProps) => {
+export const QuickActionsCard = ({ 
+  subscription, 
+  hasPurchasedReport,
+  hasAvailableCredits 
+}: QuickActionsCardProps) => {
   const navigate = useNavigate();
 
   return (
@@ -27,13 +32,20 @@ export const QuickActionsCard = ({ subscription, hasPurchasedReport }: QuickActi
         <Button 
           className="w-full h-auto py-4 px-4 bg-gradient-to-br from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 shadow-sm"
           onClick={() => navigate("/dashboard/quiz")}
-          disabled={!subscription?.active || (subscription?.assessments_used >= subscription?.max_assessments)}
+          disabled={!subscription?.active || !hasAvailableCredits}
         >
           <div className="flex items-center space-x-3">
             <ChartBar className="h-5 w-5" />
             <div className="text-left">
               <div className="font-medium">Take Assessment</div>
-              <div className="text-xs opacity-90">Start a new evaluation</div>
+              <div className="text-xs opacity-90">
+                {!subscription?.active 
+                  ? "Subscribe to take assessments"
+                  : !hasAvailableCredits 
+                    ? "Purchase more credits"
+                    : "Start a new evaluation"
+                }
+              </div>
             </div>
           </div>
         </Button>

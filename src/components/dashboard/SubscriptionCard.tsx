@@ -72,6 +72,7 @@ export const SubscriptionCard = ({ subscription, error }: SubscriptionCardProps)
   const creditsRemaining = subscription.max_assessments - subscription.assessments_used;
   const usagePercentage = (subscription.assessments_used / subscription.max_assessments) * 100;
   const isLowOnCredits = usagePercentage >= 80;
+  const isOutOfCredits = subscription.assessments_used >= subscription.max_assessments;
 
   return (
     <Card>
@@ -94,13 +95,26 @@ export const SubscriptionCard = ({ subscription, error }: SubscriptionCardProps)
             <span>Credits Used: {subscription.assessments_used}</span>
             <span>Total Credits: {subscription.max_assessments}</span>
           </div>
-          <Progress value={usagePercentage} className="h-2" />
+          <Progress 
+            value={usagePercentage} 
+            className="h-2"
+            variant={isLowOnCredits ? "warning" : undefined}
+          />
           <p className="text-sm text-gray-500">
             {creditsRemaining} credits remaining
           </p>
         </div>
 
-        {isLowOnCredits && (
+        {isOutOfCredits && (
+          <Alert className="bg-yellow-50 text-yellow-800 border-yellow-200">
+            <AlertCircle className="h-4 w-4 text-yellow-800" />
+            <AlertDescription>
+              You've used all your assessment credits. Purchase more to continue accessing detailed reports.
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {!isOutOfCredits && isLowOnCredits && (
           <Alert className="bg-yellow-50 text-yellow-800 border-yellow-200">
             <AlertCircle className="h-4 w-4 text-yellow-800" />
             <AlertDescription>

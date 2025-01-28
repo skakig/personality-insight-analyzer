@@ -15,8 +15,11 @@ export const DashboardContent = ({
 }: DashboardContentProps) => {
   // Filter to get the most recent purchased assessment
   const hasPurchasedReport = previousAssessments.some(
-    assessment => assessment.is_purchased || assessment.is_detailed
+    assessment => assessment.is_purchased || assessment.is_detailed || assessment.access_method === 'purchase'
   );
+
+  const hasAvailableCredits = subscription?.active && 
+    subscription?.assessments_used < subscription?.max_assessments;
 
   return (
     <div className="grid gap-8 md:grid-cols-3">
@@ -26,6 +29,7 @@ export const DashboardContent = ({
           <RecentAssessmentsCard 
             assessments={previousAssessments}
             subscription={subscription}
+            hasAvailableCredits={hasAvailableCredits}
           />
         )}
       </div>
@@ -34,6 +38,7 @@ export const DashboardContent = ({
         <QuickActionsCard 
           subscription={subscription} 
           hasPurchasedReport={hasPurchasedReport}
+          hasAvailableCredits={hasAvailableCredits}
         />
       </div>
     </div>
