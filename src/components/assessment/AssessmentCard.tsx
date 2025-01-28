@@ -20,7 +20,7 @@ interface AssessmentCardProps {
 export const AssessmentCard = ({ result }: AssessmentCardProps) => {
   const navigate = useNavigate();
   const date = new Date(result.created_at).toLocaleDateString();
-  const hasFullAccess = result.is_purchased || result.is_detailed;
+  const hasFullAccess = result.is_purchased || result.is_detailed || result.access_method === 'purchase';
 
   const handleShare = async () => {
     try {
