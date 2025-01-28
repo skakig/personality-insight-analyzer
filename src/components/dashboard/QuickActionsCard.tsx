@@ -29,6 +29,16 @@ export const QuickActionsCard = ({
       ? "Purchase more credits"
       : "Start a new evaluation";
 
+  const handleAssessmentClick = () => {
+    if (hasPurchasedReport) {
+      navigate("/assessment-history");
+    } else if (subscription?.active && hasAvailableCredits) {
+      navigate("/assessment");
+    } else if (!subscription?.active) {
+      navigate("/pricing");
+    }
+  };
+
   return (
     <Card className="border-0 shadow-sm bg-white">
       <CardHeader className="pb-4">
@@ -40,7 +50,7 @@ export const QuickActionsCard = ({
       <CardContent className="space-y-3">
         <Button 
           className="w-full h-auto py-4 px-4 bg-gradient-to-br from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 shadow-sm"
-          onClick={() => navigate("/dashboard/quiz")}
+          onClick={handleAssessmentClick}
           disabled={isButtonDisabled}
         >
           <div className="flex items-center space-x-3">
