@@ -23,7 +23,7 @@ export const QuickActionsCard = ({
   const isButtonDisabled = !subscription?.active && !hasPurchasedReport && !hasAvailableCredits;
   const buttonHelpText = !subscription?.active 
     ? hasPurchasedReport 
-      ? "View your purchased assessment"
+      ? "View Your Report"
       : "Subscribe or purchase individual assessment"
     : !hasAvailableCredits 
       ? "Purchase more credits"
