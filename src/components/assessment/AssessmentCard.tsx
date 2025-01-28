@@ -79,7 +79,7 @@ export const AssessmentCard = ({ result }: AssessmentCardProps) => {
           }`}
         >
           <FileText className="mr-2 h-4 w-4" />
-          {hasFullAccess ? "View Full Report" : "Purchase Full Report"}
+          {hasFullAccess ? "View Your Report" : "Unlock Your Full Report"}
         </Button>
       </CardContent>
     </Card>
