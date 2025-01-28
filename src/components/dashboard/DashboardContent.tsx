@@ -13,6 +13,11 @@ export const DashboardContent = ({
   error, 
   previousAssessments 
 }: DashboardContentProps) => {
+  // Filter to get the most recent purchased assessment
+  const hasPurchasedReport = previousAssessments.some(
+    assessment => assessment.is_purchased || assessment.is_detailed
+  );
+
   return (
     <div className="grid gap-8 md:grid-cols-3">
       <div className="md:col-span-2 space-y-8">
@@ -26,7 +31,10 @@ export const DashboardContent = ({
       </div>
       
       <div className="space-y-8">
-        <QuickActionsCard subscription={subscription} />
+        <QuickActionsCard 
+          subscription={subscription} 
+          hasPurchasedReport={hasPurchasedReport}
+        />
       </div>
     </div>
   );

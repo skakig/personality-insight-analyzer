@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { ChartBar, History } from "lucide-react";
+import { ChartBar, History, FileText } from "lucide-react";
 
 interface QuickActionsCardProps {
   subscription: {
@@ -9,9 +9,10 @@ interface QuickActionsCardProps {
     assessments_used: number;
     max_assessments: number;
   } | null;
+  hasPurchasedReport: boolean;
 }
 
-export const QuickActionsCard = ({ subscription }: QuickActionsCardProps) => {
+export const QuickActionsCard = ({ subscription, hasPurchasedReport }: QuickActionsCardProps) => {
   const navigate = useNavigate();
 
   return (
@@ -37,19 +38,35 @@ export const QuickActionsCard = ({ subscription }: QuickActionsCardProps) => {
           </div>
         </Button>
         
-        <Button 
-          variant="outline" 
-          className="w-full h-auto py-4 px-4 border border-gray-200 hover:bg-gray-50/50"
-          onClick={() => navigate("/assessment-history")}
-        >
-          <div className="flex items-center space-x-3">
-            <History className="h-5 w-5" />
-            <div className="text-left">
-              <div className="font-medium">View History</div>
-              <div className="text-xs text-gray-600">See past results</div>
+        {hasPurchasedReport ? (
+          <Button 
+            variant="outline" 
+            className="w-full h-auto py-4 px-4 border border-gray-200 hover:bg-gray-50/50"
+            onClick={() => navigate("/assessment-history")}
+          >
+            <div className="flex items-center space-x-3">
+              <FileText className="h-5 w-5" />
+              <div className="text-left">
+                <div className="font-medium">View Your Full Report</div>
+                <div className="text-xs text-gray-600">Access your detailed analysis</div>
+              </div>
             </div>
-          </div>
-        </Button>
+          </Button>
+        ) : (
+          <Button 
+            variant="outline" 
+            className="w-full h-auto py-4 px-4 border border-gray-200 hover:bg-gray-50/50"
+            onClick={() => navigate("/assessment-history")}
+          >
+            <div className="flex items-center space-x-3">
+              <History className="h-5 w-5" />
+              <div className="text-left">
+                <div className="font-medium">View History</div>
+                <div className="text-xs text-gray-600">See past results</div>
+              </div>
+            </div>
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
