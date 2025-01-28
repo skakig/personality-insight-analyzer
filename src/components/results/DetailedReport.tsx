@@ -20,23 +20,16 @@ export const DetailedReport = ({ personalityType, analysis, scores }: DetailedRe
         const { data: { user } } = await supabase.auth.getUser();
         if (!user?.email) return;
 
-        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-detailed-report`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({
+        const { data, error } = await supabase.functions.invoke('send-detailed-report', {
+          body: {
             email: user.email,
             personalityType,
             analysis,
             scores
-          }),
+          }
         });
 
-        if (!response.ok) {
-          throw new Error('Failed to send email');
-        }
+        if (error) throw error;
 
         toast({
           title: "Report Sent!",
