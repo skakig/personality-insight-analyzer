@@ -1,52 +1,47 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { AssessmentCard } from "@/components/assessment/AssessmentCard";
+import { formatDistanceToNow } from "date-fns";
+import { RecentAssessmentsCardProps } from "@/types/dashboard";
 
-interface RecentAssessmentsCardProps {
-  assessments: Array<{
-    id: string;
-    personality_type: string;
-    created_at: string;
-    detailed_analysis: string | null;
-    is_detailed: boolean;
-    is_purchased: boolean;
-    category_scores: Record<string, number> | null;
-    access_method: string | null;
-  }>;
-  subscription: any;
-  hasAvailableCredits: boolean;
-}
-
-export const RecentAssessmentsCard = ({ assessments }: RecentAssessmentsCardProps) => {
+export const RecentAssessmentsCard = ({ 
+  assessments,
+  subscription,
+  hasAvailableCredits 
+}: RecentAssessmentsCardProps) => {
   const navigate = useNavigate();
 
-  if (assessments.length === 0) return null;
-
   return (
-    <Card className="border-0 shadow-sm bg-white">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-xl font-medium">Recent Assessments</CardTitle>
-        <CardDescription className="text-sm text-gray-500">
-          Your latest assessment results
-        </CardDescription>
+    <Card>
+      <CardHeader>
+        <CardTitle>Recent Assessments</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {assessments.slice(0, 3).map((result) => (
-          <AssessmentCard 
-            key={result.id} 
-            result={result}
-          />
-        ))}
-        {assessments.length > 3 && (
-          <Button 
-            variant="outline" 
-            className="w-full border border-gray-200 hover:bg-gray-50/50"
-            onClick={() => navigate("/assessment-history")}
+        {assessments.map((assessment) => (
+          <div
+            key={assessment.id}
+            className="flex items-center justify-between p-4 rounded-lg border bg-card text-card-foreground shadow-sm"
           >
-            View All Assessments
-          </Button>
-        )}
+            <div className="space-y-1">
+              <p className="font-medium">
+                Level {assessment.personality_type}
+              </p>
+              <p className="text-sm text-gray-500">
+                {formatDistanceToNow(new Date(assessment.created_at), { addSuffix: true })}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/assessment/${assessment.id}`)}
+              disabled={!subscription?.active || !hasAvailableCredits}
+            >
+              {assessment.is_purchased || assessment.is_detailed || assessment.access_method === 'purchase'
+                ? "View Full Report"
+                : "Unlock Full Report"}
+            </Button>
+          </div>
+        ))}
       </CardContent>
     </Card>
   );

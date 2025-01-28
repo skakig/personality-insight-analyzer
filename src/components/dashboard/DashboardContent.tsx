@@ -1,11 +1,12 @@
 import { SubscriptionCard } from "./SubscriptionCard";
 import { QuickActionsCard } from "./QuickActionsCard";
 import { RecentAssessmentsCard } from "./RecentAssessmentsCard";
+import { Assessment, Subscription } from "@/types/dashboard";
 
 interface DashboardContentProps {
-  subscription: any;
+  subscription: Subscription | null;
   error: string | null;
-  previousAssessments: any[];
+  previousAssessments: Assessment[];
 }
 
 export const DashboardContent = ({ 
@@ -13,7 +14,6 @@ export const DashboardContent = ({
   error, 
   previousAssessments 
 }: DashboardContentProps) => {
-  // Filter to get the most recent purchased assessment
   const hasPurchasedReport = previousAssessments.some(
     assessment => assessment.is_purchased || assessment.is_detailed || assessment.access_method === 'purchase'
   );
