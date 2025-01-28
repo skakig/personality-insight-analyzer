@@ -97,8 +97,7 @@ export const SubscriptionCard = ({ subscription, error }: SubscriptionCardProps)
           </div>
           <Progress 
             value={usagePercentage} 
-            className="h-2"
-            variant={isLowOnCredits ? "warning" : undefined}
+            className={`h-2 ${isLowOnCredits ? 'bg-yellow-200' : ''}`}
           />
           <p className="text-sm text-gray-500">
             {creditsRemaining} credits remaining

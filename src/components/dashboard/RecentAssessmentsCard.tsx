@@ -15,6 +15,7 @@ interface RecentAssessmentsCardProps {
     access_method: string | null;
   }>;
   subscription: any;
+  hasAvailableCredits: boolean;
 }
 
 export const RecentAssessmentsCard = ({ assessments }: RecentAssessmentsCardProps) => {
