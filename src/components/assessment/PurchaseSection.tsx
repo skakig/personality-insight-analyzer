@@ -42,6 +42,7 @@ export const PurchaseSection = ({ resultId, loading }: PurchaseSectionProps) => 
         body: { 
           resultId,
           userId: session.user.id,
+          mode: 'payment',
           giftRecipientEmail
         },
         headers: {

@@ -49,24 +49,21 @@ serve(async (req) => {
       limit: 1
     });
 
-    let customer_id;
-    if (customers.data.length > 0) {
-      customer_id = customers.data[0].id;
-    }
-
+    // Check for existing subscription
     const { data: subscription } = await supabaseClient
       .from('corporate_subscriptions')
       .select('*')
       .eq('organization_id', user.id)
       .single();
 
-    // Define price IDs based on mode and type
+    // Define price IDs and mode based on the request
     let priceId;
+    let checkoutMode = mode;
+
     if (mode === 'subscription') {
-      // Use subscription price IDs
       priceId = 'price_1Qlc65Jy5TVq3Z9Hq6w7xhSm'; // Pro subscription
     } else {
-      // Use one-time payment price IDs
+      checkoutMode = 'payment'; // Force payment mode for one-time purchases
       if (productType === 'credits') {
         priceId = 'price_1QlcfyJy5TVq3Z9HzMjHJ1YB';
       } else {
@@ -74,7 +71,25 @@ serve(async (req) => {
       }
     }
 
-    console.log('Creating checkout session with mode:', mode, 'and priceId:', priceId);
+    console.log('Using mode:', checkoutMode, 'and priceId:', priceId);
+
+    let customer_id;
+    if (customers.data.length > 0) {
+      customer_id = customers.data[0].id;
+      
+      if (mode === 'subscription') {
+        const subscriptions = await stripe.subscriptions.list({
+          customer: customer_id,
+          status: 'active',
+          price: priceId,
+          limit: 1
+        });
+
+        if (subscriptions.data.length > 0) {
+          throw new Error("Customer already has an active subscription");
+        }
+      }
+    }
 
     // Base metadata
     const metadata: Record<string, string> = {
@@ -103,13 +118,14 @@ serve(async (req) => {
       .single();
 
     const level = quizResult?.personality_type || '1';
-
+    const baseUrl = req.headers.get('origin') || '';
+    
     // Construct success URL based on whether it's a gift or not
-    const baseUrl = req.headers.get('origin');
     const successUrl = giftRecipientEmail 
       ? `${baseUrl}/gift-success?level=${level}`
       : `${baseUrl}/assessment/${resultId}?success=true`;
 
+    console.log('Creating checkout session...');
     const session = await stripe.checkout.sessions.create({
       customer: customer_id,
       customer_email: customer_id ? undefined : user.email,
@@ -119,7 +135,7 @@ serve(async (req) => {
           quantity: 1,
         },
       ],
-      mode: mode,
+      mode: checkoutMode,
       success_url: successUrl,
       cancel_url: `${baseUrl}/assessment/${resultId}?success=false`,
       metadata,
