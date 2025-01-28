@@ -1,10 +1,7 @@
-import { motion } from "framer-motion";
-import { Card } from "@/components/ui/card";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { FileText, Share2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { AssessmentCardHeader } from "./CardHeader";
-import { AssessmentContent } from "./card/AssessmentContent";
 import { toast } from "@/components/ui/use-toast";
 
 interface AssessmentCardProps {
@@ -21,68 +18,70 @@ interface AssessmentCardProps {
 }
 
 export const AssessmentCard = ({ result }: AssessmentCardProps) => {
-  const [subscription, setSubscription] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const date = new Date(result.created_at).toLocaleDateString();
+  const hasFullAccess = result.is_purchased || result.is_detailed;
 
-  useEffect(() => {
-    const fetchSubscription = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          const { data: subscriptionData, error } = await supabase
-            .from('corporate_subscriptions')
-            .select('*')
-            .eq('organization_id', session.user.id)
-            .eq('active', true)
-            .maybeSingle();
-          
-          if (error) throw error;
-          setSubscription(subscriptionData);
-        }
-      } catch (error: any) {
-        console.error('Error fetching subscription:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load subscription data",
-          variant: "destructive",
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "My Moral Level Assessment",
+          text: `I've discovered I'm at Level ${result.personality_type} in my moral development journey. Check out your own level!`,
+          url: window.location.href
         });
-      } finally {
-        setLoading(false);
+      } else {
+        await navigator.clipboard.writeText(
+          `I've discovered I'm at Level ${result.personality_type} in my moral development journey. Check out your own level at ${window.location.href}`
+        );
+        toast({
+          title: "Link copied!",
+          description: "Share the link with your friends.",
+        });
       }
-    };
-
-    fetchSubscription();
-  }, []);
-
-  const canAccessReport = result.is_purchased || 
-    result.access_method === 'purchase' || 
-    (subscription?.active && subscription?.assessments_used < subscription?.max_assessments);
-
-  const handleViewReport = () => {
-    navigate(`/assessment/${result.id}`);
+    } catch (error) {
+      console.error('Error sharing:', error);
+      toast({
+        title: "Sharing failed",
+        description: "Please try again later.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.3 }}
-    >
-      <Card className="overflow-hidden border border-gray-100 hover:border-primary/20 transition-all duration-300 bg-gradient-to-br from-white to-gray-50/50">
-        <AssessmentCardHeader 
-          personalityType={result.personality_type}
-          createdAt={result.created_at}
-          isDetailed={result.is_detailed}
-        />
-        <AssessmentContent 
-          personalityType={result.personality_type}
-          canAccessReport={canAccessReport}
-          resultId={result.id}
-          loading={loading}
-          onViewReport={handleViewReport}
-        />
-      </Card>
-    </motion.div>
+    <Card className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow">
+      <CardHeader className="pb-2">
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className="text-lg font-semibold">
+              Level {result.personality_type}
+            </h3>
+            <p className="text-sm text-gray-500">{date}</p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleShare}
+            className="text-gray-500 hover:text-primary"
+          >
+            <Share2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <Button
+          onClick={() => navigate(`/assessment/${result.id}`)}
+          className={`w-full ${
+            hasFullAccess
+              ? "bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white"
+              : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
+          }`}
+        >
+          <FileText className="mr-2 h-4 w-4" />
+          {hasFullAccess ? "View Full Report" : "Purchase Full Report"}
+        </Button>
+      </CardContent>
+    </Card>
   );
 };

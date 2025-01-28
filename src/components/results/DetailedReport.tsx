@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/use-toast";
 import { getLevelDescription } from "@/components/assessment/utils";
+import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface DetailedReportProps {
   personalityType: string;
@@ -21,7 +23,6 @@ export const DetailedReport = ({ personalityType, analysis, scores }: DetailedRe
           url: window.location.href
         });
       } else {
-        // Fallback to copying to clipboard
         await navigator.clipboard.writeText(
           `I've discovered I'm at Level ${personalityType} in my moral development journey. Check out your own level at ${window.location.href}`
         );
@@ -40,62 +41,46 @@ export const DetailedReport = ({ personalityType, analysis, scores }: DetailedRe
     }
   };
 
-  const getGrowthRecommendations = (level: string) => {
-    const nextLevelNum = parseInt(level) + 1;
-    if (nextLevelNum > 9) return [];
+  useEffect(() => {
+    const sendDetailedReport = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user?.email) return;
 
-    const recommendations = {
-      "1": [
-        "Practice long-term planning and goal setting",
-        "Build trust through small collaborative exercises",
-        "Focus on emotional regulation and stability",
-        "Develop resource management skills"
-      ],
-      "2": [
-        "Look for win-win opportunities in interactions",
-        "Practice active listening and empathy",
-        "Contribute to community projects",
-        "Reflect on how actions affect others"
-      ],
-      "3": [
-        "Stand up for fairness even when it doesn't benefit you",
-        "Develop deeper understanding of justice",
-        "Practice accountability in all areas",
-        "Balance rights with responsibilities"
-      ],
-      "4": [
-        "Cultivate deeper emotional awareness",
-        "Practice perspective-taking regularly",
-        "Develop compassionate responses",
-        "Balance justice with mercy"
-      ],
-      "5": [
-        "Look for opportunities to serve others",
-        "Practice intentional sacrifice",
-        "Expand your circle of concern",
-        "Balance empathy with boundaries"
-      ],
-      "6": [
-        "Align actions with core principles",
-        "Develop moral consistency",
-        "Practice integrity under pressure",
-        "Lead by example"
-      ],
-      "7": [
-        "Pursue excellence in character",
-        "Inspire others through actions",
-        "Balance wisdom and compassion",
-        "Cultivate deeper self-awareness"
-      ],
-      "8": [
-        "Align with universal truths",
-        "Focus on eternal principles",
-        "Develop transcendent perspective",
-        "Create lasting positive impact"
-      ]
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-detailed-report`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            email: user.email,
+            personalityType,
+            analysis,
+            scores
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to send email');
+        }
+
+        toast({
+          title: "Report Sent!",
+          description: "Check your email for your detailed report.",
+        });
+      } catch (error) {
+        console.error('Error sending report:', error);
+        toast({
+          title: "Error",
+          description: "Failed to send report to email. Please try again later.",
+          variant: "destructive",
+        });
+      }
     };
-    return recommendations[level as keyof typeof recommendations] || [];
-  };
+
+    sendDetailedReport();
+  }, [personalityType, analysis, scores]);
 
   return (
     <motion.div
