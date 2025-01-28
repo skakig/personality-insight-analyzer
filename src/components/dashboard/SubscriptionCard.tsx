@@ -1,40 +1,14 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { AlertCircle, CreditCard } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useNavigate } from "react-router-dom";
-import { toast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { SubscriptionProgress } from "./subscription/SubscriptionProgress";
+import { AlertCircle } from "lucide-react";
 import { SubscriptionCardProps } from "@/types/dashboard";
+import { SubscriptionHeader } from "./subscription/SubscriptionHeader";
+import { SubscriptionProgress } from "./subscription/SubscriptionProgress";
+import { SubscriptionAlert } from "./subscription/SubscriptionAlert";
+import { PurchaseCreditsButton } from "./subscription/PurchaseCreditsButton";
+import { NoSubscriptionCard } from "./subscription/NoSubscriptionCard";
 
 export const SubscriptionCard = ({ subscription, error }: SubscriptionCardProps) => {
-  const navigate = useNavigate();
-
-  const handlePurchaseCredits = async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-        body: { 
-          mode: 'payment',
-          productType: 'credits'
-        }
-      });
-
-      if (error) throw error;
-      
-      if (data?.url) {
-        window.location.href = data.url;
-      }
-    } catch (error: any) {
-      console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to initiate credit purchase. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
   if (error) {
     return (
       <Alert variant="destructive">
@@ -45,19 +19,7 @@ export const SubscriptionCard = ({ subscription, error }: SubscriptionCardProps)
   }
 
   if (!subscription) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>No Active Subscription</CardTitle>
-          <CardDescription>
-            Purchase a subscription to access detailed analysis features.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button onClick={() => navigate("/pricing")}>View Plans</Button>
-        </CardContent>
-      </Card>
-    );
+    return <NoSubscriptionCard />;
   }
 
   const creditsRemaining = subscription.max_assessments - subscription.assessments_used;
@@ -67,19 +29,10 @@ export const SubscriptionCard = ({ subscription, error }: SubscriptionCardProps)
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <span>{subscription.subscription_tier} Plan</span>
-          {subscription.active && (
-            <span className="text-sm font-normal px-2 py-1 bg-green-100 text-green-700 rounded-full">
-              Active
-            </span>
-          )}
-        </CardTitle>
-        <CardDescription>
-          Track your assessment credit usage
-        </CardDescription>
-      </CardHeader>
+      <SubscriptionHeader 
+        subscriptionTier={subscription.subscription_tier}
+        isActive={subscription.active}
+      />
       <CardContent className="space-y-6">
         <SubscriptionProgress 
           usagePercentage={usagePercentage}
@@ -87,32 +40,12 @@ export const SubscriptionCard = ({ subscription, error }: SubscriptionCardProps)
           isLowOnCredits={isLowOnCredits}
         />
 
-        {isOutOfCredits && (
-          <Alert className="bg-yellow-50 text-yellow-800 border-yellow-200">
-            <AlertCircle className="h-4 w-4 text-yellow-800" />
-            <AlertDescription>
-              You've used all your assessment credits. Purchase more to continue accessing detailed reports.
-            </AlertDescription>
-          </Alert>
-        )}
+        <SubscriptionAlert 
+          isOutOfCredits={isOutOfCredits}
+          isLowOnCredits={isLowOnCredits}
+        />
         
-        {!isOutOfCredits && isLowOnCredits && (
-          <Alert className="bg-yellow-50 text-yellow-800 border-yellow-200">
-            <AlertCircle className="h-4 w-4 text-yellow-800" />
-            <AlertDescription>
-              You're running low on assessment credits. Consider purchasing more to continue accessing detailed reports.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        <Button 
-          onClick={handlePurchaseCredits}
-          className="w-full"
-          variant="outline"
-        >
-          <CreditCard className="mr-2 h-4 w-4" />
-          Purchase Additional Credits
-        </Button>
+        <PurchaseCreditsButton />
       </CardContent>
     </Card>
   );
