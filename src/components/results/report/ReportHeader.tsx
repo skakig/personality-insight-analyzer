@@ -2,28 +2,13 @@ import { motion } from "framer-motion";
 import { Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
+import { getLevelDescription } from "@/components/assessment/utils";
 
 interface ReportHeaderProps {
   personalityType: string;
 }
 
 export const ReportHeader = ({ personalityType }: ReportHeaderProps) => {
-  const getLevelDescription = (level: string): string => {
-    const descriptions = {
-      "1": "You are currently focused on self-preservation and meeting basic needs. This stage is characterized by survival instincts and reactive decision-making.",
-      "2": "Your moral framework centers on self-interest and pragmatic choices. You understand societal rules and follow them when beneficial.",
-      "3": "You've developed a cooperative morality based on social contracts and mutual benefit. Fairness and responsibility guide your decisions.",
-      "4": "Justice and accountability are central to your moral framework. You prioritize fairness and balance rights with responsibilities.",
-      "5": "Your morality is deeply relational, guided by empathy and understanding of others' perspectives and needs.",
-      "6": "You demonstrate sacrificial morality, often prioritizing others' well-being over your own comfort.",
-      "7": "Your actions are guided by strong principles and integrity, maintaining consistency between values and behavior.",
-      "8": "You embody virtue and excellence, with an intrinsic aspiration for moral and personal growth.",
-      "9": "You've reached a level of transcendent morality, where actions align naturally with universal truths and higher purpose."
-    };
-    return descriptions[level as keyof typeof descriptions] || 
-      "Your moral level indicates your current position in the journey of ethical development.";
-  };
-
   const handleShare = async () => {
     try {
       if (navigator.share) {
@@ -52,26 +37,22 @@ export const ReportHeader = ({ personalityType }: ReportHeaderProps) => {
   };
 
   return (
-    <div className="text-center space-y-6 mb-8">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <h1 className="text-4xl font-bold mb-2">
+    <div className="bg-gradient-to-br from-gray-50 to-white pb-8">
+      <div className="text-4xl font-bold text-center space-y-2">
+        <span className="block text-gray-600">Your Moral Level</span>
+        <span className="block text-6xl bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
           Level {personalityType}
-        </h1>
-        <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-          {getLevelDescription(personalityType)}
-        </p>
-      </motion.div>
-      
+        </span>
+      </div>
+      <p className="text-center text-gray-600 mt-4 max-w-2xl mx-auto">
+        {getLevelDescription(personalityType)}
+      </p>
       <Button
         onClick={handleShare}
-        variant="outline"
-        className="gap-2"
+        className="mx-auto mt-4 bg-primary/10 text-primary hover:bg-primary/20"
+        variant="ghost"
       >
-        <Share2 className="h-4 w-4" />
+        <Share2 className="mr-2 h-4 w-4" />
         Share Results
       </Button>
     </div>

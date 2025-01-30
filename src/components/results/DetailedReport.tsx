@@ -5,6 +5,7 @@ import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ReportHeader } from "./report/ReportHeader";
 import { DetailedAnalysis } from "./report/DetailedAnalysis";
+import { GrowthRecommendations } from "./report/GrowthRecommendations";
 
 interface DetailedReportProps {
   personalityType: string;
@@ -19,7 +20,7 @@ export const DetailedReport = ({ personalityType, analysis, scores }: DetailedRe
         const { data: { user } } = await supabase.auth.getUser();
         if (!user?.email) return;
 
-        const { error } = await supabase.functions.invoke('send-detailed-report', {
+        const { data, error } = await supabase.functions.invoke('send-detailed-report', {
           body: {
             email: user.email,
             personalityType,
@@ -34,7 +35,7 @@ export const DetailedReport = ({ personalityType, analysis, scores }: DetailedRe
           title: "Report Sent!",
           description: "Check your email for your detailed report.",
         });
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error sending report:', error);
         toast({
           title: "Error",
@@ -55,13 +56,12 @@ export const DetailedReport = ({ personalityType, analysis, scores }: DetailedRe
       className="max-w-4xl mx-auto space-y-6 p-4"
     >
       <Card className="overflow-hidden border-none shadow-lg bg-white">
-        <CardContent className="p-6">
+        <CardContent className="p-0">
           <ReportHeader personalityType={personalityType} />
-          <DetailedAnalysis 
-            analysis={analysis} 
-            scores={scores} 
-            personalityType={personalityType}
-          />
+          <div className="space-y-8 p-8">
+            <DetailedAnalysis analysis={analysis} scores={scores} />
+            <GrowthRecommendations personalityType={personalityType} />
+          </div>
         </CardContent>
       </Card>
     </motion.div>
