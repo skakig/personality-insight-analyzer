@@ -23,26 +23,34 @@ export const useQuiz = (session: any) => {
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
-        const { data, error } = await supabase
+        setLoading(true);
+        setError(null);
+
+        const { data, error: fetchError } = await supabase
           .from('quiz_questions')
           .select('*')
           .order('created_at', { ascending: true });
 
-        if (error) throw error;
-
-        if (data) {
-          setQuestions(data);
-          setLoading(false);
+        if (fetchError) {
+          console.error('Error fetching questions:', fetchError);
+          throw new Error(fetchError.message);
         }
+
+        if (!data || data.length === 0) {
+          throw new Error('No questions available');
+        }
+
+        setQuestions(data);
       } catch (err: any) {
-        console.error('Error fetching questions:', err);
-        setError(err.message);
-        setLoading(false);
+        console.error('Error in fetchQuestions:', err);
+        setError(err.message || 'Failed to load quiz questions');
         toast({
           title: "Error",
           description: "Failed to load quiz questions. Please try again.",
           variant: "destructive",
         });
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -74,7 +82,7 @@ export const useQuiz = (session: any) => {
         try {
           const personalityType = calculatePersonalityType(newAnswers);
           
-          const { error } = await supabase
+          const { error: insertError } = await supabase
             .from('quiz_results')
             .insert({
               personality_type: personalityType,
@@ -82,14 +90,14 @@ export const useQuiz = (session: any) => {
               user_id: session.user.id
             });
 
-          if (error) throw error;
+          if (insertError) throw insertError;
 
           // Update quiz progress
           const { data: progressData, error: progressError } = await supabase
             .from('quiz_progress')
             .select('*')
             .eq('user_id', session.user.id)
-            .single();
+            .maybeSingle();
 
           if (progressError && progressError.code !== 'PGRST116') {
             throw progressError;
@@ -97,7 +105,7 @@ export const useQuiz = (session: any) => {
 
           if (!progressData) {
             // Create new progress record
-            const { error: insertError } = await supabase
+            const { error: insertProgressError } = await supabase
               .from('quiz_progress')
               .insert({
                 user_id: session.user.id,
@@ -105,7 +113,7 @@ export const useQuiz = (session: any) => {
                 completed_levels: [1]
               });
 
-            if (insertError) throw insertError;
+            if (insertProgressError) throw insertProgressError;
           }
 
         } catch (error: any) {
