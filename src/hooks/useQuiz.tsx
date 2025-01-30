@@ -14,55 +14,121 @@ interface QuizQuestion {
   explanation?: string;
 }
 
-interface QuizProgress {
-  user_id: string;
-  current_level: number;
-  completed_levels: number[];
+export interface QuizState {
+  currentStep: "welcome" | "questions" | "results";
+  questions: QuizQuestion[];
+  currentQuestion: QuizQuestion | null;
+  currentQuestionIndex: number;
+  loading: boolean;
+  error: string | null;
+  answers: Record<string, number>;
+  personalityType: string | null;
+  progress: number;
 }
 
 export const useQuiz = (session: Session | null) => {
-  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
-  const [answers, setAnswers] = useState<Record<string, number>>({});
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [state, setState] = useState<QuizState>({
+    currentStep: "welcome",
+    questions: [],
+    currentQuestion: null,
+    currentQuestionIndex: 0,
+    loading: true,
+    error: null,
+    answers: {},
+    personalityType: null,
+    progress: 0
+  });
 
-  // Fetch questions from Supabase
   const fetchQuestions = async () => {
     try {
-      setLoading(true);
-      setError(null);
+      setState(prev => ({ ...prev, loading: true, error: null }));
 
       const { data, error: fetchError } = await supabase
         .from('quiz_questions')
         .select('*')
         .order('created_at', { ascending: true });
 
-      if (fetchError) {
-        console.error('Error fetching questions:', fetchError);
-        throw new Error(fetchError.message);
-      }
+      if (fetchError) throw new Error(fetchError.message);
+      if (!data || data.length === 0) throw new Error('No questions available');
 
-      if (!data || data.length === 0) {
-        throw new Error('No questions available');
-      }
-
-      setQuestions(data);
+      setState(prev => ({ 
+        ...prev, 
+        questions: data,
+        currentQuestion: data[0],
+        loading: false 
+      }));
     } catch (err: any) {
       console.error('Error in fetchQuestions:', err);
-      setError(err.message || 'Failed to load quiz questions');
+      setState(prev => ({
+        ...prev,
+        error: err.message || 'Failed to load quiz questions',
+        loading: false
+      }));
       toast({
         title: "Error",
         description: "Failed to load quiz questions. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Save quiz results to Supabase
-  const saveQuizResults = async (personalityType: string, userId: string) => {
+  const handleStart = () => {
+    setState(prev => ({ ...prev, currentStep: "questions" }));
+  };
+
+  const handleAnswer = async (questionId: string, value: number) => {
+    if (!session?.user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to submit answers.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const newAnswers = { ...state.answers, [questionId]: value };
+      
+      if (state.currentQuestionIndex < state.questions.length - 1) {
+        setState(prev => ({
+          ...prev,
+          answers: newAnswers,
+          currentQuestionIndex: prev.currentQuestionIndex + 1,
+          currentQuestion: prev.questions[prev.currentQuestionIndex + 1],
+          progress: ((prev.currentQuestionIndex + 1) / prev.questions.length) * 100
+        }));
+      } else {
+        // Convert answers object to array for personality calculation
+        const answersArray = Object.values(newAnswers);
+        const personalityType = calculatePersonalityType(answersArray);
+        
+        await saveQuizResults(personalityType, session.user.id, newAnswers);
+        await handleQuizProgress(session.user.id);
+
+        setState(prev => ({
+          ...prev,
+          answers: newAnswers,
+          personalityType,
+          currentStep: "results",
+          progress: 100
+        }));
+
+        toast({
+          title: "Success",
+          description: "Quiz completed successfully!",
+        });
+      }
+    } catch (error: any) {
+      console.error('Error handling answer:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save your answer. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const saveQuizResults = async (personalityType: string, userId: string, answers: Record<string, number>) => {
     const { error: insertError } = await supabase
       .from('quiz_results')
       .insert({
@@ -74,7 +140,6 @@ export const useQuiz = (session: Session | null) => {
     if (insertError) throw insertError;
   };
 
-  // Get or create quiz progress
   const handleQuizProgress = async (userId: string) => {
     const { data: progressData, error: progressError } = await supabase
       .from('quiz_progress')
@@ -99,54 +164,13 @@ export const useQuiz = (session: Session | null) => {
     }
   };
 
-  // Handle answer submission
-  const handleAnswer = async (questionId: string, value: number) => {
-    if (!session?.user) {
-      toast({
-        title: "Error",
-        description: "You must be logged in to submit answers.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const newAnswers = { ...answers, [questionId]: value };
-      setAnswers(newAnswers);
-
-      if (currentQuestionIndex < questions.length - 1) {
-        setCurrentQuestionIndex(currentQuestionIndex + 1);
-      } else {
-        const personalityType = calculatePersonalityType(newAnswers);
-        await saveQuizResults(personalityType, session.user.id);
-        await handleQuizProgress(session.user.id);
-
-        toast({
-          title: "Success",
-          description: "Quiz completed successfully!",
-        });
-      }
-    } catch (error: any) {
-      console.error('Error handling answer:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save your answer. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
   useEffect(() => {
     fetchQuestions();
   }, []);
 
   return {
-    questions,
-    currentQuestion: questions[currentQuestionIndex],
-    currentQuestionIndex,
-    loading,
-    error,
+    ...state,
     handleAnswer,
-    progress: (currentQuestionIndex / questions.length) * 100
+    handleStart
   };
 };

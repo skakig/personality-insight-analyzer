@@ -15,11 +15,10 @@ const Index = ({ session }: IndexProps) => {
     currentQuestion,
     handleStart,
     handleAnswer,
-    currentProgress,
+    progress,
     personalityType,
     loading,
-    error,
-    currentQuestionData
+    error
   } = useQuiz(session);
 
   if (loading) {
@@ -45,11 +44,11 @@ const Index = ({ session }: IndexProps) => {
     <div className="min-h-screen bg-gray-50">
       {currentStep === "welcome" && <WelcomePage onStart={handleStart} />}
       
-      {currentStep === "questions" && currentQuestionData && (
+      {currentStep === "questions" && currentQuestion && (
         <Question
-          question={currentQuestionData.question}
-          onAnswer={handleAnswer}
-          currentProgress={currentProgress}
+          question={currentQuestion.question}
+          onAnswer={(value) => handleAnswer(currentQuestion.id, value)}
+          currentProgress={progress}
         />
       )}
       
