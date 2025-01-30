@@ -6,6 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { ReportHeader } from "./report/ReportHeader";
 import { DetailedAnalysis } from "./report/DetailedAnalysis";
 import { GrowthRecommendations } from "./report/GrowthRecommendations";
+import { getLevelDescription } from "@/components/assessment/utils";
+import { HighlightSection } from "@/components/assessment/HighlightSection";
+import { GrowthPotential } from "@/components/assessment/GrowthPotential";
 
 interface DetailedReportProps {
   personalityType: string;
@@ -20,7 +23,7 @@ export const DetailedReport = ({ personalityType, analysis, scores }: DetailedRe
         const { data: { user } } = await supabase.auth.getUser();
         if (!user?.email) return;
 
-        const { data, error } = await supabase.functions.invoke('send-detailed-report', {
+        const { error } = await supabase.functions.invoke('send-detailed-report', {
           body: {
             email: user.email,
             personalityType,
@@ -53,14 +56,56 @@ export const DetailedReport = ({ personalityType, analysis, scores }: DetailedRe
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="max-w-4xl mx-auto space-y-6 p-4"
+      className="max-w-4xl mx-auto space-y-8 p-4"
     >
       <Card className="overflow-hidden border-none shadow-lg bg-white">
-        <CardContent className="p-0">
+        <CardContent className="p-8">
           <ReportHeader personalityType={personalityType} />
-          <div className="space-y-8 p-8">
-            <DetailedAnalysis analysis={analysis} scores={scores} />
-            <GrowthRecommendations personalityType={personalityType} />
+          
+          <div className="mt-8 space-y-6">
+            {/* Level Overview */}
+            <section className="space-y-4">
+              <h2 className="text-2xl font-semibold text-gray-900">Your Moral Development Level</h2>
+              <div className="bg-primary/5 rounded-lg p-6">
+                <HighlightSection level={personalityType} />
+                <p className="mt-4 text-gray-600 leading-relaxed">
+                  {getLevelDescription(personalityType)}
+                </p>
+              </div>
+            </section>
+
+            {/* Growth Potential */}
+            <section className="space-y-4">
+              <h2 className="text-2xl font-semibold text-gray-900">Your Growth Path</h2>
+              <GrowthPotential level={personalityType} />
+            </section>
+
+            {/* Detailed Analysis with Scores */}
+            <section className="space-y-4">
+              <h2 className="text-2xl font-semibold text-gray-900">Your Detailed Analysis</h2>
+              <DetailedAnalysis analysis={analysis} scores={scores} />
+            </section>
+
+            {/* Personalized Growth Recommendations */}
+            <section className="space-y-4">
+              <h2 className="text-2xl font-semibold text-gray-900">Your Growth Recommendations</h2>
+              <GrowthRecommendations personalityType={personalityType} />
+            </section>
+
+            {/* Next Steps */}
+            <section className="bg-secondary/5 rounded-lg p-6 space-y-4">
+              <h2 className="text-2xl font-semibold text-gray-900">Your Next Steps</h2>
+              <p className="text-gray-600">
+                Remember that moral development is a journey, not a destination. Use these insights 
+                to guide your growth, but don't be discouraged by challenges. Each step forward, 
+                no matter how small, contributes to your overall development.
+              </p>
+              <div className="mt-4">
+                <p className="text-sm text-gray-500">
+                  A copy of this report has been sent to your email for future reference.
+                </p>
+              </div>
+            </section>
           </div>
         </CardContent>
       </Card>
