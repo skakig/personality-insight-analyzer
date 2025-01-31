@@ -9,6 +9,7 @@ import { GrowthRecommendations } from "./report/GrowthRecommendations";
 import { getLevelDescription } from "@/components/assessment/utils";
 import { HighlightSection } from "@/components/assessment/HighlightSection";
 import { GrowthPotential } from "@/components/assessment/GrowthPotential";
+import { Sparkles, Star, Heart, Scale, Lightbulb } from "lucide-react";
 
 interface DetailedReportProps {
   personalityType: string;
@@ -51,6 +52,40 @@ export const DetailedReport = ({ personalityType, analysis, scores }: DetailedRe
     sendDetailedReport();
   }, [personalityType, analysis, scores]);
 
+  const getSuccessMarkers = (level: string) => {
+    const markers = {
+      "9": [
+        {
+          title: "Complete Unity of Thought and Purpose",
+          description: "You exhibit natural alignment with moral principles, acting instinctively with wisdom and purpose.",
+          icon: <Sparkles className="h-5 w-5 text-primary" />
+        },
+        {
+          title: "Detachment from Ego",
+          description: "You demonstrate freedom from material attachments and operate from a place of pure service.",
+          icon: <Star className="h-5 w-5 text-primary" />
+        },
+        {
+          title: "Profound Mercy and Love",
+          description: "You embody unconditional love and forgiveness, seeing beyond human failures.",
+          icon: <Heart className="h-5 w-5 text-primary" />
+        },
+        {
+          title: "Divine Balance",
+          description: "You understand the harmony between justice and mercy, truth and compassion.",
+          icon: <Scale className="h-5 w-5 text-primary" />
+        },
+        {
+          title: "Higher Purpose",
+          description: "You live as an instrument of divine will, accepting both joy and suffering as part of your mission.",
+          icon: <Lightbulb className="h-5 w-5 text-primary" />
+        }
+      ],
+      // ... Add markers for other levels
+    };
+    return markers[level as keyof typeof markers] || [];
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -62,7 +97,7 @@ export const DetailedReport = ({ personalityType, analysis, scores }: DetailedRe
         <CardContent className="p-8">
           <ReportHeader personalityType={personalityType} />
           
-          <div className="mt-8 space-y-6">
+          <div className="mt-8 space-y-8">
             {/* Level Overview */}
             <section className="space-y-4">
               <h2 className="text-2xl font-semibold text-gray-900">Your Moral Development Level</h2>
@@ -74,7 +109,25 @@ export const DetailedReport = ({ personalityType, analysis, scores }: DetailedRe
               </div>
             </section>
 
-            {/* Growth Potential */}
+            {/* Success Markers */}
+            <section className="space-y-4">
+              <h2 className="text-2xl font-semibold text-gray-900">Key Success Markers</h2>
+              <div className="grid md:grid-cols-2 gap-4">
+                {getSuccessMarkers(personalityType).map((marker, index) => (
+                  <div key={index} className="bg-white p-4 rounded-lg border border-gray-100 shadow-sm">
+                    <div className="flex items-start gap-3">
+                      {marker.icon}
+                      <div>
+                        <h3 className="font-medium text-gray-900">{marker.title}</h3>
+                        <p className="text-sm text-gray-600 mt-1">{marker.description}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Growth Path */}
             <section className="space-y-4">
               <h2 className="text-2xl font-semibold text-gray-900">Your Growth Path</h2>
               <GrowthPotential level={personalityType} />
@@ -86,19 +139,19 @@ export const DetailedReport = ({ personalityType, analysis, scores }: DetailedRe
               <DetailedAnalysis analysis={analysis} scores={scores} />
             </section>
 
-            {/* Personalized Growth Recommendations */}
+            {/* Growth Recommendations */}
             <section className="space-y-4">
               <h2 className="text-2xl font-semibold text-gray-900">Your Growth Recommendations</h2>
               <GrowthRecommendations personalityType={personalityType} />
             </section>
 
-            {/* Next Steps */}
+            {/* Final Reflection */}
             <section className="bg-secondary/5 rounded-lg p-6 space-y-4">
-              <h2 className="text-2xl font-semibold text-gray-900">Your Next Steps</h2>
+              <h2 className="text-2xl font-semibold text-gray-900">Final Reflection</h2>
               <p className="text-gray-600">
-                Remember that moral development is a journey, not a destination. Use these insights 
-                to guide your growth, but don't be discouraged by challenges. Each step forward, 
-                no matter how small, contributes to your overall development.
+                Your journey in moral development is unique and valuable. Each step you take toward higher understanding
+                and awareness contributes to both your personal growth and the betterment of those around you. Continue
+                to embrace this path of growth while maintaining balance and compassion for yourself and others.
               </p>
               <div className="mt-4">
                 <p className="text-sm text-gray-500">
