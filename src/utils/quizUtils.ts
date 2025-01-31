@@ -18,31 +18,30 @@ export const fetchQuizQuestions = async (): Promise<QuizQuestion[]> => {
     const questionsPerLevel = 2; // We'll take 2 questions from each level
     const levels = Array.from(new Set(levelCounts.map(q => q.level))).sort();
 
-    // Build our query to get random questions from each level
-    const promises = levels.map(level => 
-      supabase
-        .from('quiz_questions')
-        .select('*')
-        .eq('level', level)
-        .order('random()') // This ensures random selection
-        .limit(questionsPerLevel)
-    );
+    // Build our query to get all questions and handle randomization in memory
+    const { data: allQuestions, error } = await supabase
+      .from('quiz_questions')
+      .select('*');
 
-    // Execute all queries in parallel
-    const results = await Promise.all(promises);
-    
-    // Combine and validate results
-    const questions = results
-      .map(result => result.data)
-      .flat()
-      .filter((q): q is QuizQuestion => q !== null);
-
-    if (questions.length === 0) {
+    if (error) throw error;
+    if (!allQuestions || allQuestions.length === 0) {
       throw new Error('No questions found');
     }
 
+    // Group questions by level
+    const questionsByLevel = levels.reduce((acc, level) => {
+      acc[level] = allQuestions.filter(q => q.level === level);
+      return acc;
+    }, {} as Record<number, QuizQuestion[]>);
+
+    // Select random questions from each level
+    const selectedQuestions = levels.flatMap(level => {
+      const levelQuestions = questionsByLevel[level] || [];
+      return shuffleArray(levelQuestions).slice(0, questionsPerLevel);
+    });
+
     // Shuffle the final array to mix questions from different levels
-    return shuffleArray(questions);
+    return shuffleArray(selectedQuestions);
   } catch (error: any) {
     console.error('Error fetching quiz questions:', error);
     throw new Error('Failed to fetch quiz questions');

@@ -6,6 +6,7 @@ export interface QuizQuestion {
   weight?: number;
   subcategory?: string;
   explanation?: string;
+  created_at?: string;
 }
 
 export interface QuizState {
