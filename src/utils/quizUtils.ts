@@ -1,17 +1,62 @@
-import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { QuizQuestion } from "@/types/quiz";
+import { toast } from "@/components/ui/use-toast";
 
-export const fetchQuizQuestions = async () => {
-  const { data, error } = await supabase
-    .from('quiz_questions')
-    .select('*')
-    .order('created_at', { ascending: true });
+export const fetchQuizQuestions = async (): Promise<QuizQuestion[]> => {
+  try {
+    // Get count of questions per level to ensure balanced selection
+    const { data: levelCounts } = await supabase
+      .from('quiz_questions')
+      .select('level')
+      .order('level');
 
-  if (error) throw new Error(error.message);
-  if (!data || data.length === 0) throw new Error('No questions available');
+    if (!levelCounts) {
+      throw new Error('Failed to fetch question counts');
+    }
 
-  return data;
+    // Create a map of levels and how many questions we want from each
+    const questionsPerLevel = 2; // We'll take 2 questions from each level
+    const levels = Array.from(new Set(levelCounts.map(q => q.level))).sort();
+
+    // Build our query to get random questions from each level
+    const promises = levels.map(level => 
+      supabase
+        .from('quiz_questions')
+        .select('*')
+        .eq('level', level)
+        .order('random()') // This ensures random selection
+        .limit(questionsPerLevel)
+    );
+
+    // Execute all queries in parallel
+    const results = await Promise.all(promises);
+    
+    // Combine and validate results
+    const questions = results
+      .map(result => result.data)
+      .flat()
+      .filter((q): q is QuizQuestion => q !== null);
+
+    if (questions.length === 0) {
+      throw new Error('No questions found');
+    }
+
+    // Shuffle the final array to mix questions from different levels
+    return shuffleArray(questions);
+  } catch (error: any) {
+    console.error('Error fetching quiz questions:', error);
+    throw new Error('Failed to fetch quiz questions');
+  }
+};
+
+// Fisher-Yates shuffle algorithm for randomizing question order
+const shuffleArray = <T>(array: T[]): T[] => {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
 };
 
 export const saveQuizResults = async (
