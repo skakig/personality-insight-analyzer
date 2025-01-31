@@ -1,4 +1,5 @@
-import { FileText, ChartBar, AlertCircle } from "lucide-react";
+import { FileText, ChartBar, AlertCircle, ArrowUpRight } from "lucide-react";
+import { Card } from "@/components/ui/card";
 
 interface DetailedAnalysisProps {
   analysis: string;
@@ -24,63 +25,118 @@ export const DetailedAnalysis = ({ analysis, scores }: DetailedAnalysisProps) =>
 
   return (
     <div className="space-y-8">
-      {/* Analysis Section */}
-      <div className="bg-gray-50 rounded-lg p-6">
-        <div className="flex items-start gap-3 mb-4">
-          <FileText className="h-5 w-5 text-primary mt-1" />
-          <div>
-            <h3 className="font-medium text-gray-900">Personal Analysis</h3>
-            <p className="text-gray-600 mt-2 leading-relaxed">{analysis}</p>
+      {/* Personal Analysis Section */}
+      <Card className="overflow-hidden border-none shadow-sm">
+        <div className="bg-gray-50 rounded-lg p-6">
+          <div className="flex items-start gap-3 mb-4">
+            <FileText className="h-5 w-5 text-primary mt-1" />
+            <div>
+              <h3 className="font-medium text-gray-900">Personal Analysis</h3>
+              <p className="text-gray-600 mt-2 leading-relaxed">{analysis}</p>
+            </div>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Scores Section */}
-      <div className="bg-gray-50 rounded-lg p-6">
-        <div className="flex items-start gap-3 mb-6">
-          <ChartBar className="h-5 w-5 text-primary mt-1" />
-          <div>
-            <h3 className="font-medium text-gray-900">Category Scores</h3>
-            <p className="text-gray-600 mt-1">
-              Your performance across key moral development categories
-            </p>
+      <Card className="overflow-hidden border-none shadow-sm">
+        <div className="bg-gray-50 rounded-lg p-6">
+          <div className="flex items-start gap-3 mb-6">
+            <ChartBar className="h-5 w-5 text-primary mt-1" />
+            <div>
+              <h3 className="font-medium text-gray-900">Category Scores</h3>
+              <p className="text-gray-600 mt-1">
+                Your performance across key moral development categories
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div className="space-y-4">
-          {Object.entries(scores).map(([category, score]) => (
-            <div key={category} className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-gray-700">{category}</span>
-                <span className="text-sm font-medium text-gray-900">
-                  {score.toFixed(1)} - {getScoreInterpretation(score)}
-                </span>
+          <div className="space-y-6">
+            {Object.entries(scores).map(([category, score]) => (
+              <div key={category} className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium text-gray-700">{category}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-900">
+                      {score.toFixed(1)}
+                    </span>
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                      {getScoreInterpretation(score)}
+                    </span>
+                  </div>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full bg-gradient-to-r ${getScoreColor(score)} transition-all duration-500`}
+                    style={{ width: `${(score / 5) * 100}%` }}
+                  />
+                </div>
               </div>
-              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className={`h-full bg-gradient-to-r ${getScoreColor(score)} transition-all duration-500`}
-                  style={{ width: `${(score / 5) * 100}%` }}
-                />
+            ))}
+          </div>
+
+          <div className="mt-8 flex items-start gap-3 p-4 bg-primary/5 rounded-lg">
+            <AlertCircle className="h-5 w-5 text-primary mt-1" />
+            <div className="text-sm text-gray-600">
+              <p className="font-medium text-gray-900 mb-2">Understanding Your Scores</p>
+              <div className="space-y-1">
+                <p className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-green-500" />
+                  <span>4.5-5.0: Exceptional - Mastery level understanding</span>
+                </p>
+                <p className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-500" />
+                  <span>4.0-4.4: Strong - Consistent application</span>
+                </p>
+                <p className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-yellow-500" />
+                  <span>3.0-3.9: Developing - Good foundation</span>
+                </p>
+                <p className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-orange-500" />
+                  <span>2.0-2.9: Emerging - Beginning to understand</span>
+                </p>
+                <p className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-red-500" />
+                  <span>1.0-1.9: Needs Focus - Opportunity for growth</span>
+                </p>
               </div>
             </div>
-          ))}
-        </div>
-
-        <div className="mt-6 flex items-start gap-3 p-4 bg-primary/5 rounded-lg">
-          <AlertCircle className="h-5 w-5 text-primary mt-1" />
-          <div className="text-sm text-gray-600">
-            <p className="font-medium text-gray-900 mb-1">Understanding Your Scores</p>
-            <p>
-              Scores range from 1-5, where:
-              <br />• 4.5-5.0: Exceptional - Mastery level understanding and application
-              <br />• 4.0-4.4: Strong - Consistent application with room for refinement
-              <br />• 3.0-3.9: Developing - Good foundation with areas for growth
-              <br />• 2.0-2.9: Emerging - Beginning to understand and apply concepts
-              <br />• 1.0-1.9: Needs Focus - Opportunity for significant growth
-            </p>
           </div>
         </div>
-      </div>
+      </Card>
+
+      {/* Growth Path Section */}
+      <Card className="overflow-hidden border-none shadow-sm">
+        <div className="bg-gray-50 rounded-lg p-6">
+          <div className="flex items-start gap-3">
+            <ArrowUpRight className="h-5 w-5 text-primary mt-1" />
+            <div>
+              <h3 className="font-medium text-gray-900">Your Growth Path</h3>
+              <p className="text-gray-600 mt-2">
+                Based on your scores, here are key areas for development:
+              </p>
+              <div className="mt-4 space-y-3">
+                {Object.entries(scores)
+                  .sort(([, a], [, b]) => a - b)
+                  .slice(0, 3)
+                  .map(([category, score]) => (
+                    <div key={category} className="flex items-start gap-2">
+                      <span className="w-2 h-2 rounded-full bg-primary mt-2" />
+                      <div>
+                        <p className="font-medium text-gray-900">{category}</p>
+                        <p className="text-sm text-gray-600">
+                          Focus on improving your {category.toLowerCase()} score ({score.toFixed(1)}) 
+                          through consistent practice and reflection.
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 };
