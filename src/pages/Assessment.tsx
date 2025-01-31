@@ -13,6 +13,17 @@ const Assessment = () => {
   useEffect(() => {
     const fetchResult = async () => {
       try {
+        // Check if we have a valid ID
+        if (!id || id === ':id?') {
+          toast({
+            title: "Invalid assessment ID",
+            description: "Please check the URL and try again",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
           toast({
