@@ -14,15 +14,34 @@ function shuffleArray<T>(array: T[]): T[] {
 
 export const fetchQuizQuestions = async (): Promise<QuizQuestion[]> => {
   try {
+    console.log('Attempting to fetch quiz questions...');
+    
+    // Test the connection first
+    const { data: testData, error: testError } = await supabase
+      .from('quiz_questions')
+      .select('count');
+      
+    if (testError) {
+      console.error('Connection test error:', testError);
+      throw new Error(`Database connection error: ${testError.message}`);
+    }
+    
     // Fetch all questions
     const { data: allQuestions, error } = await supabase
       .from('quiz_questions')
       .select('*');
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error details:', error);
+      throw error;
+    }
+    
     if (!allQuestions || allQuestions.length === 0) {
+      console.log('No questions found in database');
       throw new Error('No questions found');
     }
+
+    console.log(`Successfully fetched ${allQuestions.length} questions`);
 
     // Group questions by level
     const questionsByLevel = allQuestions.reduce((acc, question) => {
@@ -45,7 +64,7 @@ export const fetchQuizQuestions = async (): Promise<QuizQuestion[]> => {
     console.error('Error fetching quiz questions:', error);
     toast({
       title: "Error",
-      description: "Failed to load quiz questions. Please try again.",
+      description: error.message || "Failed to load quiz questions. Please try again.",
       variant: "destructive",
     });
     throw new Error('Failed to fetch quiz questions');
