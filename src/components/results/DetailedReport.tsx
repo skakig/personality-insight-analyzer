@@ -11,6 +11,7 @@ import { GrowthPotential } from "@/components/assessment/GrowthPotential";
 import { SuccessMarkers } from "./report/SuccessMarkers";
 import { DetailedAnalysisSection } from "./report/DetailedAnalysisSection";
 import { FinalReflection } from "./report/FinalReflection";
+import { WeaknessesAndStrategies } from "./report/WeaknessesAndStrategies";
 
 interface DetailedReportProps {
   personalityType: string;
@@ -83,6 +84,9 @@ export const DetailedReport = ({ personalityType, analysis }: DetailedReportProp
               <h2 className="text-2xl font-semibold text-gray-900">Your Growth Path</h2>
               <GrowthPotential level={personalityType} />
             </section>
+
+            {/* Weaknesses and Strategies */}
+            <WeaknessesAndStrategies level={personalityType} />
 
             {/* Detailed Analysis */}
             <DetailedAnalysisSection personalityType={personalityType} />
