@@ -54,9 +54,9 @@ export const AuthForm = ({ onSuccess }: AuthFormProps) => {
           description: "Please check your email to verify your account.",
         });
       } else {
-        const { data: { session }, error } = await signIn({ email, password });
+        const { data, error } = await signIn({ email, password });
         if (error) throw error;
-        if (session) {
+        if (data.session) {
           navigate("/dashboard");
         }
       }
@@ -68,7 +68,6 @@ export const AuthForm = ({ onSuccess }: AuthFormProps) => {
         variant: "destructive",
       });
       
-      // Handle specific error cases
       if (error.message?.toLowerCase().includes("email")) {
         setErrors(prev => ({ ...prev, email: error.message }));
       } else if (error.message?.toLowerCase().includes("password")) {

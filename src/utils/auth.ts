@@ -11,7 +11,7 @@ export const signUp = async ({ email, password }: AuthCredentials) => {
     email,
     password,
     options: {
-      emailRedirectTo: window.location.origin + '/auth'
+      emailRedirectTo: `${window.location.origin}/auth`
     }
   });
   
@@ -37,5 +37,5 @@ export const signIn = async ({ email, password }: AuthCredentials) => {
     throw error;
   }
   
-  return data;
+  return { data, error };
 };
