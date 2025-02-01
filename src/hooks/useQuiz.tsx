@@ -11,7 +11,7 @@ export const useQuiz = (session: Session | null) => {
   useEffect(() => {
     const loadQuestions = async () => {
       try {
-        console.log('Fetching quiz questions...');
+        console.log('Fetching quiz questions...', { sessionExists: !!session });
         const questions = await fetchQuizQuestions();
         console.log('Fetched questions:', questions);
         setQuestions(questions);
@@ -30,19 +30,29 @@ export const useQuiz = (session: Session | null) => {
   }, []);
 
   const handleStart = () => {
+    if (!session) {
+      console.log('No session found during quiz start');
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to start the quiz.",
+        variant: "destructive",
+      });
+      return;
+    }
     updateState({ currentStep: "questions" });
   };
 
   const handleAnswer = async (questionId: string, value: number) => {
-    console.log('Handling answer:', { questionId, value });
+    console.log('Handling answer:', { questionId, value, sessionExists: !!session });
     
     if (!session?.user) {
-      console.error('No session found');
+      console.error('No session found during answer submission');
       toast({
-        title: "Error",
-        description: "You must be logged in to submit answers.",
+        title: "Session Error",
+        description: "Your session has expired. Please sign in again.",
         variant: "destructive",
       });
+      updateState({ currentStep: "welcome" });
       return;
     }
 
@@ -82,7 +92,7 @@ export const useQuiz = (session: Session | null) => {
       console.error('Error handling answer:', error);
       toast({
         title: "Error",
-        description: "Failed to save your answer. Please try again.",
+        description: error.message || "Failed to save your answer. Please try again.",
         variant: "destructive",
       });
     }

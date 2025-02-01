@@ -16,6 +16,9 @@ export const fetchQuizQuestions = async (): Promise<QuizQuestion[]> => {
   try {
     console.log('Attempting to fetch quiz questions...');
     
+    const session = await supabase.auth.getSession();
+    console.log('Current session status:', !!session.data.session);
+    
     // Fetch all questions
     const { data: allQuestions, error } = await supabase
       .from('quiz_questions')
@@ -67,6 +70,11 @@ export const saveQuizResults = async (
   answers: Record<string, number>
 ) => {
   try {
+    const session = await supabase.auth.getSession();
+    if (!session.data.session) {
+      throw new Error('No active session found');
+    }
+
     const { error: insertError } = await supabase
       .from('quiz_results')
       .insert({
@@ -89,6 +97,11 @@ export const saveQuizResults = async (
 
 export const updateQuizProgress = async (userId: string) => {
   try {
+    const session = await supabase.auth.getSession();
+    if (!session.data.session) {
+      throw new Error('No active session found');
+    }
+
     const { data: progressData, error: progressError } = await supabase
       .from('quiz_progress')
       .select('*')
