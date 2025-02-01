@@ -21,7 +21,7 @@ const pricingPlans = [
   },
   {
     name: "Pro",
-    price: "$99",
+    price: "$99.99",
     description: "For growing organizations",
     features: [
       "Everything in Individual, plus:",
@@ -30,7 +30,7 @@ const pricingPlans = [
       "Priority support",
       "Custom report branding"
     ],
-    priceId: "price_1Qlc65Jy5TVq3Z9Hq6w7xhSm",
+    priceId: "price_1QnmsaJy5TVq3Z9HpNI2p8xI",
     highlight: true
   },
   {
