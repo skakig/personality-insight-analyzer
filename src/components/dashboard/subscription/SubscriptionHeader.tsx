@@ -1,4 +1,5 @@
 import { getSubscriptionTitle } from "@/utils/subscriptionUtils";
+import { TeamAssessmentTools } from "@/components/teams/TeamAssessmentTools";
 
 interface SubscriptionHeaderProps {
   subscriptionTier: string;
