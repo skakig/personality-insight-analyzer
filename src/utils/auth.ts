@@ -27,8 +27,15 @@ export const signUp = async ({ email, password }: AuthCredentials) => {
 };
 
 export const signIn = async ({ email, password }: AuthCredentials) => {
-  return await supabase.auth.signInWithPassword({
+  const response = await supabase.auth.signInWithPassword({
     email,
     password,
   });
+
+  if (response.error) {
+    console.error('Signin error:', response.error);
+    throw response.error;
+  }
+
+  return response;
 };
