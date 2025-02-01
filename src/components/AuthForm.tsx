@@ -24,8 +24,9 @@ export const AuthForm = ({ onSuccess }: AuthFormProps) => {
       if (isSignUp) {
         await signUp({ email, password });
       } else {
-        const { session } = await signIn({ email, password });
-        if (session) {
+        const { data, error } = await signIn({ email, password });
+        if (error) throw error;
+        if (data?.session) {
           navigate("/dashboard");
         }
       }
