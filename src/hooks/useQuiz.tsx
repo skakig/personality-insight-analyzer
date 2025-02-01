@@ -11,7 +11,9 @@ export const useQuiz = (session: Session | null) => {
   useEffect(() => {
     const loadQuestions = async () => {
       try {
+        console.log('Fetching quiz questions...');
         const questions = await fetchQuizQuestions();
+        console.log('Fetched questions:', questions);
         setQuestions(questions);
       } catch (err: any) {
         console.error('Error in fetchQuestions:', err);
@@ -32,7 +34,10 @@ export const useQuiz = (session: Session | null) => {
   };
 
   const handleAnswer = async (questionId: string, value: number) => {
+    console.log('Handling answer:', { questionId, value });
+    
     if (!session?.user) {
+      console.error('No session found');
       toast({
         title: "Error",
         description: "You must be logged in to submit answers.",
@@ -43,8 +48,10 @@ export const useQuiz = (session: Session | null) => {
 
     try {
       const newAnswers = { ...state.answers, [questionId]: value };
+      console.log('New answers:', newAnswers);
       
       if (state.currentQuestionIndex < state.questions.length - 1) {
+        console.log('Moving to next question');
         updateState({
           answers: newAnswers,
           currentQuestionIndex: state.currentQuestionIndex + 1,
@@ -52,6 +59,7 @@ export const useQuiz = (session: Session | null) => {
         });
         updateProgress(state.currentQuestionIndex + 1, state.questions.length);
       } else {
+        console.log('Quiz completed, calculating results');
         const answersArray = Object.values(newAnswers);
         const personalityType = calculatePersonalityType(answersArray);
         
