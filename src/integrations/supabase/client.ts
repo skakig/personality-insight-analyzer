@@ -9,7 +9,13 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseAnonKey) {
   console.error('VITE_SUPABASE_ANON_KEY is not set in environment variables');
-  throw new Error('Missing Supabase configuration. Please check the client configuration.');
+  throw new Error('Supabase anonymous key is missing. Please check your environment configuration.');
 }
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+});
