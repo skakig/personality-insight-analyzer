@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const supabaseUrl = `https://caebnpbdprrptogirxky.supabase.co`;
+const supabaseUrl = 'https://caebnpbdprrptogirxky.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhZWJucGJkcHJycHRvZ2lyeGt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDg5NzQwNDgsImV4cCI6MjAyNDU1MDA0OH0.SYodfJ0VLvRhHMcbxw4GlXEYjpevUqQzLnqcFvr4_KY';
 
 if (!supabaseUrl || !supabaseAnonKey) {
@@ -16,7 +16,8 @@ export const supabase = createClient<Database>(
   {
     auth: {
       persistSession: true,
-      autoRefreshToken: true
+      autoRefreshToken: true,
+      detectSessionInUrl: true
     }
   }
 );

@@ -10,9 +10,15 @@ export const signUp = async ({ email, password }: AuthCredentials) => {
   const { error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      emailRedirectTo: window.location.origin + '/auth'
+    }
   });
   
-  if (error) throw error;
+  if (error) {
+    console.error('Signup error:', error);
+    throw error;
+  }
   
   toast({
     title: "Success!",
@@ -26,7 +32,10 @@ export const signIn = async ({ email, password }: AuthCredentials) => {
     password,
   });
   
-  if (error) throw error;
+  if (error) {
+    console.error('Signin error:', error);
+    throw error;
+  }
   
   return data;
 };

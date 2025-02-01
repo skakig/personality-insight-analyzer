@@ -54,22 +54,24 @@ export const AuthForm = ({ onSuccess }: AuthFormProps) => {
           description: "Please check your email to verify your account.",
         });
       } else {
-        const { session } = await signIn({ email, password });
+        const { data: { session }, error } = await signIn({ email, password });
+        if (error) throw error;
         if (session) {
           navigate("/dashboard");
         }
       }
     } catch (error: any) {
+      console.error('Auth error:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Authentication failed. Please try again.",
         variant: "destructive",
       });
       
       // Handle specific error cases
-      if (error.message.includes("email")) {
+      if (error.message?.toLowerCase().includes("email")) {
         setErrors(prev => ({ ...prev, email: error.message }));
-      } else if (error.message.includes("password")) {
+      } else if (error.message?.toLowerCase().includes("password")) {
         setErrors(prev => ({ ...prev, password: error.message }));
       }
     } finally {
