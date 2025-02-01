@@ -1,11 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
+// Ensure the URL is always available
 const supabaseUrl = 'https://caebnpbdprrptogirxky.supabase.co';
+
+// Get the anon key from environment or throw a more descriptive error
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase configuration. Please check the client configuration.');
+if (!supabaseAnonKey) {
+  console.error('VITE_SUPABASE_ANON_KEY is not set in environment variables');
+  throw new Error('Supabase anonymous key is missing. Please check your environment configuration.');
 }
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
