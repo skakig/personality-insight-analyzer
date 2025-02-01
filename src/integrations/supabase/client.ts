@@ -12,10 +12,4 @@ if (!supabaseAnonKey) {
   throw new Error('Supabase configuration error');
 }
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true
-  }
-});
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
