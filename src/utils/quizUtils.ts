@@ -16,16 +16,6 @@ export const fetchQuizQuestions = async (): Promise<QuizQuestion[]> => {
   try {
     console.log('Attempting to fetch quiz questions...');
     
-    // Test the connection first
-    const { data: testData, error: testError } = await supabase
-      .from('quiz_questions')
-      .select('count');
-      
-    if (testError) {
-      console.error('Connection test error:', testError);
-      throw new Error(`Database connection error: ${testError.message}`);
-    }
-    
     // Fetch all questions
     const { data: allQuestions, error } = await supabase
       .from('quiz_questions')
