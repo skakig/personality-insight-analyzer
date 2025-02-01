@@ -1,5 +1,4 @@
-import { getSubscriptionTitle } from "@/utils/subscriptionUtils";
-import { TeamAssessmentTools } from "@/components/teams/TeamAssessmentTools";
+import { CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 interface SubscriptionHeaderProps {
   subscriptionTier: string;
@@ -8,21 +7,18 @@ interface SubscriptionHeaderProps {
 
 export const SubscriptionHeader = ({ subscriptionTier, isActive }: SubscriptionHeaderProps) => {
   return (
-    <div className="p-6 space-y-2">
-      <h3 className="text-2xl font-semibold tracking-tight">
-        {getSubscriptionTitle(subscriptionTier)}
-      </h3>
-      <div className="flex items-center space-x-2">
-        <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-green-500' : 'bg-red-500'}`} />
-        <p className="text-sm text-gray-500">
-          {isActive ? 'Active Subscription' : 'Inactive Subscription'}
-        </p>
-      </div>
-      {subscriptionTier === 'pro' && (
-        <div className="mt-4">
-          <TeamAssessmentTools />
-        </div>
-      )}
-    </div>
+    <CardHeader>
+      <CardTitle className="flex items-center justify-between">
+        <span>{subscriptionTier}</span>
+        {isActive && (
+          <span className="text-sm font-normal px-2 py-1 bg-green-100 text-green-700 rounded-full">
+            Active
+          </span>
+        )}
+      </CardTitle>
+      <CardDescription>
+        Track your assessment credit usage
+      </CardDescription>
+    </CardHeader>
   );
 };

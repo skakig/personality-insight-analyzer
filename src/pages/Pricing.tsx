@@ -67,9 +67,8 @@ const Pricing = () => {
 
     setLoading(priceId);
     try {
-      const response = await supabase.functions.invoke('create-subscription', {
+      const response = await supabase.functions.invoke('create-checkout-session', {
         body: { 
-          priceId,
           userId: session.data.session.user.id,
           mode: 'subscription'
         },
