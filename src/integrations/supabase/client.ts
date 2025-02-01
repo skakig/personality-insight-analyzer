@@ -8,10 +8,4 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase configuration. Please check the client configuration.');
 }
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true
-  }
-});
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
