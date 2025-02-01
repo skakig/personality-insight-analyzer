@@ -54,9 +54,9 @@ export const AuthForm = ({ onSuccess }: AuthFormProps) => {
           description: "Please check your email to verify your account.",
         });
       } else {
-        const { data, error } = await signIn({ email, password });
-        if (error) throw error;
-        if (data.session) {
+        const response = await signIn({ email, password });
+        if (response.error) throw response.error;
+        if (response.data?.session) {
           navigate("/dashboard");
         }
       }
