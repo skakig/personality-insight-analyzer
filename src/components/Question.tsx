@@ -1,9 +1,10 @@
-import { motion } from "framer-motion";
-import { Card } from "@/components/ui/card";
-import { ProgressBar } from "./quiz/ProgressBar";
+import { useEffect } from "react";
 import { QuestionHeader } from "./quiz/QuestionHeader";
 import { AnswerOptions } from "./quiz/AnswerOptions";
+import { ProgressBar } from "./quiz/ProgressBar";
 import { QuestionExplanation } from "./quiz/QuestionExplanation";
+import { Card, CardContent } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
 
 interface QuestionProps {
   question: string;
@@ -22,27 +23,39 @@ export const Question = ({
   subcategory,
   explanation 
 }: QuestionProps) => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: 100 }}
-      animate={{ opacity: 1, x: 0 }}
-      className="max-w-3xl mx-auto p-6"
-    >
-      <ProgressBar currentProgress={currentProgress} />
-      
-      <Card className="bg-white p-8 mb-8">
-        <QuestionHeader 
-          category={category}
-          subcategory={subcategory}
-          question={question}
-        />
-        
-        <AnswerOptions onAnswer={onAnswer} />
+  useEffect(() => {
+    console.log("Question component mounted with:", { question, currentProgress });
+  }, [question, currentProgress]);
 
-        {explanation && (
-          <QuestionExplanation explanation={explanation} />
-        )}
-      </Card>
-    </motion.div>
+  if (!question) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-12 px-4">
+      <div className="container mx-auto max-w-3xl">
+        <Card className="p-6">
+          <CardContent className="pt-6">
+            <ProgressBar currentProgress={currentProgress} />
+            
+            <QuestionHeader 
+              question={question}
+              category={category}
+              subcategory={subcategory}
+            />
+            
+            <AnswerOptions onAnswer={onAnswer} />
+
+            {explanation && (
+              <QuestionExplanation explanation={explanation} />
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 };

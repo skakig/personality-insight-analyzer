@@ -4,6 +4,7 @@ import { Results } from "@/components/Results";
 import { useQuiz } from "@/hooks/useQuiz";
 import { Loader2 } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
+import { useEffect } from "react";
 
 interface IndexProps {
   session: Session | null;
@@ -20,6 +21,16 @@ const Index = ({ session }: IndexProps) => {
     loading,
     error
   } = useQuiz(session);
+
+  useEffect(() => {
+    console.log("Index component state:", {
+      currentStep,
+      hasCurrentQuestion: !!currentQuestion,
+      progress,
+      loading,
+      error
+    });
+  }, [currentStep, currentQuestion, progress, loading, error]);
 
   if (loading) {
     return (
@@ -47,6 +58,9 @@ const Index = ({ session }: IndexProps) => {
       {currentStep === "questions" && currentQuestion && (
         <Question
           question={currentQuestion.question}
+          category={currentQuestion.category}
+          subcategory={currentQuestion.subcategory}
+          explanation={currentQuestion.explanation}
           onAnswer={(value) => handleAnswer(currentQuestion.id, value)}
           currentProgress={progress}
         />
