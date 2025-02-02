@@ -4,18 +4,12 @@ import type { Database } from './types';
 const supabaseUrl = 'https://caebnpbdprrptogirxky.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Debug logging for environment variable
-console.log('Supabase Configuration Check:', {
-  hasUrl: !!supabaseUrl,
-  hasAnonKey: !!supabaseAnonKey,
-  anonKeyLength: supabaseAnonKey?.length,
-  envKeys: Object.keys(import.meta.env).filter(key => key.includes('SUPABASE'))
-});
-
+// Enhanced debug logging
 if (!supabaseAnonKey) {
   console.error('Supabase configuration error:', {
     error: 'Anonymous key not found in environment variables',
     availableKeys: Object.keys(import.meta.env),
+    envValue: import.meta.env.VITE_SUPABASE_ANON_KEY,
     url: supabaseUrl
   });
   throw new Error('Supabase configuration error: Anonymous key not available');
@@ -29,7 +23,7 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-// Add some debug logging
+// Add debug logging for auth state changes
 supabase.auth.onAuthStateChange((event, session) => {
   console.log('Auth state changed:', {
     event,
