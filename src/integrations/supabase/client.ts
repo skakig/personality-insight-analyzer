@@ -12,13 +12,12 @@ if (!supabaseAnonKey) {
     envValue: import.meta.env.VITE_SUPABASE_ANON_KEY,
     url: supabaseUrl
   });
-  // Don't throw an error, just log it - this allows anonymous usage
-  console.warn('Proceeding without authentication capabilities');
+  throw new Error('Supabase anonymous key is required. Please check your environment variables.');
 }
 
 export const supabase = createClient<Database>(
   supabaseUrl, 
-  supabaseAnonKey || '', // Provide empty string as fallback
+  supabaseAnonKey,
   {
     auth: {
       autoRefreshToken: true,
