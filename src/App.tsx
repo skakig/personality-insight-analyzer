@@ -22,9 +22,12 @@ function App() {
     // Initialize auth state
     const initializeAuth = async () => {
       try {
+        console.log("Starting auth initialization...");
         const { data: { session: initialSession } } = await supabase.auth.getSession();
+        console.log("Initial session retrieved:", initialSession ? "Session exists" : "No session");
         setSession(initialSession);
         setAuthInitialized(true);
+        console.log("Auth initialization complete");
       } catch (error: any) {
         console.error("Error initializing auth:", error);
         toast({
@@ -43,7 +46,11 @@ function App() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log("Auth state changed:", _event, session?.user?.email);
+      console.log("Auth state changed:", {
+        event: _event,
+        userEmail: session?.user?.email,
+        timestamp: new Date().toISOString()
+      });
       setSession(session);
       setAuthInitialized(true);
     });
@@ -52,6 +59,7 @@ function App() {
   }, []);
 
   if (loading || !authInitialized) {
+    console.log("App loading state:", { loading, authInitialized });
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
