@@ -1,17 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const supabaseUrl = 'https://caebnpbdprrptogirxky.supabase.co';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseAnonKey) {
+if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Supabase configuration error:', {
-    error: 'Anonymous key not found in environment variables',
+    error: 'Missing configuration',
     availableKeys: Object.keys(import.meta.env),
-    envValue: supabaseAnonKey,
-    url: supabaseUrl
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey ? '[HIDDEN]' : undefined
   });
-  throw new Error('Supabase anonymous key is required. Please check your environment variables.');
+  throw new Error('Supabase configuration is required. Please check your environment variables.');
 }
 
 export const supabase = createClient<Database>(
