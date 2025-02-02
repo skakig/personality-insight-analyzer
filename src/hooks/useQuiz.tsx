@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Session } from "@supabase/supabase-js";
 import { toast } from "@/components/ui/use-toast";
 import { calculatePersonalityType } from "@/utils/personalityCalculator";
-import { fetchQuizQuestions, saveQuizResults, updateQuizProgress } from "@/utils/quizUtils";
+import { fetchQuizQuestions } from "@/utils/quizUtils";
 import { useQuizState } from "./useQuizState";
 
 export const useQuiz = (session: Session | null) => {
@@ -11,7 +11,7 @@ export const useQuiz = (session: Session | null) => {
   useEffect(() => {
     const loadQuestions = async () => {
       try {
-        console.log('Fetching quiz questions...', { sessionExists: !!session });
+        console.log('Fetching quiz questions...');
         const questions = await fetchQuizQuestions();
         console.log('Fetched questions:', questions);
         setQuestions(questions);
@@ -32,32 +32,12 @@ export const useQuiz = (session: Session | null) => {
   }, [state.currentStep]);
 
   const handleStart = () => {
-    if (!session) {
-      console.log('No session found during quiz start');
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to start the quiz.",
-        variant: "destructive",
-      });
-      return;
-    }
     updateState({ currentStep: "questions", loading: true });
   };
 
   const handleAnswer = async (questionId: string, value: number) => {
-    console.log('Handling answer:', { questionId, value, sessionExists: !!session });
+    console.log('Handling answer:', { questionId, value });
     
-    if (!session?.user) {
-      console.error('No session found during answer submission');
-      toast({
-        title: "Session Error",
-        description: "Your session has expired. Please sign in again.",
-        variant: "destructive",
-      });
-      updateState({ currentStep: "welcome" });
-      return;
-    }
-
     try {
       const newAnswers = { ...state.answers, [questionId]: value };
       console.log('New answers:', newAnswers);
@@ -75,15 +55,23 @@ export const useQuiz = (session: Session | null) => {
         const answersArray = Object.values(newAnswers);
         const personalityType = calculatePersonalityType(answersArray);
         
-        await saveQuizResults(personalityType, session.user.id, newAnswers);
-        await updateQuizProgress(session.user.id);
-
         updateState({
           answers: newAnswers,
           personalityType,
           currentStep: "results",
           progress: 100
         });
+
+        // Only save results if user is authenticated
+        if (session?.user) {
+          try {
+            await saveQuizResults(personalityType, session.user.id, newAnswers);
+            await updateQuizProgress(session.user.id);
+          } catch (error) {
+            console.error('Error saving results:', error);
+            // Continue showing results even if saving fails
+          }
+        }
 
         toast({
           title: "Success",

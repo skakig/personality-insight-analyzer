@@ -4,16 +4,12 @@ import { Results } from "@/components/Results";
 import { useQuiz } from "@/hooks/useQuiz";
 import { Loader2 } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { toast } from "@/components/ui/use-toast";
 
 interface IndexProps {
   session: Session | null;
 }
 
 const Index = ({ session }: IndexProps) => {
-  const navigate = useNavigate();
   const {
     currentStep,
     currentQuestion,
@@ -31,20 +27,9 @@ const Index = ({ session }: IndexProps) => {
       hasCurrentQuestion: !!currentQuestion,
       progress,
       loading,
-      error,
-      sessionExists: !!session
+      error
     });
-
-    // Redirect to auth if no session
-    if (!session && currentStep !== "welcome") {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to continue with the quiz.",
-        variant: "destructive",
-      });
-      navigate("/auth");
-    }
-  }, [currentStep, currentQuestion, progress, loading, error, session, navigate]);
+  }, [currentStep, currentQuestion, progress, loading, error]);
 
   if (loading) {
     return (
@@ -65,22 +50,9 @@ const Index = ({ session }: IndexProps) => {
     );
   }
 
-  const handleQuizStart = () => {
-    if (!session) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to start the quiz.",
-        variant: "destructive",
-      });
-      navigate("/auth");
-      return;
-    }
-    handleStart();
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
-      {currentStep === "welcome" && <WelcomePage onStart={handleQuizStart} />}
+      {currentStep === "welcome" && <WelcomePage onStart={handleStart} />}
       
       {currentStep === "questions" && currentQuestion && (
         <Question
