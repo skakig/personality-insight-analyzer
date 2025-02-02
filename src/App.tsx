@@ -16,21 +16,28 @@ import { toast } from "@/components/ui/use-toast";
 function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authInitialized, setAuthInitialized] = useState(false);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    }).catch((error) => {
-      console.error("Error getting session:", error);
-      toast({
-        title: "Error",
-        description: "Failed to retrieve authentication session. Please try logging in again.",
-        variant: "destructive",
-      });
-      setLoading(false);
-    });
+    // Initialize auth state
+    const initializeAuth = async () => {
+      try {
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        setSession(initialSession);
+        setAuthInitialized(true);
+      } catch (error: any) {
+        console.error("Error initializing auth:", error);
+        toast({
+          title: "Error",
+          description: "Failed to initialize authentication. Please try refreshing the page.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
 
     // Listen for auth changes
     const {
@@ -38,12 +45,13 @@ function App() {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log("Auth state changed:", _event, session?.user?.email);
       setSession(session);
+      setAuthInitialized(true);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  if (loading) {
+  if (loading || !authInitialized) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
