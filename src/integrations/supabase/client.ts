@@ -12,16 +12,21 @@ if (!supabaseAnonKey) {
     envValue: import.meta.env.VITE_SUPABASE_ANON_KEY,
     url: supabaseUrl
   });
-  throw new Error('Supabase configuration error: Anonymous key not available');
+  // Don't throw an error, just log it - this allows anonymous usage
+  console.warn('Proceeding without authentication capabilities');
 }
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true
+export const supabase = createClient<Database>(
+  supabaseUrl, 
+  supabaseAnonKey || '', // Provide empty string as fallback
+  {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true
+    }
   }
-});
+);
 
 // Add debug logging for auth state changes
 supabase.auth.onAuthStateChange((event, session) => {
