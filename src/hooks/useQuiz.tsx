@@ -26,8 +26,10 @@ export const useQuiz = (session: Session | null) => {
       }
     };
 
-    loadQuestions();
-  }, []);
+    if (state.currentStep === "questions") {
+      loadQuestions();
+    }
+  }, [state.currentStep]);
 
   const handleStart = () => {
     if (!session) {
@@ -39,7 +41,7 @@ export const useQuiz = (session: Session | null) => {
       });
       return;
     }
-    updateState({ currentStep: "questions" });
+    updateState({ currentStep: "questions", loading: true });
   };
 
   const handleAnswer = async (questionId: string, value: number) => {
