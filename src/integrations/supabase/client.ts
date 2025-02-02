@@ -5,9 +5,11 @@ const supabaseUrl = 'https://caebnpbdprrptogirxky.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Debug logging for environment variable
-console.log('Environment check:', {
+console.log('Supabase Configuration Check:', {
+  hasUrl: !!supabaseUrl,
   hasAnonKey: !!supabaseAnonKey,
-  envKeys: Object.keys(import.meta.env)
+  anonKeyLength: supabaseAnonKey?.length,
+  envKeys: Object.keys(import.meta.env).filter(key => key.includes('SUPABASE'))
 });
 
 if (!supabaseAnonKey) {
