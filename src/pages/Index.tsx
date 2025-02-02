@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { WelcomePage } from "@/components/WelcomePage";
 import { Question } from "@/components/Question";
 import { Results } from "@/components/Results";

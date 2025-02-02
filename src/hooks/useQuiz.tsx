@@ -4,6 +4,7 @@ import { toast } from "@/components/ui/use-toast";
 import { calculatePersonalityType } from "@/utils/personalityCalculator";
 import { fetchQuizQuestions } from "@/utils/quizUtils";
 import { useQuizState } from "./useQuizState";
+import { supabase } from "@/integrations/supabase/client";
 
 export const useQuiz = (session: Session | null) => {
   const { state, updateState, setQuestions, setError, updateProgress } = useQuizState();
@@ -65,8 +66,26 @@ export const useQuiz = (session: Session | null) => {
         // Only save results if user is authenticated
         if (session?.user) {
           try {
-            await saveQuizResults(personalityType, session.user.id, newAnswers);
-            await updateQuizProgress(session.user.id);
+            const { error: resultsError } = await supabase
+              .from('quiz_results')
+              .insert({
+                user_id: session.user.id,
+                personality_type: personalityType,
+                answers: newAnswers
+              });
+
+            if (resultsError) throw resultsError;
+
+            const { error: progressError } = await supabase
+              .from('quiz_progress')
+              .upsert({
+                user_id: session.user.id,
+                current_level: parseInt(personalityType),
+                completed_levels: [parseInt(personalityType)]
+              });
+
+            if (progressError) throw progressError;
+
           } catch (error) {
             console.error('Error saving results:', error);
             // Continue showing results even if saving fails
