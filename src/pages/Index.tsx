@@ -1,10 +1,10 @@
-import { useEffect } from "react";
 import { WelcomePage } from "@/components/WelcomePage";
 import { Question } from "@/components/Question";
 import { Results } from "@/components/Results";
 import { useQuiz } from "@/hooks/useQuiz";
 import { Loader2 } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
+import { useEffect } from "react";
 
 interface IndexProps {
   session: Session | null;
