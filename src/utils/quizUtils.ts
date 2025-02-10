@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { QuizQuestion } from "@/types/quiz";
 import { toast } from "@/components/ui/use-toast";
