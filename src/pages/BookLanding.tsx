@@ -1,3 +1,4 @@
+
 import { toast } from "@/components/ui/use-toast";
 import { HeroSection } from "@/components/book/HeroSection";
 import { MoralLevelsSection } from "@/components/book/MoralLevelsSection";
@@ -48,7 +49,7 @@ const BookLanding = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white overflow-x-hidden">
       <HeroSection onPreOrder={handlePreOrder} />
       <MoralLevelsSection />
       <PreOrderBenefits />
