@@ -13,12 +13,20 @@ export const useQuiz = (session: Session | null) => {
   useEffect(() => {
     const loadQuestions = async () => {
       try {
-        console.log('Fetching quiz questions...');
-        const questions = await fetchQuizQuestions();
-        console.log('Fetched questions:', questions);
-        setQuestions(questions);
+        if (state.currentStep === "questions" && state.questions.length === 0) {
+          console.log('Fetching quiz questions...');
+          updateState({ loading: true });
+          const questions = await fetchQuizQuestions();
+          console.log('Fetched questions:', questions);
+          
+          if (!questions || questions.length === 0) {
+            throw new Error('No questions were returned from the database');
+          }
+          
+          setQuestions(questions);
+        }
       } catch (err: any) {
-        console.error('Error in fetchQuestions:', err);
+        console.error('Error in loadQuestions:', err);
         setError(err.message || 'Failed to load quiz questions');
         toast({
           title: "Error",
@@ -28,13 +36,16 @@ export const useQuiz = (session: Session | null) => {
       }
     };
 
-    if (state.currentStep === "questions") {
-      loadQuestions();
-    }
+    loadQuestions();
   }, [state.currentStep]);
 
   const handleStart = () => {
-    updateState({ currentStep: "questions", loading: true });
+    console.log('Starting quiz...');
+    updateState({ 
+      currentStep: "questions", 
+      loading: true,
+      error: null 
+    });
   };
 
   const handleAnswer = async (questionId: string, value: number) => {
@@ -64,7 +75,6 @@ export const useQuiz = (session: Session | null) => {
           progress: 100
         });
 
-        // Only save results if user is authenticated
         if (session?.user) {
           try {
             const { error: resultsError } = await supabase
@@ -89,7 +99,11 @@ export const useQuiz = (session: Session | null) => {
 
           } catch (error) {
             console.error('Error saving results:', error);
-            // Continue showing results even if saving fails
+            toast({
+              title: "Warning",
+              description: "Your results were calculated but couldn't be saved. You can still view them.",
+              variant: "destructive",
+            });
           }
         }
 
