@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { Session } from "@supabase/supabase-js";
 import { toast } from "@/components/ui/use-toast";
