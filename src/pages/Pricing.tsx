@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
@@ -16,7 +17,7 @@ const pricingPlans = [
       "Personal growth recommendations",
       "Email support"
     ],
-    priceId: "price_1Qlc4VJy5TVq3Z9H0PFhn9hs"
+    priceId: "price_1QloJQJy5TVq3Z9HTnIN6BX5" // Single assessment price
   },
   {
     name: "Pro",
@@ -29,7 +30,7 @@ const pricingPlans = [
       "Priority support",
       "Custom report branding"
     ],
-    priceId: "price_1QnmsaJy5TVq3Z9HpNI2p8xI",
+    priceId: "price_1QnmsaJy5TVq3Z9HpNI2p8xI", // Pro subscription price
     highlight: true
   },
   {
@@ -44,7 +45,7 @@ const pricingPlans = [
       "Custom integration options",
       "24/7 phone support"
     ],
-    priceId: "price_1Qlc6YJy5TVq3Z9Hya2ukkhJ"
+    priceId: "price_1Qlc6YJy5TVq3Z9Hya2ukkhJ" // Enterprise subscription price
   }
 ];
 
