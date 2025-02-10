@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { QuestionHeader } from "./quiz/QuestionHeader";
 import { AnswerOptions } from "./quiz/AnswerOptions";
@@ -36,10 +37,10 @@ export const Question = ({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
+    <div className="min-h-screen bg-gray-50 py-6 md:py-12 px-2 md:px-4">
       <div className="container mx-auto max-w-3xl">
-        <Card className="p-6">
-          <CardContent className="pt-6">
+        <Card className="p-3 md:p-6">
+          <CardContent className="pt-4 md:pt-6">
             <ProgressBar currentProgress={currentProgress} />
             
             <QuestionHeader 

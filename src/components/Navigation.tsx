@@ -3,9 +3,11 @@ import { NavigationMenu, NavigationMenuItem, NavigationMenuList } from "@/compon
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export const Navigation = ({ session }: { session?: any }) => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -17,17 +19,19 @@ export const Navigation = ({ session }: { session?: any }) => {
       <div className="container mx-auto px-4 h-14 flex items-center justify-between">
         <h1 
           onClick={() => navigate("/")} 
-          className="text-xl font-semibold text-gray-900 cursor-pointer hover:opacity-80 transition-opacity"
+          className={`font-semibold text-gray-900 cursor-pointer hover:opacity-80 transition-opacity ${
+            isMobile ? 'text-lg' : 'text-xl'
+          }`}
         >
-          The Moral Hierarchy
+          {isMobile ? "TMH" : "The Moral Hierarchy"}
         </h1>
         <NavigationMenu>
-          <NavigationMenuList className="gap-2">
+          <NavigationMenuList className="gap-1 md:gap-2">
             <NavigationMenuItem>
               <Button 
                 variant="ghost" 
                 onClick={() => navigate("/")}
-                className="text-gray-700 hover:text-gray-900 hover:bg-gray-100/80"
+                className="px-2 md:px-4 text-gray-700 hover:text-gray-900 hover:bg-gray-100/80"
               >
                 Home
               </Button>
@@ -37,7 +41,7 @@ export const Navigation = ({ session }: { session?: any }) => {
               <Button 
                 variant="ghost" 
                 onClick={() => navigate("/book")}
-                className="text-gray-700 hover:text-gray-900 hover:bg-gray-100/80"
+                className="px-2 md:px-4 text-gray-700 hover:text-gray-900 hover:bg-gray-100/80"
               >
                 Book
               </Button>
@@ -47,7 +51,7 @@ export const Navigation = ({ session }: { session?: any }) => {
               <Button 
                 variant="ghost" 
                 onClick={() => navigate("/pricing")}
-                className="text-gray-700 hover:text-gray-900 hover:bg-gray-100/80"
+                className="px-2 md:px-4 text-gray-700 hover:text-gray-900 hover:bg-gray-100/80"
               >
                 Pricing
               </Button>
@@ -59,18 +63,18 @@ export const Navigation = ({ session }: { session?: any }) => {
                   <Button 
                     variant="ghost" 
                     onClick={() => navigate("/dashboard")}
-                    className="text-gray-700 hover:text-gray-900 hover:bg-gray-100/80"
+                    className="px-2 md:px-4 text-gray-700 hover:text-gray-900 hover:bg-gray-100/80"
                   >
-                    Dashboard
+                    {isMobile ? "Dash" : "Dashboard"}
                   </Button>
                 </NavigationMenuItem>
                 <NavigationMenuItem>
                   <Button 
                     variant="ghost" 
                     onClick={handleSignOut}
-                    className="text-gray-700 hover:text-gray-900 hover:bg-gray-100/80"
+                    className="px-2 md:px-4 text-gray-700 hover:text-gray-900 hover:bg-gray-100/80"
                   >
-                    Sign Out
+                    {isMobile ? "Exit" : "Sign Out"}
                   </Button>
                 </NavigationMenuItem>
               </>
@@ -79,9 +83,9 @@ export const Navigation = ({ session }: { session?: any }) => {
                 <Button 
                   variant="ghost" 
                   onClick={() => navigate("/auth")}
-                  className="text-gray-700 hover:text-gray-900 hover:bg-gray-100/80"
+                  className="px-2 md:px-4 text-gray-700 hover:text-gray-900 hover:bg-gray-100/80"
                 >
-                  Sign In
+                  {isMobile ? "Sign In" : "Sign In"}
                 </Button>
               </NavigationMenuItem>
             )}
