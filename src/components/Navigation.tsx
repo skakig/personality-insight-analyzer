@@ -1,3 +1,4 @@
+
 import { NavigationMenu, NavigationMenuItem, NavigationMenuList } from "@/components/ui/navigation-menu";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -49,6 +50,17 @@ export const Navigation = ({ session }: { session?: any }) => {
                 className="text-gray-700 hover:text-gray-900 hover:bg-gray-100/80"
               >
                 Pricing
+              </Button>
+            </NavigationMenuItem>
+
+            {/* Added Start Test button */}
+            <NavigationMenuItem>
+              <Button 
+                variant="ghost"
+                onClick={() => navigate("/")} 
+                className="text-gray-700 hover:text-gray-900 hover:bg-gray-100/80"
+              >
+                Start Test
               </Button>
             </NavigationMenuItem>
             
