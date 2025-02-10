@@ -1,9 +1,7 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { QuizQuestion } from "@/types/quiz";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 
-// Helper function to shuffle array
 function shuffleArray<T>(array: T[]): T[] {
   const newArray = [...array];
   for (let i = newArray.length - 1; i > 0; i--) {
@@ -15,20 +13,23 @@ function shuffleArray<T>(array: T[]): T[] {
 
 export const fetchQuizQuestions = async (): Promise<QuizQuestion[]> => {
   try {
-    console.log('Attempting to fetch quiz questions...');
+    console.log('Starting quiz questions fetch...');
     
-    // Fetch all questions
     const { data: allQuestions, error } = await supabase
       .from('quiz_questions')
       .select('*');
 
     if (error) {
-      console.error('Error details:', error);
+      console.error('Supabase error fetching questions:', {
+        error,
+        errorMessage: error.message,
+        details: error.details
+      });
       throw error;
     }
     
     if (!allQuestions || allQuestions.length === 0) {
-      console.log('No questions found in database');
+      console.error('No questions found in database');
       throw new Error('No questions found in the database. Please add some questions first.');
     }
 
@@ -57,10 +58,14 @@ export const fetchQuizQuestions = async (): Promise<QuizQuestion[]> => {
       throw new Error('No questions could be selected from the database');
     }
 
-    // Final shuffle of all selected questions
+    console.log(`Selected ${selectedQuestions.length} questions for the quiz`);
     return shuffleArray(selectedQuestions);
   } catch (error: any) {
-    console.error('Error fetching quiz questions:', error);
+    console.error('Error in fetchQuizQuestions:', {
+      error,
+      message: error.message,
+      stack: error.stack
+    });
     throw new Error(error.message || 'Failed to fetch quiz questions');
   }
 };

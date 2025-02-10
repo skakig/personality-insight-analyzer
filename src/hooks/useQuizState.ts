@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { QuizQuestion } from '@/types/quiz';
 
@@ -20,7 +21,7 @@ const initialState: QuizState = {
   questions: [],
   currentQuestion: null,
   currentQuestionIndex: 0,
-  loading: true,
+  loading: false, // Changed from true to false
   error: null,
   answers: {},
   personalityType: null,
@@ -31,10 +32,12 @@ export const useQuizState = () => {
   const [state, setState] = useState<QuizState>(initialState);
 
   const updateState = (updates: Partial<QuizState>) => {
+    console.log('Updating quiz state:', { current: state, updates });
     setState(prev => ({ ...prev, ...updates }));
   };
 
   const setQuestions = (questions: QuizQuestion[]) => {
+    console.log('Setting questions:', { count: questions.length });
     updateState({
       questions,
       currentQuestion: questions[0],
@@ -43,6 +46,7 @@ export const useQuizState = () => {
   };
 
   const setError = (error: string) => {
+    console.error('Quiz error:', error);
     updateState({
       error,
       loading: false
@@ -50,9 +54,9 @@ export const useQuizState = () => {
   };
 
   const updateProgress = (currentQuestionIndex: number, totalQuestions: number) => {
-    updateState({
-      progress: ((currentQuestionIndex + 1) / totalQuestions) * 100
-    });
+    const progress = ((currentQuestionIndex + 1) / totalQuestions) * 100;
+    console.log('Updating progress:', { currentQuestionIndex, totalQuestions, progress });
+    updateState({ progress });
   };
 
   return {
