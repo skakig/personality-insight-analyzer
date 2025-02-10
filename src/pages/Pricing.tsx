@@ -17,7 +17,8 @@ const pricingPlans = [
       "Personal growth recommendations",
       "Email support"
     ],
-    priceId: "price_1QloJQJy5TVq3Z9HTnIN6BX5" // Single assessment price
+    priceId: "price_1QloJQJy5TVq3Z9HTnIN6BX5", // Single assessment price
+    paymentType: "payment" // one-time payment
   },
   {
     name: "Pro",
@@ -31,6 +32,7 @@ const pricingPlans = [
       "Custom report branding"
     ],
     priceId: "price_1QnmsaJy5TVq3Z9HpNI2p8xI", // Pro subscription price
+    paymentType: "subscription", // recurring payment
     highlight: true
   },
   {
@@ -45,7 +47,8 @@ const pricingPlans = [
       "Custom integration options",
       "24/7 phone support"
     ],
-    priceId: "price_1Qlc6YJy5TVq3Z9Hya2ukkhJ" // Enterprise subscription price
+    priceId: "price_1Qlc6YJy5TVq3Z9Hya2ukkhJ", // Enterprise subscription price
+    paymentType: "subscription" // recurring payment
   }
 ];
 
@@ -53,7 +56,7 @@ const Pricing = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState("");
 
-  const handleSubscribe = async (priceId: string) => {
+  const handleSubscribe = async (priceId: string, paymentType: "payment" | "subscription" = "subscription") => {
     const session = await supabase.auth.getSession();
     if (!session.data.session) {
       toast({
@@ -71,7 +74,7 @@ const Pricing = () => {
         body: { 
           priceId,
           userId: session.data.session.user.id,
-          mode: 'subscription'
+          mode: paymentType // This will be either "payment" or "subscription"
         },
         headers: {
           Authorization: `Bearer ${session.data.session.access_token}`
@@ -104,7 +107,7 @@ const Pricing = () => {
             key={plan.name}
             {...plan}
             loading={loading}
-            onSubscribe={handleSubscribe}
+            onSubscribe={() => handleSubscribe(plan.priceId, plan.paymentType)}
           />
         ))}
       </div>

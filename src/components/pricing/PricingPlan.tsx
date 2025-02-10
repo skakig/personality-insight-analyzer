@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Check } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +12,7 @@ interface PricingPlanProps {
   priceId: string;
   highlight?: boolean;
   loading: string;
+  paymentType?: "payment" | "subscription";
   onSubscribe: (priceId: string) => void;
 }
 
@@ -22,6 +24,7 @@ export const PricingPlan = ({
   priceId,
   highlight,
   loading,
+  paymentType = "subscription",
   onSubscribe
 }: PricingPlanProps) => {
   return (
@@ -44,7 +47,7 @@ export const PricingPlan = ({
         <CardDescription>
           <div className="mt-2">
             <span className="text-4xl font-bold">{price}</span>
-            <span className="text-gray-500">/month</span>
+            <span className="text-gray-500">{paymentType === "subscription" ? "/month" : " one-time"}</span>
           </div>
           <p className="mt-2 text-gray-600">{description}</p>
         </CardDescription>
