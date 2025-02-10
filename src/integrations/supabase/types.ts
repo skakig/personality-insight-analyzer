@@ -116,6 +116,47 @@ export type Database = {
         }
         Relationships: []
       }
+      guest_purchases: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          metadata: Json | null
+          purchase_type: string
+          result_id: string | null
+          status: string | null
+          stripe_session_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          metadata?: Json | null
+          purchase_type: string
+          result_id?: string | null
+          status?: string | null
+          stripe_session_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          metadata?: Json | null
+          purchase_type?: string
+          result_id?: string | null
+          status?: string | null
+          stripe_session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_purchases_result_id_fkey"
+            columns: ["result_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_results"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string

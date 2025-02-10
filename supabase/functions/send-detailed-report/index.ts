@@ -1,5 +1,7 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
+import * as puppeteer from 'https://deno.land/x/puppeteer@16.2.0/mod.ts';
 
 const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
 
@@ -14,11 +16,7 @@ serve(async (req) => {
   }
 
   try {
-    const { email, personalityType, analysis, scores } = await req.json();
-
-    if (!email || !personalityType) {
-      throw new Error('Missing required fields');
-    }
+    const { email, personalityType, analysis, scores, isPdf } = await req.json();
 
     const scoresList = scores ? Object.entries(scores)
       .map(([category, score]) => `
@@ -69,11 +67,24 @@ serve(async (req) => {
       </html>
     `;
 
+    let pdfAttachment;
+    if (isPdf) {
+      const browser = await puppeteer.launch();
+      const page = await browser.newPage();
+      await page.setContent(emailHtml);
+      pdfAttachment = await page.pdf();
+      await browser.close();
+    }
+
     const data = await resend.emails.send({
       from: 'Moral Development <reports@moraldevelopment.app>',
       to: email,
       subject: `Your Level ${personalityType} Detailed Report`,
       html: emailHtml,
+      attachments: isPdf ? [{
+        filename: 'detailed-report.pdf',
+        content: pdfAttachment
+      }] : undefined
     });
 
     console.log('Email sent successfully:', data);

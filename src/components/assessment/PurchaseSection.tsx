@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,10 +18,12 @@ interface PurchaseSectionProps {
 export const PurchaseSection = ({ resultId, loading }: PurchaseSectionProps) => {
   const [purchaseLoading, setPurchaseLoading] = useState(false);
   const [giftEmail, setGiftEmail] = useState("");
+  const [email, setEmail] = useState("");
   const [isGiftDialogOpen, setIsGiftDialogOpen] = useState(false);
+  const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
   const navigate = useNavigate();
 
-  const handlePurchase = async (giftRecipientEmail?: string) => {
+  const handlePurchase = async (giftRecipientEmail?: string, purchaseEmail?: string) => {
     try {
       setPurchaseLoading(true);
       console.log('Initiating checkout for result:', resultId, giftRecipientEmail ? 'as gift' : '');
@@ -28,32 +31,24 @@ export const PurchaseSection = ({ resultId, loading }: PurchaseSectionProps) => 
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError || !session) {
-        console.error('No active session found:', sessionError);
-        toast({
-          title: "Authentication Required",
-          description: "Please sign in to purchase the detailed report.",
-          variant: "destructive",
-        });
-        navigate("/auth");
-        return;
+        // For guest purchase, we need an email
+        if (!purchaseEmail) {
+          setIsEmailDialogOpen(true);
+          return;
+        }
       }
 
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { 
           resultId,
-          userId: session.user.id,
+          userId: session?.user?.id,
           mode: 'payment',
-          giftRecipientEmail
-        },
-        headers: {
-          Authorization: `Bearer ${session.access_token}`
+          giftRecipientEmail,
+          email: purchaseEmail
         }
       });
 
-      if (error) {
-        console.error('Checkout error:', error);
-        throw error;
-      }
+      if (error) throw error;
       
       if (!data?.url) {
         throw new Error('No checkout URL received');
@@ -70,6 +65,7 @@ export const PurchaseSection = ({ resultId, loading }: PurchaseSectionProps) => 
     } finally {
       setPurchaseLoading(false);
       setIsGiftDialogOpen(false);
+      setIsEmailDialogOpen(false);
     }
   };
 
@@ -95,6 +91,28 @@ export const PurchaseSection = ({ resultId, loading }: PurchaseSectionProps) => 
     handlePurchase(giftEmail);
   };
 
+  const handleEmailPurchase = () => {
+    if (!email) {
+      toast({
+        title: "Email Required",
+        description: "Please enter your email address to receive the report.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    handlePurchase(undefined, email);
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-gradient-to-br from-primary/5 to-secondary/5 p-6 rounded-xl border border-primary/10">
@@ -106,6 +124,35 @@ export const PurchaseSection = ({ resultId, loading }: PurchaseSectionProps) => 
           <BenefitsList />
           
           <div className="flex flex-col sm:flex-row gap-3">
+            <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Enter Your Email</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <label htmlFor="email" className="text-sm font-medium text-gray-700">
+                      Your Email
+                    </label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="your@email.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                  <Button 
+                    onClick={handleEmailPurchase}
+                    className="w-full"
+                    disabled={purchaseLoading}
+                  >
+                    {purchaseLoading ? "Processing..." : "Continue to Purchase"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+            
             <PurchaseButton 
               onClick={() => handlePurchase()} 
               loading={loading || purchaseLoading}
