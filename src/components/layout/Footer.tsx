@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
-import { Twitter, Instagram, Linkedin, Youtube, Discord, ArrowRight } from "lucide-react";
+import { Twitter, Instagram, Linkedin, Youtube } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Footer = () => {
@@ -106,9 +106,6 @@ export const Footer = () => {
               </a>
               <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-primary transition-colors">
                 <Youtube className="h-5 w-5" />
-              </a>
-              <a href="https://discord.com" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-primary transition-colors">
-                <Discord className="h-5 w-5" />
               </a>
             </div>
           </div>
