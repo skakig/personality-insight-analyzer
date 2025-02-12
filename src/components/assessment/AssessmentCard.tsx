@@ -1,8 +1,10 @@
+
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, Share2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
+import { PurchaseButton } from "./purchase/PurchaseButton";
 
 interface AssessmentCardProps {
   result: {
@@ -70,17 +72,12 @@ export const AssessmentCard = ({ result }: AssessmentCardProps) => {
         </div>
       </CardHeader>
       <CardContent>
-        <Button
+        <PurchaseButton 
           onClick={() => navigate(`/assessment/${result.id}`)}
-          className={`w-full ${
-            hasFullAccess
-              ? "bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white"
-              : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
-          }`}
-        >
-          <FileText className="mr-2 h-4 w-4" />
-          {hasFullAccess ? "View Your Full Report" : "Unlock Your Full Report"}
-        </Button>
+          loading={false}
+          isPurchased={hasFullAccess}
+          resultId={result.id}
+        />
       </CardContent>
     </Card>
   );
