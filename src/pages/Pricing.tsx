@@ -9,7 +9,7 @@ import { PricingPlan } from "@/components/pricing/PricingPlan";
 const pricingPlans = [
   {
     name: "Individual",
-    price: "$9.99",
+    price: "$14.99",
     description: "Perfect for personal growth",
     features: [
       "Full personality assessment",

@@ -23,7 +23,7 @@ serve(async (req) => {
       return new Response(null, { headers: corsHeaders });
     }
 
-    const { userId, resultId, giftRecipientEmail, email, priceAmount = 2999 } = await req.json();
+    const { userId, resultId, giftRecipientEmail, email, priceAmount = 1499 } = await req.json();
     console.log('Creating checkout session:', { userId, resultId, giftRecipientEmail, email });
 
     const baseUrl = req.headers.get('origin') || '';
