@@ -1,7 +1,9 @@
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { ChartBar, History, FileText } from "lucide-react";
+import { isPurchased, hasAnyPurchasedReport } from "@/utils/purchaseUtils";
 
 interface QuickActionsCardProps {
   subscription: {

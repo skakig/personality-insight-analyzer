@@ -1,7 +1,9 @@
+
 import { SubscriptionCard } from "./SubscriptionCard";
 import { QuickActionsCard } from "./QuickActionsCard";
 import { RecentAssessmentsCard } from "./RecentAssessmentsCard";
 import { Assessment, Subscription } from "@/types/dashboard";
+import { hasAnyPurchasedReport } from "@/utils/purchaseUtils";
 
 interface DashboardContentProps {
   subscription: Subscription | null;
@@ -14,9 +16,7 @@ export const DashboardContent = ({
   error, 
   previousAssessments 
 }: DashboardContentProps) => {
-  const hasPurchasedReport = previousAssessments.some(
-    assessment => assessment.is_purchased || assessment.is_detailed || assessment.access_method === 'purchase'
-  );
+  const hasPurchasedReport = hasAnyPurchasedReport(previousAssessments);
 
   const hasAvailableCredits = subscription?.active && 
     subscription?.assessments_used < subscription?.max_assessments;
