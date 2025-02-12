@@ -23,45 +23,8 @@ serve(async (req) => {
       return new Response(null, { headers: corsHeaders });
     }
 
-    const { userId, resultId, accessMethod } = await req.json();
-    console.log('Creating checkout session:', { userId, resultId, accessMethod });
-
-    if (!userId) {
-      throw new Error('User ID is required');
-    }
-
-    // Check if user has an active subscription with available reports
-    const { data: subscription } = await supabaseAdmin
-      .from('corporate_subscriptions')
-      .select('*')
-      .eq('organization_id', userId)
-      .eq('active', true)
-      .maybeSingle();
-
-    if (subscription && subscription.assessments_used < subscription.max_assessments) {
-      // Update the quiz result to mark it as detailed/purchased
-      const { error: updateError } = await supabaseAdmin
-        .from('quiz_results')
-        .update({
-          is_detailed: true,
-          is_purchased: true,
-          access_method: 'subscription'
-        })
-        .eq('id', resultId);
-
-      if (updateError) throw updateError;
-
-      return new Response(
-        JSON.stringify({ 
-          url: `/assessment/${resultId}`,
-          method: 'direct'
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
-        }
-      );
-    }
+    const { userId, resultId, giftRecipientEmail, email, priceAmount = 2999 } = await req.json();
+    console.log('Creating checkout session:', { userId, resultId, giftRecipientEmail, email });
 
     const baseUrl = req.headers.get('origin') || '';
     const session = await stripe.checkout.sessions.create({
@@ -74,7 +37,7 @@ serve(async (req) => {
               name: 'Full Assessment Report',
               description: 'Unlock your detailed personality assessment report',
             },
-            unit_amount: 999, // $9.99
+            unit_amount: priceAmount, // Price in cents
           },
           quantity: 1,
         },
@@ -85,7 +48,9 @@ serve(async (req) => {
       metadata: {
         userId,
         resultId,
-        accessMethod,
+        isGuest: !userId,
+        giftRecipientEmail,
+        email
       },
     });
 

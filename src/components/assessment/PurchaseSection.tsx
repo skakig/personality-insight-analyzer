@@ -41,10 +41,10 @@ export const PurchaseSection = ({ resultId, loading }: PurchaseSectionProps) => 
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { 
           resultId,
-          userId: session?.user?.id,
           mode: 'payment',
           giftRecipientEmail,
-          email: purchaseEmail
+          email: purchaseEmail,
+          priceAmount: 2999 // $29.99 in cents
         }
       });
 
