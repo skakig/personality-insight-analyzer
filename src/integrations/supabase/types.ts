@@ -193,6 +193,36 @@ export type Database = {
         }
         Relationships: []
       }
+      purchase_notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_real: boolean | null
+          location: string
+          name: string
+          product_type: string
+          purchase_time: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_real?: boolean | null
+          location: string
+          name: string
+          product_type: string
+          purchase_time?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_real?: boolean | null
+          location?: string
+          name?: string
+          product_type?: string
+          purchase_time?: string | null
+        }
+        Relationships: []
+      }
       quiz_progress: {
         Row: {
           completed_levels: number[] | null

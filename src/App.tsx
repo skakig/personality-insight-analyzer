@@ -1,3 +1,4 @@
+
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Navigation } from "./components/Navigation";
 import Index from "./pages/Index";
@@ -12,6 +13,7 @@ import { useEffect, useState } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
+import { PurchaseNotification } from "./components/notifications/PurchaseNotification";
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -69,17 +71,22 @@ function App() {
 
   return (
     <Router>
-      <Navigation session={session} />
-      <Routes>
-        <Route path="/" element={<Index session={session} />} />
-        <Route path="/auth" element={<Auth />} />
-        <Route path="/assessment/:id?" element={<Assessment />} />
-        <Route path="/assessment-history" element={<AssessmentHistory />} />
-        <Route path="/dashboard" element={<Dashboard session={session} />} />
-        <Route path="/book" element={<BookLanding />} />
-        <Route path="/pricing" element={<Pricing />} />
-        <Route path="/gift-success" element={<GiftSuccess />} />
-      </Routes>
+      <div className="min-h-screen flex flex-col">
+        <Navigation session={session} />
+        <main className="flex-1">
+          <Routes>
+            <Route path="/" element={<Index session={session} />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/assessment/:id?" element={<Assessment />} />
+            <Route path="/assessment-history" element={<AssessmentHistory />} />
+            <Route path="/dashboard" element={<Dashboard session={session} />} />
+            <Route path="/book" element={<BookLanding />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/gift-success" element={<GiftSuccess />} />
+          </Routes>
+        </main>
+        <PurchaseNotification />
+      </div>
     </Router>
   );
 }
