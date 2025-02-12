@@ -1,9 +1,11 @@
+
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
 import { LoadingState } from "@/components/dashboard/LoadingState";
+import { toast } from "@/hooks/use-toast";
 
 interface DashboardProps {
   session: any;
@@ -11,6 +13,7 @@ interface DashboardProps {
 
 const Dashboard = ({ session }: DashboardProps) => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -20,6 +23,21 @@ const Dashboard = ({ session }: DashboardProps) => {
     if (!session) {
       navigate("/auth");
       return;
+    }
+
+    // Handle purchase success/failure notifications
+    const success = searchParams.get('success');
+    if (success === 'true') {
+      toast({
+        title: "Purchase Successful",
+        description: "Your full report is now available.",
+      });
+    } else if (success === 'false') {
+      toast({
+        title: "Purchase Cancelled",
+        description: "Your purchase was not completed. Please try again if you'd like to unlock your full report.",
+        variant: "destructive",
+      });
     }
 
     const fetchData = async () => {
@@ -60,7 +78,7 @@ const Dashboard = ({ session }: DashboardProps) => {
     };
 
     fetchData();
-  }, [session, navigate]);
+  }, [session, navigate, searchParams]);
 
   if (loading) {
     return <LoadingState />;
