@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { RecentAssessmentsCardProps } from "@/types/dashboard";
 import { Lock, Unlock, ChevronRight } from "lucide-react";
+import { usePurchaseHandler } from "@/components/assessment/purchase/usePurchaseHandler";
 
 export const RecentAssessmentsCard = ({ 
   assessments,
@@ -12,33 +13,37 @@ export const RecentAssessmentsCard = ({
   hasAvailableCredits 
 }: RecentAssessmentsCardProps) => {
   const navigate = useNavigate();
-
+  
   const getButtonConfig = (assessment: any) => {
     const isPurchased = assessment.is_purchased || assessment.is_detailed || assessment.access_method === 'purchase';
+    const { handlePurchase } = usePurchaseHandler(assessment.id);
     
     if (isPurchased) {
       return {
         label: "View Full Report",
         icon: <Unlock className="h-4 w-4 mr-2" />,
         variant: "default" as const,
-        className: "bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+        className: "bg-primary/10 text-primary hover:bg-primary/20 transition-colors",
+        onClick: () => navigate(`/assessment/${assessment.id}`)
       };
     }
     
-    if (!subscription?.active && !hasAvailableCredits) {
+    if (subscription?.active && hasAvailableCredits) {
       return {
         label: "Unlock Full Report",
         icon: <Lock className="h-4 w-4 mr-2" />,
         variant: "outline" as const,
-        className: "border-primary/20 text-primary hover:bg-primary/5 transition-colors"
+        className: "border-primary/20 text-primary hover:bg-primary/5 transition-colors",
+        onClick: handlePurchase
       };
     }
     
     return {
-      label: "View Report",
-      icon: <ChevronRight className="h-4 w-4" />,
+      label: "Purchase Report ($9.99)",
+      icon: <Lock className="h-4 w-4 mr-2" />,
       variant: "outline" as const,
-      className: "border-gray-200 hover:bg-gray-50/50 transition-colors"
+      className: "border-gray-200 hover:bg-gray-50/50 transition-colors",
+      onClick: handlePurchase
     };
   };
 
@@ -75,8 +80,7 @@ export const RecentAssessmentsCard = ({
               <Button
                 variant={buttonConfig.variant}
                 size="sm"
-                onClick={() => navigate(`/assessment/${assessment.id}`)}
-                disabled={!subscription?.active && !hasAvailableCredits && !isPurchased}
+                onClick={buttonConfig.onClick}
                 className={buttonConfig.className}
               >
                 {buttonConfig.icon}

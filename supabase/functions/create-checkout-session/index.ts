@@ -23,8 +23,45 @@ serve(async (req) => {
       return new Response(null, { headers: corsHeaders });
     }
 
-    const { userId, mode = 'payment', productType, amount = 5 } = await req.json();
-    console.log('Creating checkout session:', { userId, mode, productType, amount });
+    const { userId, resultId, accessMethod } = await req.json();
+    console.log('Creating checkout session:', { userId, resultId, accessMethod });
+
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+
+    // Check if user has an active subscription with available reports
+    const { data: subscription } = await supabaseAdmin
+      .from('corporate_subscriptions')
+      .select('*')
+      .eq('organization_id', userId)
+      .eq('active', true)
+      .maybeSingle();
+
+    if (subscription && subscription.assessments_used < subscription.max_assessments) {
+      // Update the quiz result to mark it as detailed/purchased
+      const { error: updateError } = await supabaseAdmin
+        .from('quiz_results')
+        .update({
+          is_detailed: true,
+          is_purchased: true,
+          access_method: 'subscription'
+        })
+        .eq('id', resultId);
+
+      if (updateError) throw updateError;
+
+      return new Response(
+        JSON.stringify({ 
+          url: `/assessment/${resultId}`,
+          method: 'direct'
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    }
 
     const baseUrl = req.headers.get('origin') || '';
     const session = await stripe.checkout.sessions.create({
@@ -34,40 +71,23 @@ serve(async (req) => {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: 'Assessment Credits',
-              description: `${amount} Assessment Credits`,
+              name: 'Full Assessment Report',
+              description: 'Unlock your detailed personality assessment report',
             },
-            unit_amount: 499, // $4.99 per credit
+            unit_amount: 999, // $9.99
           },
-          quantity: amount,
+          quantity: 1,
         },
       ],
       mode: 'payment',
-      success_url: `${baseUrl}/dashboard?success=true`,
+      success_url: `${baseUrl}/assessment/${resultId}?success=true`,
       cancel_url: `${baseUrl}/dashboard?success=false`,
       metadata: {
         userId,
-        productType,
-        amount,
+        resultId,
+        accessMethod,
       },
     });
-
-    // Create a pending credit purchase record
-    if (userId) {
-      const { error: purchaseError } = await supabaseAdmin
-        .from('credit_purchases')
-        .insert({
-          user_id: userId,
-          amount,
-          stripe_session_id: session.id,
-          status: 'pending'
-        });
-
-      if (purchaseError) {
-        console.error('Error creating credit purchase record:', purchaseError);
-        throw purchaseError;
-      }
-    }
 
     console.log('Checkout session created:', session.id);
     return new Response(

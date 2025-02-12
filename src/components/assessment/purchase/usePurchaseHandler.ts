@@ -19,14 +19,21 @@ export const usePurchaseHandler = (resultId?: string) => {
         body: {
           userId: session.user.id,
           resultId,
-          mode: 'payment',
           accessMethod: 'purchase'
         }
       });
 
       if (error) throw error;
       
-      if (data?.url) {
+      if (data?.method === 'direct') {
+        // Direct access through subscription
+        navigate(data.url);
+        toast({
+          title: "Success",
+          description: "Full report unlocked using your subscription.",
+        });
+      } else if (data?.url) {
+        // Redirect to Stripe checkout
         window.location.href = data.url;
       } else {
         throw new Error('No checkout URL received');
