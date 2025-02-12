@@ -461,7 +461,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_random_purchase_notification: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          name: string
+          location: string
+          product_type: string
+          purchase_time: string
+          is_real: boolean
+          created_at: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
