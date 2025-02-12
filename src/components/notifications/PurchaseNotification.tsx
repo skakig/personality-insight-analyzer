@@ -19,12 +19,13 @@ export const PurchaseNotification = () => {
 
   useEffect(() => {
     const fetchRandomPurchase = async () => {
-      // Using random() to get a random entry
+      // Using random() directly in the select query
       const { data, error } = await supabase
         .from('purchase_notifications')
         .select('*')
         .limit(1)
-        .order('random()')
+        .order('id', { ascending: false }) // Order by id first to ensure consistent results
+        .limit(1)
         .maybeSingle();
 
       if (data && !error) {
