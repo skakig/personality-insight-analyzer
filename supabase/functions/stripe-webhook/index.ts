@@ -16,22 +16,29 @@ const corsHeaders = {
 
 serve(async (req) => {
   try {
+    console.log('Webhook received:', req.method);
+
     if (req.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
     }
 
     const signature = req.headers.get('stripe-signature');
     if (!signature) {
+      console.error('No Stripe signature found');
       throw new Error('No Stripe signature found');
     }
 
     const body = await req.text();
+    console.log('Webhook body received:', body.substring(0, 100) + '...'); // Log first 100 chars for safety
+
     const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
     
     if (!webhookSecret) {
+      console.error('Webhook secret not configured');
       throw new Error('Webhook secret not configured');
     }
 
+    console.log('Constructing Stripe event...');
     const event = stripe.webhooks.constructEvent(
       body,
       signature,
@@ -43,14 +50,20 @@ serve(async (req) => {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       console.log('Checkout session completed:', session.id);
+      console.log('Session metadata:', session.metadata);
 
       if (session.metadata?.isGuest === 'true') {
+        console.log('Processing guest purchase...');
         await handleGuestPurchase(session);
       } else {
         const customerId = session.customer;
+        console.log('Retrieving customer:', customerId);
         const customer = await stripe.customers.retrieve(customerId as string);
         const userId = customer.metadata.supabaseUid;
         const productType = session.metadata?.productType;
+
+        console.log('Processing purchase for user:', userId);
+        console.log('Product type:', productType);
 
         if (productType === 'credits') {
           await handleCreditPurchase(session, userId);
@@ -58,6 +71,8 @@ serve(async (req) => {
           await handleRegularPurchase(session);
         }
       }
+
+      console.log('Purchase processing completed successfully');
     }
 
     return new Response(JSON.stringify({ received: true }), {
@@ -66,6 +81,7 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error('Webhook error:', error.message);
+    console.error('Full error:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       {
