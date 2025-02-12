@@ -16,7 +16,7 @@ export const RecentAssessmentsCard = ({
   
   const getButtonConfig = (assessment: any) => {
     const isPurchased = assessment.is_purchased || assessment.is_detailed || assessment.access_method === 'purchase';
-    const { handlePurchase } = usePurchaseHandler(assessment.id);
+    const purchaseHandler = usePurchaseHandler(assessment.id);
     
     if (isPurchased) {
       return {
@@ -34,16 +34,16 @@ export const RecentAssessmentsCard = ({
         icon: <Lock className="h-4 w-4 mr-2" />,
         variant: "outline" as const,
         className: "border-primary/20 text-primary hover:bg-primary/5 transition-colors",
-        onClick: handlePurchase
+        onClick: () => purchaseHandler.handlePurchase()
       };
     }
     
     return {
-      label: "Purchase Report ($9.99)",
+      label: "Purchase Report ($14.99)",
       icon: <Lock className="h-4 w-4 mr-2" />,
       variant: "outline" as const,
       className: "border-gray-200 hover:bg-gray-50/50 transition-colors",
-      onClick: handlePurchase
+      onClick: () => purchaseHandler.handlePurchase()
     };
   };
 
