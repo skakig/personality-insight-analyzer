@@ -19,15 +19,21 @@ export const PurchaseNotification = () => {
 
   useEffect(() => {
     const fetchRandomPurchase = async () => {
+      // Using random() to get a random entry
       const { data, error } = await supabase
         .from('purchase_notifications')
         .select('*')
-        .order('purchase_time', { ascending: false })
         .limit(1)
+        .order('random()')
         .maybeSingle();
 
       if (data && !error) {
-        setCurrentPurchase(data as Purchase);
+        // Transform product_type if it's "detailed analysis"
+        const purchase = {
+          ...data,
+          product_type: data.product_type.toLowerCase() === "detailed analysis" ? "Full Report" : data.product_type
+        };
+        setCurrentPurchase(purchase);
         setIsVisible(true);
 
         // Hide notification after 5 seconds
@@ -69,7 +75,7 @@ export const PurchaseNotification = () => {
                   {currentPurchase.name} from {currentPurchase.location}
                 </p>
                 <p className="text-sm text-gray-500 mt-1">
-                  just purchased {currentPurchase.product_type}
+                  just purchased a {currentPurchase.product_type}
                 </p>
                 <p className="text-xs text-gray-400 mt-1">
                   {formatDistanceToNow(new Date(currentPurchase.purchase_time), { addSuffix: true })}
