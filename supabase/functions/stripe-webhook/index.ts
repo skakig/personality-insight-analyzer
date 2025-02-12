@@ -1,15 +1,13 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from 'https://esm.sh/stripe@14.21.0';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { handleGuestPurchase } from "./handlers/guest-purchase.ts";
+import { handleCreditPurchase } from "./handlers/credit-purchase.ts";
+import { handleRegularPurchase } from "./handlers/regular-purchase.ts";
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
 });
-
-const supabaseAdmin = createClient(
-  Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-);
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -46,198 +44,18 @@ serve(async (req) => {
       const session = event.data.object;
       console.log('Checkout session completed:', session.id);
 
-      // Handle guest purchase
       if (session.metadata?.isGuest === 'true') {
-        const { data: guestPurchase, error: guestError } = await supabaseAdmin
-          .from('guest_purchases')
-          .update({ status: 'completed' })
-          .eq('stripe_session_id', session.id)
-          .select()
-          .single();
-
-        if (guestError) {
-          console.error('Error updating guest purchase:', guestError);
-          throw guestError;
-        }
-
-        if (guestPurchase?.result_id) {
-          // Update quiz result to mark it as purchased
-          const { error: updateError } = await supabaseAdmin
-            .from('quiz_results')
-            .update({
-              is_purchased: true,
-              is_detailed: true,
-              access_method: 'guest_purchase'
-            })
-            .eq('id', guestPurchase.result_id);
-
-          if (updateError) {
-            console.error('Error updating quiz result:', updateError);
-            throw updateError;
-          }
-
-          // Send email with detailed report
-          const { data: quizResult } = await supabaseAdmin
-            .from('quiz_results')
-            .select('personality_type, detailed_analysis, category_scores')
-            .eq('id', guestPurchase.result_id)
-            .single();
-
-          if (quizResult) {
-            const emailResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-detailed-report`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
-              },
-              body: JSON.stringify({
-                email: guestPurchase.email,
-                personalityType: quizResult.personality_type,
-                analysis: quizResult.detailed_analysis,
-                scores: quizResult.category_scores,
-                isPdf: true
-              }),
-            });
-
-            if (!emailResponse.ok) {
-              console.error('Error sending email:', await emailResponse.text());
-              throw new Error('Failed to send email');
-            }
-          }
-        }
+        await handleGuestPurchase(session);
       } else {
-        // Handle regular authenticated user purchase
         const customerId = session.customer;
         const customer = await stripe.customers.retrieve(customerId as string);
         const userId = customer.metadata.supabaseUid;
         const productType = session.metadata?.productType;
 
         if (productType === 'credits') {
-          // Update credit purchase status
-          const { error: updateError } = await supabaseAdmin
-            .from('credit_purchases')
-            .update({ status: 'completed' })
-            .eq('stripe_session_id', session.id);
-
-          if (updateError) {
-            console.error('Error updating credit purchase:', updateError);
-            throw updateError;
-          }
-
-          // Update user's subscription with new credits
-          const amount = parseInt(session.metadata?.amount || '0');
-          const { error: subscriptionError } = await supabaseAdmin
-            .from('corporate_subscriptions')
-            .upsert({
-              organization_id: userId,
-              max_assessments: amount,
-              assessments_used: 0,
-              subscription_tier: 'credits',
-              active: true
-            });
-
-          if (subscriptionError) {
-            console.error('Error updating subscription:', subscriptionError);
-            throw subscriptionError;
-          }
+          await handleCreditPurchase(session, userId);
         } else {
-          // Handle other types of purchases (existing logic)
-          const accessMethod = session.metadata?.accessMethod;
-          const resultId = session.metadata?.resultId;
-          const isGift = session.metadata?.isGift === 'true';
-          const giftRecipientEmail = session.metadata?.giftRecipientEmail;
-
-          if (resultId) {
-            // Get the quiz result and user details
-            const { data: quizResult } = await supabaseAdmin
-              .from('quiz_results')
-              .select('personality_type, category_scores, detailed_analysis')
-              .eq('id', resultId)
-              .single();
-
-            if (!quizResult) {
-              throw new Error('Quiz result not found');
-            }
-
-            if (isGift && giftRecipientEmail) {
-              // Create a new quiz result for the gift recipient
-              const { data: giftResult, error: giftError } = await supabaseAdmin
-                .from('quiz_results')
-                .insert({
-                  personality_type: quizResult.personality_type,
-                  category_scores: quizResult.category_scores,
-                  detailed_analysis: quizResult.detailed_analysis,
-                  is_purchased: true,
-                  is_detailed: true,
-                  access_method: 'gift',
-                  stripe_session_id: session.id
-                })
-                .select()
-                .single();
-
-              if (giftError) {
-                console.error('Error creating gift result:', giftError);
-                throw giftError;
-              }
-
-              // Send email to gift recipient
-              const emailResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-detailed-report`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
-                },
-                body: JSON.stringify({
-                  email: giftRecipientEmail,
-                  personalityType: quizResult.personality_type,
-                  analysis: quizResult.detailed_analysis,
-                  scores: quizResult.category_scores,
-                  giftCode: giftResult.id
-                }),
-              });
-
-              if (!emailResponse.ok) {
-                console.error('Error sending gift email:', await emailResponse.text());
-                throw new Error('Failed to send gift email');
-              }
-            } else {
-              // Update the original quiz result
-              const { error: updateError } = await supabaseAdmin
-                .from('quiz_results')
-                .update({
-                  is_purchased: true,
-                  is_detailed: true,
-                  access_method: accessMethod,
-                  stripe_session_id: session.id
-                })
-                .eq('id', resultId);
-
-              if (updateError) {
-                console.error('Error updating quiz result:', updateError);
-                throw updateError;
-              }
-
-              // Send email to purchaser
-              const emailResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-detailed-report`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
-                },
-                body: JSON.stringify({
-                  email: customer.email,
-                  personalityType: quizResult.personality_type,
-                  analysis: quizResult.detailed_analysis,
-                  scores: quizResult.category_scores
-                }),
-              });
-
-              if (!emailResponse.ok) {
-                console.error('Error sending email:', await emailResponse.text());
-                throw new Error('Failed to send email');
-              }
-            }
-          }
+          await handleRegularPurchase(session);
         }
       }
     }
