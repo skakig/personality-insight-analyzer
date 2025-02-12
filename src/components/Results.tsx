@@ -1,3 +1,4 @@
+
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/components/ui/use-toast";
@@ -14,42 +15,6 @@ interface ResultsProps {
 
 export const Results = ({ personalityType, session }: ResultsProps) => {
   const navigate = useNavigate();
-
-  const handlePurchase = async () => {
-    if (!session) {
-      navigate("/auth");
-      return;
-    }
-
-    try {
-      console.log('Initiating checkout...');
-      
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-        body: { 
-          userId: session.user.id,
-          mode: 'payment'
-        },
-        headers: {
-          Authorization: `Bearer ${session.access_token}`
-        }
-      });
-
-      if (error) throw error;
-      
-      if (!data?.url) {
-        throw new Error('No checkout URL received');
-      }
-
-      window.location.href = data.url;
-    } catch (error: any) {
-      console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to initiate checkout. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
 
   const keyCharacteristics = [
     "Strong survival instincts",
@@ -85,10 +50,7 @@ export const Results = ({ personalityType, session }: ResultsProps) => {
                 icon="secondary"
               />
             </div>
-            <PricingSection 
-              onPurchase={handlePurchase}
-              isAuthenticated={!!session}
-            />
+            <PricingSection session={session} />
           </CardContent>
         </Card>
       </div>
