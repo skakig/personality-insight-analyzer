@@ -1,7 +1,7 @@
 
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 
 export const usePurchaseHandler = (resultId?: string) => {
   const navigate = useNavigate();
@@ -15,24 +15,21 @@ export const usePurchaseHandler = (resultId?: string) => {
         return;
       }
 
-      const response = await fetch('/api/create-checkout-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: {
+          userId: session.user.id,
           resultId,
+          mode: 'payment',
           accessMethod: 'purchase'
-        }),
+        }
       });
 
-      const { url, error } = await response.json();
+      if (error) throw error;
       
-      if (error) throw new Error(error);
-      
-      if (url) {
-        window.location.href = url;
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL received');
       }
     } catch (error: any) {
       console.error('Purchase error:', error);
