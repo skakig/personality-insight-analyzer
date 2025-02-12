@@ -80,6 +80,36 @@ export type Database = {
           },
         ]
       }
+      credit_purchases: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          status: string
+          stripe_session_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          status?: string
+          stripe_session_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          status?: string
+          stripe_session_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       detailed_analysis_templates: {
         Row: {
           category: string

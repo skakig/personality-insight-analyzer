@@ -1,15 +1,21 @@
+
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { CreditCard } from "lucide-react";
+import { CreditCard, Loader2 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 export const PurchaseCreditsButton = () => {
+  const [loading, setLoading] = useState(false);
+
   const handlePurchaseCredits = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { 
           mode: 'payment',
-          productType: 'credits'
+          productType: 'credits',
+          amount: 5 // Default to 5 credits
         }
       });
 
@@ -17,6 +23,8 @@ export const PurchaseCreditsButton = () => {
       
       if (data?.url) {
         window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL received');
       }
     } catch (error: any) {
       console.error('Error:', error);
@@ -25,17 +33,28 @@ export const PurchaseCreditsButton = () => {
         description: "Failed to initiate credit purchase. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <Button 
       onClick={handlePurchaseCredits}
-      className="w-full"
-      variant="outline"
+      className="w-full bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white"
+      disabled={loading}
     >
-      <CreditCard className="mr-2 h-4 w-4" />
-      Purchase Additional Credits
+      {loading ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Processing...
+        </>
+      ) : (
+        <>
+          <CreditCard className="mr-2 h-4 w-4" />
+          Purchase Additional Credits
+        </>
+      )}
     </Button>
   );
 };

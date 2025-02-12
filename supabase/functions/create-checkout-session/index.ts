@@ -3,96 +3,73 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from 'https://esm.sh/stripe@14.21.0';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
+const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+  apiVersion: '2023-10-16',
+});
+
+const supabaseAdmin = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+);
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
   try {
-    const { resultId, userId, mode = 'payment', giftRecipientEmail, email } = await req.json();
-    console.log('Request received:', { resultId, userId, mode, giftRecipientEmail, email });
+    if (req.method === 'OPTIONS') {
+      return new Response(null, { headers: corsHeaders });
+    }
 
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-      apiVersion: '2023-10-16',
-    });
-
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-    );
+    const { userId, mode = 'payment', productType, amount = 5 } = await req.json();
+    console.log('Creating checkout session:', { userId, mode, productType, amount });
 
     const baseUrl = req.headers.get('origin') || '';
-    
-    // Create metadata object
-    const metadata: Record<string, string> = {};
-    
-    if (userId) {
-      metadata.userId = userId;
-    }
-    
-    if (resultId) {
-      metadata.resultId = resultId;
-      metadata.accessMethod = mode === 'subscription' ? 'subscription_credit' : 'purchase';
-    }
-    
-    if (giftRecipientEmail) {
-      metadata.giftRecipientEmail = giftRecipientEmail;
-      metadata.isGift = 'true';
-    }
-
-    if (email) {
-      metadata.isGuest = 'true';
-      metadata.email = email;
-    }
-
-    const successUrl = resultId 
-      ? `${baseUrl}/assessment/${resultId}?success=true`
-      : `${baseUrl}/dashboard?success=true`;
-
-    // If this is a guest purchase, create a record in guest_purchases
-    if (email) {
-      const { error: insertError } = await supabaseClient
-        .from('guest_purchases')
-        .insert({
-          email,
-          purchase_type: 'assessment',
-          result_id: resultId,
-          metadata
-        });
-
-      if (insertError) throw insertError;
-    }
-
     const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
       line_items: [
         {
-          price: 'price_1QloJQJy5TVq3Z9HTnIN6BX5', // Single assessment price
-          quantity: 1,
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: 'Assessment Credits',
+              description: `${amount} Assessment Credits`,
+            },
+            unit_amount: 499, // $4.99 per credit
+          },
+          quantity: amount,
         },
       ],
       mode: 'payment',
-      success_url: successUrl,
-      cancel_url: `${baseUrl}/assessment/${resultId}?success=false`,
-      metadata,
-      customer_email: email, // Add customer email for guest purchases
+      success_url: `${baseUrl}/dashboard?success=true`,
+      cancel_url: `${baseUrl}/dashboard?success=false`,
+      metadata: {
+        userId,
+        productType,
+        amount,
+      },
     });
 
-    if (email) {
-      // Update guest_purchase with stripe session id
-      const { error: updateError } = await supabaseClient
-        .from('guest_purchases')
-        .update({ stripe_session_id: session.id })
-        .eq('email', email);
+    // Create a pending credit purchase record
+    if (userId) {
+      const { error: purchaseError } = await supabaseAdmin
+        .from('credit_purchases')
+        .insert({
+          user_id: userId,
+          amount,
+          stripe_session_id: session.id,
+          status: 'pending'
+        });
 
-      if (updateError) throw updateError;
+      if (purchaseError) {
+        console.error('Error creating credit purchase record:', purchaseError);
+        throw purchaseError;
+      }
     }
 
-    console.log('Payment session created:', session.id);
+    console.log('Checkout session created:', session.id);
     return new Response(
       JSON.stringify({ url: session.url }),
       { 
