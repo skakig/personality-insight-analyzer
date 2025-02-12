@@ -19,11 +19,68 @@ const Dashboard = ({ session }: DashboardProps) => {
   const [error, setError] = useState<string | null>(null);
   const [previousAssessments, setPreviousAssessments] = useState<any[]>([]);
 
+  const fetchData = async () => {
+    try {
+      // Fetch subscription data
+      const { data: subscriptionData, error: subscriptionError } = await supabase
+        .from('corporate_subscriptions')
+        .select('*')
+        .eq('organization_id', session.user.id)
+        .maybeSingle();
+
+      if (subscriptionError) {
+        console.error('Error fetching subscription:', subscriptionError);
+        setError('Failed to load subscription data');
+      } else {
+        setSubscription(subscriptionData);
+      }
+
+      // Fetch previous assessments
+      const { data: assessments, error: assessmentsError } = await supabase
+        .from('quiz_results')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false });
+
+      if (assessmentsError) {
+        console.error('Error fetching assessments:', assessmentsError);
+        setError('Failed to load assessment history');
+      } else {
+        setPreviousAssessments(assessments || []);
+      }
+    } catch (err: any) {
+      console.error('Error:', err);
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!session) {
       navigate("/auth");
       return;
     }
+
+    fetchData();
+
+    // Set up real-time subscription for quiz_results
+    const channel = supabase
+      .channel('dashboard-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'quiz_results',
+          filter: `user_id=eq.${session.user.id}`
+        },
+        () => {
+          console.log('Quiz results updated, refreshing data...');
+          fetchData();
+        }
+      )
+      .subscribe();
 
     // Handle purchase success/failure notifications
     const success = searchParams.get('success');
@@ -32,6 +89,7 @@ const Dashboard = ({ session }: DashboardProps) => {
         title: "Purchase Successful",
         description: "Your full report is now available.",
       });
+      fetchData(); // Refresh data immediately after successful purchase
     } else if (success === 'false') {
       toast({
         title: "Purchase Cancelled",
@@ -40,44 +98,9 @@ const Dashboard = ({ session }: DashboardProps) => {
       });
     }
 
-    const fetchData = async () => {
-      try {
-        // Fetch subscription data
-        const { data: subscriptionData, error: subscriptionError } = await supabase
-          .from('corporate_subscriptions')
-          .select('*')
-          .eq('organization_id', session.user.id)
-          .maybeSingle();
-
-        if (subscriptionError) {
-          console.error('Error fetching subscription:', subscriptionError);
-          setError('Failed to load subscription data');
-        } else {
-          setSubscription(subscriptionData);
-        }
-
-        // Fetch previous assessments
-        const { data: assessments, error: assessmentsError } = await supabase
-          .from('quiz_results')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .order('created_at', { ascending: false });
-
-        if (assessmentsError) {
-          console.error('Error fetching assessments:', assessmentsError);
-          setError('Failed to load assessment history');
-        } else {
-          setPreviousAssessments(assessments || []);
-        }
-      } catch (err: any) {
-        console.error('Error:', err);
-        setError('An unexpected error occurred');
-      } finally {
-        setLoading(false);
-      }
+    return () => {
+      supabase.removeChannel(channel);
     };
-
-    fetchData();
   }, [session, navigate, searchParams]);
 
   if (loading) {
