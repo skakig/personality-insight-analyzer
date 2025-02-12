@@ -8,11 +8,12 @@ import { handleRegularPurchase } from "./handlers/regular-purchase.ts";
 const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
 const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
 
-console.log('Environment check:', {
+console.log('Edge function started. Environment check:', {
   hasWebhookSecret: !!webhookSecret,
   hasStripeKey: !!stripeKey,
   webhookSecretPrefix: webhookSecret?.substring(0, 6),
-  stripeKeyPrefix: stripeKey?.substring(0, 6)
+  stripeKeyPrefix: stripeKey?.substring(0, 6),
+  timestamp: new Date().toISOString()
 });
 
 const stripe = new Stripe(stripeKey || '', {
@@ -26,19 +27,24 @@ const corsHeaders = {
 
 serve(async (req) => {
   try {
-    console.log('Webhook received:', {
+    // Log everything about the incoming request
+    const requestInfo = {
       method: req.method,
       url: req.url,
-      hasSignature: !!req.headers.get('stripe-signature')
-    });
+      headers: Object.fromEntries(req.headers.entries()),
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log('Incoming webhook request:', JSON.stringify(requestInfo, null, 2));
 
     if (req.method === 'OPTIONS') {
+      console.log('Handling OPTIONS request');
       return new Response(null, { headers: corsHeaders });
     }
 
     const signature = req.headers.get('stripe-signature');
     if (!signature) {
-      console.error('No Stripe signature found in headers:', Object.fromEntries(req.headers.entries()));
+      console.error('No Stripe signature found in headers. All headers:', requestInfo.headers);
       throw new Error('No Stripe signature found');
     }
 
@@ -48,33 +54,46 @@ serve(async (req) => {
     }
 
     const body = await req.text();
-    console.log('Webhook payload size:', body.length, 'bytes');
+    console.log('Raw webhook payload:', {
+      size: body.length,
+      preview: body.substring(0, 100),
+      timestamp: new Date().toISOString()
+    });
 
     let event: Stripe.Event;
     
     try {
+      console.log('Attempting to verify webhook signature...');
       event = stripe.webhooks.constructEvent(
         body,
         signature,
         webhookSecret
       );
+      console.log('Signature verification successful');
     } catch (err) {
-      console.error('Error verifying webhook signature:', err);
-      console.log('Signature details:', {
-        signatureHeader: signature,
-        bodyPreview: body.substring(0, 50)
+      console.error('Error verifying webhook signature:', {
+        error: err.message,
+        stack: err.stack,
+        signature: signature,
+        bodyPreview: body.substring(0, 50),
+        timestamp: new Date().toISOString()
       });
       throw new Error(`Webhook signature verification failed: ${err.message}`);
     }
 
-    console.log('Successfully constructed event:', event.type);
+    console.log('Successfully constructed event:', {
+      type: event.type,
+      id: event.id,
+      timestamp: new Date().toISOString()
+    });
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       console.log('Processing completed session:', {
         sessionId: session.id,
         metadata: session.metadata,
-        customerId: session.customer
+        customerId: session.customer,
+        timestamp: new Date().toISOString()
       });
 
       if (session.metadata?.isGuest === 'true') {
@@ -90,7 +109,8 @@ serve(async (req) => {
         console.log('Processing purchase for user:', {
           userId,
           productType,
-          sessionId: session.id
+          sessionId: session.id,
+          timestamp: new Date().toISOString()
         });
 
         if (productType === 'credits') {
@@ -111,14 +131,16 @@ serve(async (req) => {
     console.error('Webhook error:', {
       message: error.message,
       stack: error.stack,
-      name: error.name
+      name: error.name,
+      timestamp: new Date().toISOString()
     });
     
     return new Response(
       JSON.stringify({ 
         error: error.message,
         type: error.name,
-        details: error.stack 
+        details: error.stack,
+        timestamp: new Date().toISOString()
       }),
       {
         status: 400,
