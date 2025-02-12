@@ -1,42 +1,66 @@
+
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "@/components/ui/use-toast";
 
 interface PricingSectionProps {
-  onPurchase: () => void;
-  isAuthenticated: boolean;
+  session: any;
 }
 
-export const PricingSection = ({ onPurchase, isAuthenticated }: PricingSectionProps) => {
+export const PricingSection = ({ session }: PricingSectionProps) => {
+  const navigate = useNavigate();
+
+  const handleGetDetailedResults = async () => {
+    if (!session) {
+      navigate("/auth");
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+
+      const { url } = await response.json();
+      if (url) {
+        window.location.href = url;
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to initiate checkout. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
-    <div className="text-center space-y-6 pt-6 border-t">
-      <div className="space-y-2">
-        <p className="text-3xl font-bold">
-          <span className="text-primary line-through opacity-75">$49.99</span>
-          <span className="ml-3">$29.99</span>
+    <div className="text-center pt-6">
+      <div className="mb-8">
+        <p className="text-3xl font-bold mb-2">
+          <span className="text-primary line-through opacity-75">$29.99</span>
+          <span className="ml-3">$14.99</span>
         </p>
         <p className="text-sm text-gray-500">Limited Time Offer</p>
       </div>
       
       <Button
-        onClick={onPurchase}
-        className="text-lg px-8 py-6 rounded-full bg-gradient-to-r from-primary to-secondary text-white hover:opacity-90 transition-opacity group"
+        onClick={handleGetDetailedResults}
+        className="text-lg px-8 py-6 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white hover:opacity-90 transition-opacity"
       >
-        {isAuthenticated ? (
-          <>
-            Unlock Your Full Report Now
-            <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-          </>
-        ) : (
-          "Sign In to Purchase"
-        )}
+        {session ? "Get Your Full Report Now" : "Sign In to Purchase"}
       </Button>
       
-      <div className="space-y-2">
+      <div className="mt-4 space-y-2">
         <p className="text-sm text-gray-500">
           30-day money-back guarantee
         </p>
         <p className="text-xs text-gray-400">
-          Join thousands who have transformed their approach to ethical decision-making
+          Your growth journey starts here. Join thousands of leaders who have transformed their approach to ethical decision-making.
         </p>
       </div>
     </div>

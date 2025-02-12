@@ -44,7 +44,7 @@ export const PurchaseSection = ({ resultId, loading }: PurchaseSectionProps) => 
           mode: 'payment',
           giftRecipientEmail,
           email: purchaseEmail,
-          priceAmount: 2999 // $29.99 in cents
+          priceAmount: 1499 // $14.99 in cents
         }
       });
 
