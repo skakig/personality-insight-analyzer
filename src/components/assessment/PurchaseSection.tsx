@@ -4,6 +4,7 @@ import { PurchaseButton } from "./purchase/PurchaseButton";
 import { EmailPurchaseDialog } from "./purchase/EmailPurchaseDialog";
 import { GiftPurchaseDialog } from "./purchase/GiftPurchaseDialog";
 import { usePurchaseHandler } from "./purchase/usePurchaseHandler";
+import { Button } from "@/components/ui/button";
 
 interface PurchaseSectionProps {
   resultId: string;
@@ -36,30 +37,60 @@ export const PurchaseSection = ({ resultId, loading }: PurchaseSectionProps) => 
         <div className="space-y-4">
           <BenefitsList />
           
-          <div className="flex flex-col sm:flex-row gap-3">
-            <EmailPurchaseDialog 
-              open={isEmailDialogOpen}
-              onOpenChange={setIsEmailDialogOpen}
-              email={email}
-              setEmail={setEmail}
-              onPurchase={handleEmailPurchase}
-              loading={purchaseLoading}
-            />
+          <div className="flex flex-col gap-3">
+            <Button
+              onClick={() => setIsEmailDialogOpen(true)}
+              className="w-full bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white"
+            >
+              Get Report Now - Quick Checkout
+              <span className="text-xs opacity-90 ml-2">(No Account Required)</span>
+            </Button>
             
-            <PurchaseButton 
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">Or</span>
+              </div>
+            </div>
+
+            <Button 
               onClick={() => handlePurchase()} 
-              loading={loading || purchaseLoading}
-            />
+              variant="outline"
+              className="w-full border-primary/20 hover:bg-primary/5"
+              disabled={loading || purchaseLoading}
+            >
+              Sign in to Purchase
+              <span className="text-xs opacity-90 ml-2">(Save for Later)</span>
+            </Button>
             
-            <GiftPurchaseDialog 
-              open={isGiftDialogOpen}
-              onOpenChange={setIsGiftDialogOpen}
-              giftEmail={giftEmail}
-              setGiftEmail={setGiftEmail}
-              onPurchase={handleGiftPurchase}
-              loading={purchaseLoading}
-            />
+            <Button
+              onClick={() => setIsGiftDialogOpen(true)}
+              variant="ghost"
+              className="w-full text-sm text-muted-foreground hover:text-primary"
+            >
+              Gift this Report
+            </Button>
           </div>
+          
+          <EmailPurchaseDialog 
+            open={isEmailDialogOpen}
+            onOpenChange={setIsEmailDialogOpen}
+            email={email}
+            setEmail={setEmail}
+            onPurchase={handleEmailPurchase}
+            loading={purchaseLoading}
+          />
+          
+          <GiftPurchaseDialog 
+            open={isGiftDialogOpen}
+            onOpenChange={setIsGiftDialogOpen}
+            giftEmail={giftEmail}
+            setGiftEmail={setGiftEmail}
+            onPurchase={handleGiftPurchase}
+            loading={purchaseLoading}
+          />
           
           <p className="text-xs text-center text-gray-500 mt-4">
             Join thousands of others who have transformed their approach to ethical decision-making
