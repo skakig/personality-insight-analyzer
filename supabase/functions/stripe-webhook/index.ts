@@ -24,15 +24,22 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-async function logWebhookEvent(stripeEvent: any, status = 'pending', errorMessage?: string) {
+async function logWebhookEvent(event: Stripe.Event, status = 'pending', errorMessage?: string) {
   try {
+    console.log('Logging webhook event:', {
+      id: event.id,
+      type: event.type,
+      status,
+      timestamp: new Date().toISOString()
+    });
+
     const { error } = await supabase
       .from('stripe_webhook_events')
       .upsert({
-        stripe_event_id: stripeEvent.id,
-        event_type: stripeEvent.type,
+        stripe_event_id: event.id,
+        event_type: event.type,
         status,
-        raw_event: stripeEvent,
+        raw_event: event,
         error_message: errorMessage,
         processed_at: status === 'completed' ? new Date().toISOString() : null
       }, {
@@ -47,27 +54,61 @@ async function logWebhookEvent(stripeEvent: any, status = 'pending', errorMessag
   }
 }
 
-async function updateQuizResult(resultId: string, sessionId: string) {
-  try {
-    const { error } = await supabase
-      .from('quiz_results')
-      .update({
-        is_purchased: true,
-        is_detailed: true,
-        stripe_session_id: sessionId,
-        access_method: 'purchase'
-      })
-      .eq('id', resultId);
-
-    if (error) {
-      throw error;
-    }
-
-    console.log('Successfully updated quiz result:', { resultId, sessionId });
-  } catch (err) {
-    console.error('Failed to update quiz result:', err);
-    throw err;
+async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+  const resultId = session.metadata?.resultId;
+  if (!resultId) {
+    throw new Error('No resultId found in session metadata');
   }
+
+  console.log('Processing completed checkout:', {
+    sessionId: session.id,
+    resultId,
+    metadata: session.metadata,
+    timestamp: new Date().toISOString()
+  });
+
+  // Check if this session was already processed
+  const { data: existingResult } = await supabase
+    .from('quiz_results')
+    .select('is_purchased, stripe_session_id')
+    .eq('id', resultId)
+    .maybeSingle();
+
+  if (existingResult?.is_purchased && existingResult?.stripe_session_id === session.id) {
+    console.log('Session already processed:', session.id);
+    return;
+  }
+
+  // Update the quiz result
+  const { error: updateError } = await supabase
+    .from('quiz_results')
+    .update({
+      is_purchased: true,
+      is_detailed: true,
+      stripe_session_id: session.id,
+      access_method: 'purchase'
+    })
+    .eq('id', resultId);
+
+  if (updateError) {
+    throw new Error(`Failed to update quiz result: ${updateError.message}`);
+  }
+
+  console.log('Successfully updated quiz result:', {
+    resultId,
+    sessionId: session.id,
+    timestamp: new Date().toISOString()
+  });
+}
+
+async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
+  // Log successful payment
+  console.log('Payment succeeded:', {
+    paymentIntentId: paymentIntent.id,
+    amount: paymentIntent.amount,
+    metadata: paymentIntent.metadata,
+    timestamp: new Date().toISOString()
+  });
 }
 
 serve(async (req) => {
@@ -81,10 +122,14 @@ serve(async (req) => {
       throw new Error('No stripe signature in request');
     }
 
-    // Get the raw body as text
     const rawBody = await req.text();
-    
-    let event;
+    console.log('Received webhook:', {
+      contentLength: rawBody.length,
+      signature: signature.substring(0, 20) + '...',
+      timestamp: new Date().toISOString()
+    });
+
+    let event: Stripe.Event;
     try {
       event = stripe.webhooks.constructEvent(
         rawBody,
@@ -103,40 +148,34 @@ serve(async (req) => {
     // Log the event immediately
     await logWebhookEvent(event);
 
-    console.log('Processing webhook event:', {
-      type: event.type,
-      id: event.id,
-      timestamp: new Date().toISOString()
-    });
-
     try {
-      if (event.type === 'checkout.session.completed') {
-        const session = event.data.object as Stripe.Checkout.Session;
-        
-        // Get resultId directly from session metadata
-        const resultId = session.metadata?.resultId;
-        if (!resultId) {
-          throw new Error('No resultId found in session metadata');
+      switch (event.type) {
+        case 'checkout.session.completed': {
+          await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
+          break;
         }
-
-        // Update the quiz result with purchase information
-        await updateQuizResult(resultId, session.id);
-        
-        // Mark webhook event as completed
-        await logWebhookEvent(event, 'completed');
-        
-        console.log('Successfully processed checkout session:', {
-          sessionId: session.id,
-          resultId,
-          timestamp: new Date().toISOString()
-        });
+        case 'payment_intent.succeeded': {
+          await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
+          break;
+        }
+        // Add more event types as needed
       }
+
+      // Mark event as completed
+      await logWebhookEvent(event, 'completed');
 
       return new Response(JSON.stringify({ received: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
     } catch (processingError) {
+      console.error('Failed to process webhook:', {
+        error: processingError,
+        eventId: event.id,
+        eventType: event.type,
+        timestamp: new Date().toISOString()
+      });
+
       // Log the processing error
       await logWebhookEvent(event, 'failed', processingError.message);
       throw processingError;
@@ -145,6 +184,7 @@ serve(async (req) => {
     console.error('Webhook error:', {
       message: err.message,
       stack: err.stack,
+      timestamp: new Date().toISOString()
     });
     
     return new Response(
