@@ -1,4 +1,3 @@
-
 import { FileText, ChartBar } from "lucide-react";
 
 interface DetailedAnalysisProps {
