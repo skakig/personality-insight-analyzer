@@ -5,7 +5,6 @@ import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { PricingHeader } from "@/components/pricing/PricingHeader";
 import { PricingPlan } from "@/components/pricing/PricingPlan";
-import { EmailPurchaseDialog } from "@/components/assessment/purchase/EmailPurchaseDialog";
 
 const pricingPlans = [
   {
@@ -56,41 +55,29 @@ const pricingPlans = [
 const Pricing = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState("");
-  const [email, setEmail] = useState("");
-  const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
-  const [selectedPriceId, setSelectedPriceId] = useState("");
 
   const handleSubscribe = async (priceId: string, paymentType: "payment" | "subscription" = "subscription") => {
-    if (!email && !isEmailDialogOpen) {
-      setSelectedPriceId(priceId);
-      setIsEmailDialogOpen(true);
+    const session = await supabase.auth.getSession();
+    if (!session.data.session) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to subscribe to a plan",
+        variant: "destructive",
+      });
+      navigate("/auth");
       return;
     }
 
     setLoading(priceId);
     try {
-      // Create a guest purchase record if it's a one-time payment
-      if (paymentType === "payment") {
-        const { error: guestError } = await supabase
-          .from('guest_purchases')
-          .insert({
-            email,
-            purchase_type: 'direct_purchase'
-          });
-
-        if (guestError) throw guestError;
-      }
-
       const response = await supabase.functions.invoke('create-subscription', {
         body: { 
           priceId,
-          email,
-          mode: paymentType,
-          metadata: {
-            isGuest: true,
-            email,
-            purchaseType: paymentType
-          }
+          userId: session.data.session.user.id,
+          mode: paymentType // This will be either "payment" or "subscription"
+        },
+        headers: {
+          Authorization: `Bearer ${session.data.session.access_token}`
         }
       });
 
@@ -110,33 +97,6 @@ const Pricing = () => {
     }
   };
 
-  const handleEmailSubmit = () => {
-    if (!email) {
-      toast({
-        title: "Email Required",
-        description: "Please enter your email address to continue.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      toast({
-        title: "Invalid Email",
-        description: "Please enter a valid email address.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Find the plan and proceed with subscription
-    const plan = pricingPlans.find(p => p.priceId === selectedPriceId);
-    if (plan) {
-      handleSubscribe(selectedPriceId, plan.paymentType);
-    }
-    setIsEmailDialogOpen(false);
-  };
-
   return (
     <div className="container mx-auto px-4 py-16">
       <PricingHeader />
@@ -151,15 +111,6 @@ const Pricing = () => {
           />
         ))}
       </div>
-
-      <EmailPurchaseDialog
-        open={isEmailDialogOpen}
-        onOpenChange={setIsEmailDialogOpen}
-        email={email}
-        setEmail={setEmail}
-        onPurchase={handleEmailSubmit}
-        loading={loading !== ""}
-      />
 
       <div className="mt-16 text-center">
         <p className="text-gray-600">

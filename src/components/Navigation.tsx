@@ -4,38 +4,14 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { toast } from "@/components/ui/use-toast";
 
 export const Navigation = ({ session }: { session?: any }) => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
   const handleSignOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      
-      // If we get a session not found error, we're already logged out
-      if (error?.message?.includes('session_not_found')) {
-        navigate('/');
-        return;
-      }
-      
-      if (error) {
-        console.error('Signout error:', error);
-        toast({
-          title: "Error signing out",
-          description: "Please try again",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      navigate('/');
-    } catch (error) {
-      console.error('Signout error:', error);
-      // Force navigation to home page if there's any error
-      navigate('/');
-    }
+    await supabase.auth.signOut();
+    navigate("/");
   };
 
   return (

@@ -14,13 +14,22 @@ serve(async (req) => {
   }
 
   try {
-    const { priceId, email, mode = 'subscription', metadata = {} } = await req.json();
+    const { priceId, mode = 'subscription' } = await req.json();
     if (!priceId) {
       throw new Error('Price ID is required');
     }
 
-    if (!email) {
-      throw new Error('Email is required');
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    );
+
+    const authHeader = req.headers.get('Authorization')!;
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user } } = await supabaseClient.auth.getUser(token);
+
+    if (!user?.email) {
+      throw new Error('User email not found');
     }
 
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
@@ -29,7 +38,7 @@ serve(async (req) => {
 
     // Check if customer exists
     const customers = await stripe.customers.list({
-      email: email,
+      email: user.email,
       limit: 1,
     });
 
@@ -38,13 +47,12 @@ serve(async (req) => {
     // Create customer if doesn't exist
     if (!customerId) {
       const customer = await stripe.customers.create({
-        email: email,
+        email: user.email,
         metadata: {
-          ...metadata,
+          supabaseUid: user.id,
         },
       });
       customerId = customer.id;
-      console.log('Created new customer:', customerId);
     }
 
     // Create checkout session with the correct mode (payment or subscription)
@@ -59,13 +67,7 @@ serve(async (req) => {
       mode: mode as 'payment' | 'subscription',
       success_url: `${req.headers.get('origin')}/dashboard?success=true`,
       cancel_url: `${req.headers.get('origin')}/dashboard?success=false`,
-      metadata: {
-        ...metadata,
-      },
-      customer_email: !customerId ? email : undefined, // Only set if we don't have a customer
     });
-
-    console.log('Created checkout session:', session.id);
 
     return new Response(
       JSON.stringify({ url: session.url }),
