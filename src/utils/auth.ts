@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 
@@ -38,4 +39,27 @@ export const signIn = async ({ email, password }: AuthCredentials) => {
   }
 
   return response;
+};
+
+export const signOut = async () => {
+  try {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Signout error:', error);
+      throw error;
+    }
+    // Clear any local session data
+    localStorage.removeItem('supabase.auth.token');
+    
+    // Force reload to ensure clean state
+    window.location.href = '/';
+  } catch (error: any) {
+    console.error('Error during sign out:', error);
+    // If we get a 403/session not found, we're already logged out
+    if (error?.status === 403 && error?.message?.includes('session_not_found')) {
+      window.location.href = '/';
+      return;
+    }
+    throw error;
+  }
 };
