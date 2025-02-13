@@ -22,6 +22,9 @@ export const Navigation = ({ session }: { session?: any }) => {
     }
   };
 
+  // Check if we have both a session and a valid user
+  const isAuthenticated = session?.user?.id;
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
       <div className="container mx-auto px-4 h-14 flex items-center justify-between">
@@ -65,7 +68,7 @@ export const Navigation = ({ session }: { session?: any }) => {
               </Button>
             </NavigationMenuItem>
             
-            {session ? (
+            {isAuthenticated ? (
               <>
                 <NavigationMenuItem>
                   <Button 
