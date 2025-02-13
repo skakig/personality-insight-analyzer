@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Clock } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Purchase {
@@ -11,27 +12,6 @@ interface Purchase {
   product_type: string;
   purchase_time: string;
 }
-
-// Fixed time intervals for social proof
-const TIME_INTERVALS = [
-  "2 minutes ago",
-  "5 minutes ago",
-  "8 minutes ago",
-  "12 minutes ago",
-  "15 minutes ago"
-];
-
-// Function to mask the last name
-const maskName = (fullName: string) => {
-  const parts = fullName.trim().split(" ");
-  if (parts.length < 2) return fullName; // Return as is if no space found
-  
-  const firstName = parts[0];
-  const lastNameInitial = parts[parts.length - 1][0];
-  const maskedLastName = lastNameInitial + "*".repeat(Math.min(5, parts[parts.length - 1].length - 1));
-  
-  return `${firstName} ${maskedLastName}`;
-};
 
 export const PurchaseNotification = () => {
   const [currentPurchase, setCurrentPurchase] = useState<Purchase | null>(null);
@@ -47,9 +27,7 @@ export const PurchaseNotification = () => {
         // Transform product_type if it's "detailed analysis"
         const purchase = {
           ...data,
-          product_type: data.product_type.toLowerCase() === "detailed analysis" ? "Full Report" : data.product_type,
-          // Mask the name for privacy
-          name: maskName(data.name)
+          product_type: data.product_type.toLowerCase() === "detailed analysis" ? "Full Report" : data.product_type
         };
         setCurrentPurchase(purchase);
         setIsVisible(true);
@@ -74,9 +52,6 @@ export const PurchaseNotification = () => {
 
   if (!currentPurchase) return null;
 
-  // Randomly select a time interval for each notification
-  const randomTimeInterval = TIME_INTERVALS[Math.floor(Math.random() * TIME_INTERVALS.length)];
-
   return (
     <AnimatePresence>
       {isVisible && (
@@ -99,7 +74,7 @@ export const PurchaseNotification = () => {
                   just purchased a {currentPurchase.product_type}
                 </p>
                 <p className="text-xs text-gray-400 mt-1">
-                  {randomTimeInterval}
+                  {formatDistanceToNow(new Date(currentPurchase.purchase_time), { addSuffix: true })}
                 </p>
               </div>
             </div>

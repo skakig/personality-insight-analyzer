@@ -4,26 +4,15 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { toast } from "@/components/ui/use-toast";
 
 export const Navigation = ({ session }: { session?: any }) => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
   const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      // Always navigate home after sign out attempt, regardless of success
-      navigate("/");
-    } catch (error) {
-      console.error('Signout error:', error);
-      // Even if there's an error, navigate home as the session is likely invalid
-      navigate("/");
-    }
+    await supabase.auth.signOut();
+    navigate("/");
   };
-
-  // Check if we have both a session and a valid user
-  const isAuthenticated = session?.user?.id;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
@@ -68,7 +57,7 @@ export const Navigation = ({ session }: { session?: any }) => {
               </Button>
             </NavigationMenuItem>
             
-            {isAuthenticated ? (
+            {session ? (
               <>
                 <NavigationMenuItem>
                   <Button 
