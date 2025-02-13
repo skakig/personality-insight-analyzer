@@ -10,9 +10,23 @@ export const Navigation = ({ session }: { session?: any }) => {
   const isMobile = useIsMobile();
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    navigate("/");
+    try {
+      const { error } = await supabase.auth.signOut();
+      // Always navigate home after sign out attempt
+      navigate("/");
+      
+      if (error) {
+        console.error('Signout error:', error);
+      }
+    } catch (error) {
+      console.error('Signout error:', error);
+      // Even if there's an error, navigate home as the session is likely invalid
+      navigate("/");
+    }
   };
+
+  // Check if we have both a session and a valid user
+  const isAuthenticated = Boolean(session?.user?.id);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
@@ -57,7 +71,7 @@ export const Navigation = ({ session }: { session?: any }) => {
               </Button>
             </NavigationMenuItem>
             
-            {session ? (
+            {isAuthenticated ? (
               <>
                 <NavigationMenuItem>
                   <Button 
@@ -85,7 +99,7 @@ export const Navigation = ({ session }: { session?: any }) => {
                   onClick={() => navigate("/auth")}
                   className="px-2 md:px-4 text-gray-700 hover:text-gray-900 hover:bg-gray-100/80"
                 >
-                  {isMobile ? "Sign In" : "Sign In"}
+                  Sign In
                 </Button>
               </NavigationMenuItem>
             )}
