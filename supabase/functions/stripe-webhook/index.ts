@@ -27,62 +27,50 @@ const corsHeaders = {
 
 serve(async (req) => {
   try {
-    // Log everything about the incoming request
-    const requestInfo = {
-      method: req.method,
-      url: req.url,
-      headers: Object.fromEntries(req.headers.entries()),
-      timestamp: new Date().toISOString()
-    };
-    
-    console.log('Incoming webhook request:', JSON.stringify(requestInfo, null, 2));
-
     if (req.method === 'OPTIONS') {
-      console.log('Handling OPTIONS request');
       return new Response(null, { headers: corsHeaders });
     }
 
     const signature = req.headers.get('stripe-signature');
+    
     if (!signature) {
-      console.error('No Stripe signature found in headers. All headers:', requestInfo.headers);
+      console.error('No Stripe signature found in request headers');
       throw new Error('No Stripe signature found');
     }
 
     if (!webhookSecret) {
-      console.error('Webhook secret not configured in environment');
+      console.error('Webhook secret not configured');
       throw new Error('Webhook secret not configured');
     }
 
-    const body = await req.text();
-    console.log('Raw webhook payload:', {
-      size: body.length,
-      preview: body.substring(0, 100),
+    // Get the raw body as text
+    const rawBody = await req.text();
+    console.log('Received webhook payload:', {
+      size: rawBody.length,
+      signature: signature,
       timestamp: new Date().toISOString()
     });
 
     let event: Stripe.Event;
     
     try {
-      console.log('Attempting to verify webhook signature...');
-      // Use constructEventAsync instead of constructEvent
-      event = await stripe.webhooks.constructEventAsync(
-        body,
+      // Use the raw body text directly with the signature
+      event = stripe.webhooks.constructEvent(
+        rawBody,
         signature,
         webhookSecret
       );
-      console.log('Signature verification successful');
+      console.log('Webhook signature verified successfully');
     } catch (err) {
-      console.error('Error verifying webhook signature:', {
+      console.error('Webhook signature verification failed:', {
         error: err.message,
-        stack: err.stack,
         signature: signature,
-        bodyPreview: body.substring(0, 50),
         timestamp: new Date().toISOString()
       });
       throw new Error(`Webhook signature verification failed: ${err.message}`);
     }
 
-    console.log('Successfully constructed event:', {
+    console.log('Processing webhook event:', {
       type: event.type,
       id: event.id,
       timestamp: new Date().toISOString()
@@ -90,15 +78,14 @@ serve(async (req) => {
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
-      console.log('Processing completed session:', {
+      console.log('Processing completed checkout session:', {
         sessionId: session.id,
         metadata: session.metadata,
-        customerId: session.customer,
         timestamp: new Date().toISOString()
       });
 
       if (session.metadata?.isGuest === 'true') {
-        console.log('Processing guest purchase...');
+        console.log('Processing guest purchase');
         await handleGuestPurchase(session);
       } else {
         const customerId = session.customer;
@@ -137,10 +124,9 @@ serve(async (req) => {
     });
     
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: error.message,
         type: error.name,
-        details: error.stack,
         timestamp: new Date().toISOString()
       }),
       {
