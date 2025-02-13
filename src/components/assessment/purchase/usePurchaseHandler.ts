@@ -15,22 +15,16 @@ export const usePurchaseHandler = (resultId: string) => {
       setPurchaseLoading(true);
       console.log('Initiating checkout for result:', resultId);
       
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
       
-      if (sessionError || !session) {
-        setIsEmailDialogOpen(true);
-        return;
-      }
-
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { 
           resultId,
-          userId: session.user.id,
           mode: 'payment',
           priceAmount: 1499, // $14.99 in cents
           metadata: {
             resultId, // Explicitly include resultId in metadata
-            isGuest: false
+            isGuest: !session?.user
           }
         }
       });
