@@ -1,19 +1,15 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from 'https://esm.sh/stripe@14.21.0';
-import { handleGuestPurchase } from "./handlers/guest-purchase.ts";
-import { handleCreditPurchase } from "./handlers/credit-purchase.ts";
-import { handleRegularPurchase } from "./handlers/regular-purchase.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
 const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+const supabaseUrl = Deno.env.get('SUPABASE_URL');
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-if (!webhookSecret) {
-  throw new Error('Missing STRIPE_WEBHOOK_SECRET. Please set it in your Edge Function secrets.');
-}
-
-if (!stripeKey) {
-  throw new Error('Missing STRIPE_SECRET_KEY. Please set it in your Edge Function secrets.');
+if (!webhookSecret || !stripeKey || !supabaseUrl || !supabaseServiceKey) {
+  throw new Error('Missing required environment variables');
 }
 
 const stripe = new Stripe(stripeKey, {
@@ -21,10 +17,58 @@ const stripe = new Stripe(stripeKey, {
   httpClient: Stripe.createFetchHttpClient(),
 });
 
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+async function logWebhookEvent(stripeEvent: any, status = 'pending', errorMessage?: string) {
+  try {
+    const { error } = await supabase
+      .from('stripe_webhook_events')
+      .upsert({
+        stripe_event_id: stripeEvent.id,
+        event_type: stripeEvent.type,
+        status,
+        raw_event: stripeEvent,
+        error_message: errorMessage,
+        processed_at: status === 'completed' ? new Date().toISOString() : null
+      }, {
+        onConflict: 'stripe_event_id'
+      });
+
+    if (error) {
+      console.error('Error logging webhook event:', error);
+    }
+  } catch (err) {
+    console.error('Failed to log webhook event:', err);
+  }
+}
+
+async function updateQuizResult(resultId: string, sessionId: string) {
+  try {
+    const { error } = await supabase
+      .from('quiz_results')
+      .update({
+        is_purchased: true,
+        is_detailed: true,
+        stripe_session_id: sessionId,
+        access_method: 'purchase'
+      })
+      .eq('id', resultId);
+
+    if (error) {
+      throw error;
+    }
+
+    console.log('Successfully updated quiz result:', { resultId, sessionId });
+  } catch (err) {
+    console.error('Failed to update quiz result:', err);
+    throw err;
+  }
+}
 
 serve(async (req) => {
   try {
@@ -37,22 +81,15 @@ serve(async (req) => {
       throw new Error('No stripe signature in request');
     }
 
+    // Get the raw body as text
     const rawBody = await req.text();
-    console.log('Webhook request details:', {
-      method: req.method,
-      contentType: req.headers.get('content-type'),
-      bodyLength: rawBody.length,
-      timestamp: new Date().toISOString(),
-    });
-
+    
     let event;
     try {
-      event = await stripe.webhooks.constructEventAsync(
+      event = stripe.webhooks.constructEvent(
         rawBody,
         signature,
-        webhookSecret,
-        undefined,
-        Stripe.createSubtleCryptoProvider()
+        webhookSecret
       );
     } catch (err) {
       console.error('⚠️ Webhook signature verification failed:', {
@@ -63,79 +100,47 @@ serve(async (req) => {
       throw err;
     }
 
+    // Log the event immediately
+    await logWebhookEvent(event);
+
     console.log('Processing webhook event:', {
       type: event.type,
       id: event.id,
       timestamp: new Date().toISOString()
     });
 
-    switch (event.type) {
-      case 'checkout.session.completed': {
-        const session = event.data.object;
-        console.log('Processing completed checkout:', session.id);
+    try {
+      if (event.type === 'checkout.session.completed') {
+        const session = event.data.object as Stripe.Checkout.Session;
         
-        if (session.metadata?.isGuest === 'true') {
-          await handleGuestPurchase(session);
-        } else {
-          const customer = await stripe.customers.retrieve(session.customer as string);
-          const userId = customer.metadata?.supabaseUid;
-          
-          if (!userId) {
-            throw new Error('No supabaseUid found in customer metadata');
-          }
-
-          if (session.metadata?.productType === 'credits') {
-            await handleCreditPurchase(session, userId);
-          } else {
-            await handleRegularPurchase(session);
-          }
+        // Get resultId directly from session metadata
+        const resultId = session.metadata?.resultId;
+        if (!resultId) {
+          throw new Error('No resultId found in session metadata');
         }
-        break;
+
+        // Update the quiz result with purchase information
+        await updateQuizResult(resultId, session.id);
+        
+        // Mark webhook event as completed
+        await logWebhookEvent(event, 'completed');
+        
+        console.log('Successfully processed checkout session:', {
+          sessionId: session.id,
+          resultId,
+          timestamp: new Date().toISOString()
+        });
       }
 
-      case 'customer.subscription.created': {
-        const subscription = event.data.object;
-        console.log('New subscription created:', subscription.id);
-        // Handle new subscription creation
-        break;
-      }
-
-      case 'customer.subscription.updated': {
-        const subscription = event.data.object;
-        console.log('Subscription updated:', subscription.id);
-        // Handle subscription updates (e.g., plan changes, quantity updates)
-        break;
-      }
-
-      case 'customer.subscription.deleted': {
-        const subscription = event.data.object;
-        console.log('Subscription cancelled:', subscription.id);
-        // Handle subscription cancellation
-        break;
-      }
-
-      case 'invoice.payment_succeeded': {
-        const invoice = event.data.object;
-        console.log('Invoice payment succeeded:', invoice.id);
-        // Handle successful subscription renewal payments
-        break;
-      }
-
-      case 'invoice.payment_failed': {
-        const invoice = event.data.object;
-        console.log('Invoice payment failed:', invoice.id);
-        // Handle failed subscription payments
-        break;
-      }
-
-      default:
-        console.log(`Unhandled event type: ${event.type}`);
+      return new Response(JSON.stringify({ received: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    } catch (processingError) {
+      // Log the processing error
+      await logWebhookEvent(event, 'failed', processingError.message);
+      throw processingError;
     }
-
-    return new Response(JSON.stringify({ received: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    });
   } catch (err) {
     console.error('Webhook error:', {
       message: err.message,

@@ -371,6 +371,42 @@ export type Database = {
           },
         ]
       }
+      stripe_webhook_events: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          event_type: string
+          id: string
+          processed_at: string | null
+          raw_event: Json
+          status: string
+          stripe_event_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          event_type: string
+          id?: string
+          processed_at?: string | null
+          raw_event: Json
+          status?: string
+          stripe_event_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          processed_at?: string | null
+          raw_event?: Json
+          status?: string
+          stripe_event_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       team_assessment_results: {
         Row: {
           assessment_date: string
