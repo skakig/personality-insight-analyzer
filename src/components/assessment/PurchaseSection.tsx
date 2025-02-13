@@ -1,102 +1,132 @@
 
-import { BenefitsList } from "./purchase/BenefitsList";
-import { PurchaseButton } from "./purchase/PurchaseButton";
-import { EmailPurchaseDialog } from "./purchase/EmailPurchaseDialog";
-import { GiftPurchaseDialog } from "./purchase/GiftPurchaseDialog";
-import { usePurchaseHandler } from "./purchase/usePurchaseHandler";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { EmailPurchaseDialog } from "./purchase/EmailPurchaseDialog";
+import { toast } from "@/components/ui/use-toast";
 
 interface PurchaseSectionProps {
   resultId: string;
   loading: boolean;
+  priceId: string;
 }
 
-export const PurchaseSection = ({ resultId, loading }: PurchaseSectionProps) => {
-  const {
-    purchaseLoading,
-    giftEmail,
-    setGiftEmail,
-    email,
-    setEmail,
-    isGiftDialogOpen,
-    setIsGiftDialogOpen,
-    isEmailDialogOpen,
-    setIsEmailDialogOpen,
-    handlePurchase,
-    handleGiftPurchase,
-    handleEmailPurchase
-  } = usePurchaseHandler(resultId);
+export const PurchaseSection = ({ resultId, loading, priceId }: PurchaseSectionProps) => {
+  const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handlePurchase = async () => {
+    if (!email) {
+      setIsEmailDialogOpen(true);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Create a guest purchase record
+      const { error: guestError } = await supabase
+        .from('guest_purchases')
+        .insert({
+          email,
+          result_id: resultId,
+          purchase_type: 'report'
+        });
+
+      if (guestError) throw guestError;
+      
+      const response = await supabase.functions.invoke('create-subscription', {
+        body: { 
+          priceId,
+          email,
+          mode: 'payment',
+          metadata: {
+            resultId,
+            isGuest: true,
+            email
+          }
+        }
+      });
+
+      if (response.error) throw response.error;
+      
+      if (!response.data?.url) {
+        throw new Error('No checkout URL received');
+      }
+
+      window.location.href = response.data.url;
+    } catch (error: any) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to initiate checkout. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEmailSubmit = () => {
+    if (!email) {
+      toast({
+        title: "Email Required",
+        description: "Please enter your email address to continue.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    handlePurchase();
+    setIsEmailDialogOpen(false);
+  };
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-br from-primary/5 to-secondary/5 p-6 rounded-xl border border-primary/10">
-        <div className="flex items-center gap-2 mb-4">
-          <h4 className="font-medium text-lg">Unlock Your Full Potential</h4>
+      <div className="text-center">
+        <div className="mb-4">
+          <p className="text-3xl font-bold mb-2">
+            <span className="text-primary line-through opacity-75">$29.99</span>
+            <span className="ml-3">$14.99</span>
+          </p>
+          <p className="text-sm text-gray-500">Limited Time Offer</p>
         </div>
-        
-        <div className="space-y-4">
-          <BenefitsList />
-          
-          <div className="flex flex-col gap-3">
-            <Button
-              onClick={() => setIsEmailDialogOpen(true)}
-              className="w-full bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white"
-            >
-              Get Report Now - Quick Checkout
-              <span className="text-xs opacity-90 ml-2">(No Account Required)</span>
-            </Button>
-            
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">Or</span>
-              </div>
-            </div>
 
-            <Button 
-              onClick={() => handlePurchase()} 
-              variant="outline"
-              className="w-full border-primary/20 hover:bg-primary/5"
-              disabled={loading || purchaseLoading}
-            >
-              Sign in to Purchase
-              <span className="text-xs opacity-90 ml-2">(Save for Later)</span>
-            </Button>
-            
-            <Button
-              onClick={() => setIsGiftDialogOpen(true)}
-              variant="ghost"
-              className="w-full text-sm text-muted-foreground hover:text-primary"
-            >
-              Gift this Report
-            </Button>
-          </div>
-          
-          <EmailPurchaseDialog 
-            open={isEmailDialogOpen}
-            onOpenChange={setIsEmailDialogOpen}
-            email={email}
-            setEmail={setEmail}
-            onPurchase={handleEmailPurchase}
-            loading={purchaseLoading}
-          />
-          
-          <GiftPurchaseDialog 
-            open={isGiftDialogOpen}
-            onOpenChange={setIsGiftDialogOpen}
-            giftEmail={giftEmail}
-            setGiftEmail={setGiftEmail}
-            onPurchase={handleGiftPurchase}
-            loading={purchaseLoading}
-          />
-          
-          <p className="text-xs text-center text-gray-500 mt-4">
-            Join thousands of others who have transformed their approach to ethical decision-making
+        <Button
+          onClick={() => handlePurchase()}
+          disabled={loading || isLoading}
+          className="text-lg px-8 py-6 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white hover:opacity-90 transition-opacity"
+        >
+          Get Your Full Report Now
+        </Button>
+
+        <div className="mt-4 space-y-2">
+          <p className="text-sm text-gray-500">
+            30-day money-back guarantee
+          </p>
+          <p className="text-xs text-gray-400">
+            Your growth journey starts here. Join thousands of leaders who have transformed their approach to ethical decision-making.
           </p>
         </div>
       </div>
+
+      <EmailPurchaseDialog
+        open={isEmailDialogOpen}
+        onOpenChange={setIsEmailDialogOpen}
+        email={email}
+        setEmail={setEmail}
+        onPurchase={handleEmailSubmit}
+        loading={isLoading}
+      />
     </div>
   );
 };

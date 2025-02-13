@@ -1,3 +1,4 @@
+
 import { CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText } from "lucide-react";
@@ -47,6 +48,7 @@ export const AssessmentContent = ({
         <PurchaseSection 
           resultId={resultId} 
           loading={loading}
+          priceId="price_1QloJQJy5TVq3Z9HTnIN6BX5" // Single assessment price
         />
       )}
     </CardContent>
