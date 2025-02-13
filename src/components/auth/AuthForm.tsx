@@ -1,9 +1,10 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { AuthInput } from "./AuthInput";
-import { signIn, signUp } from "@/utils/auth";
+import { signIn, signUp, resetPassword } from "@/utils/auth";
 import { AuthFormProps } from "@/types/auth";
 
 export const AuthForm = ({ onSuccess }: AuthFormProps) => {
@@ -11,6 +12,7 @@ export const AuthForm = ({ onSuccess }: AuthFormProps) => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [errors, setErrors] = useState<{
     email?: string;
     password?: string;
@@ -26,9 +28,9 @@ export const AuthForm = ({ onSuccess }: AuthFormProps) => {
       newErrors.email = "Please enter a valid email";
     }
     
-    if (!password) {
+    if (!isForgotPassword && !password) {
       newErrors.password = "Password is required";
-    } else if (password.length < 6) {
+    } else if (!isForgotPassword && password.length < 6) {
       newErrors.password = "Password must be at least 6 characters";
     }
     
@@ -47,7 +49,14 @@ export const AuthForm = ({ onSuccess }: AuthFormProps) => {
     setErrors({});
 
     try {
-      if (isSignUp) {
+      if (isForgotPassword) {
+        await resetPassword(email);
+        toast({
+          title: "Success",
+          description: "If an account exists with this email, you will receive password reset instructions.",
+        });
+        setIsForgotPassword(false);
+      } else if (isSignUp) {
         await signUp({ email, password });
         toast({
           title: "Success",
@@ -78,6 +87,14 @@ export const AuthForm = ({ onSuccess }: AuthFormProps) => {
     }
   };
 
+  const switchMode = (mode: 'signin' | 'signup' | 'forgot') => {
+    setIsSignUp(mode === 'signup');
+    setIsForgotPassword(mode === 'forgot');
+    setErrors({});
+    setEmail("");
+    setPassword("");
+  };
+
   return (
     <form className="mt-8 space-y-6" onSubmit={handleAuth}>
       <div className="rounded-md shadow-sm space-y-4">
@@ -88,14 +105,16 @@ export const AuthForm = ({ onSuccess }: AuthFormProps) => {
           placeholder="Email address"
           error={errors.email}
         />
-        <AuthInput
-          type="password"
-          value={password}
-          onChange={setPassword}
-          placeholder="Password"
-          minLength={6}
-          error={errors.password}
-        />
+        {!isForgotPassword && (
+          <AuthInput
+            type="password"
+            value={password}
+            onChange={setPassword}
+            placeholder="Password"
+            minLength={6}
+            error={errors.password}
+          />
+        )}
       </div>
 
       <div>
@@ -104,22 +123,30 @@ export const AuthForm = ({ onSuccess }: AuthFormProps) => {
           className="w-full"
           disabled={loading}
         >
-          {loading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
+          {loading ? "Loading..." : isForgotPassword ? "Reset Password" : isSignUp ? "Sign Up" : "Sign In"}
         </Button>
       </div>
 
-      <div className="text-center">
+      <div className="flex flex-col items-center space-y-2">
+        {!isForgotPassword && (
+          <Button
+            variant="link"
+            onClick={() => switchMode(isSignUp ? 'signin' : 'signup')}
+            className="text-sm"
+          >
+            {isSignUp
+              ? "Already have an account? Sign in"
+              : "Don't have an account? Sign up"}
+          </Button>
+        )}
         <Button
           variant="link"
-          onClick={() => {
-            setIsSignUp(!isSignUp);
-            setErrors({});
-          }}
+          onClick={() => switchMode(isForgotPassword ? 'signin' : 'forgot')}
           className="text-sm"
         >
-          {isSignUp
-            ? "Already have an account? Sign in"
-            : "Don't have an account? Sign up"}
+          {isForgotPassword
+            ? "Back to Sign In"
+            : "Forgot your password?"}
         </Button>
       </div>
     </form>

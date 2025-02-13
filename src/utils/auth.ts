@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 
@@ -38,4 +39,17 @@ export const signIn = async ({ email, password }: AuthCredentials) => {
   }
 
   return response;
+};
+
+export const resetPassword = async (email: string) => {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/auth?reset=true`,
+  });
+
+  if (error) {
+    console.error('Reset password error:', error);
+    throw error;
+  }
+
+  return { success: true };
 };
