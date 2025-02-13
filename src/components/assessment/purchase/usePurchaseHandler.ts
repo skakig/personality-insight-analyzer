@@ -58,6 +58,75 @@ export const usePurchaseHandler = (resultId: string) => {
     }
   };
 
+  const handleEmailPurchase = async () => {
+    if (!email) {
+      toast({
+        title: "Email Required",
+        description: "Please enter your email address to receive the report.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setPurchaseLoading(true);
+      
+      // Create a guest purchase record
+      const { data: guestPurchase, error: guestError } = await supabase
+        .from('guest_purchases')
+        .insert({
+          email,
+          result_id: resultId,
+          purchase_type: 'report'
+        })
+        .select()
+        .single();
+
+      if (guestError) throw guestError;
+      
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: { 
+          resultId,
+          mode: 'payment',
+          email,
+          priceAmount: 1499, // $14.99 in cents
+          metadata: {
+            resultId,
+            isGuest: true,
+            email
+          }
+        }
+      });
+
+      if (error) throw error;
+      
+      if (!data?.url) {
+        throw new Error('No checkout URL received');
+      }
+
+      window.location.href = data.url;
+    } catch (error: any) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to initiate checkout. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setPurchaseLoading(false);
+      setIsEmailDialogOpen(false);
+    }
+  };
+
   const handleGiftPurchase = async () => {
     if (!giftEmail) {
       toast({
@@ -111,62 +180,6 @@ export const usePurchaseHandler = (resultId: string) => {
     } finally {
       setPurchaseLoading(false);
       setIsGiftDialogOpen(false);
-    }
-  };
-
-  const handleEmailPurchase = async () => {
-    if (!email) {
-      toast({
-        title: "Email Required",
-        description: "Please enter your email address to receive the report.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      toast({
-        title: "Invalid Email",
-        description: "Please enter a valid email address.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setPurchaseLoading(true);
-      
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-        body: { 
-          resultId,
-          mode: 'payment',
-          email,
-          priceAmount: 1499, // $14.99 in cents
-          metadata: {
-            resultId,
-            isGuest: true,
-            email
-          }
-        }
-      });
-
-      if (error) throw error;
-      
-      if (!data?.url) {
-        throw new Error('No checkout URL received');
-      }
-
-      window.location.href = data.url;
-    } catch (error: any) {
-      console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to initiate checkout. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setPurchaseLoading(false);
-      setIsEmailDialogOpen(false);
     }
   };
 
