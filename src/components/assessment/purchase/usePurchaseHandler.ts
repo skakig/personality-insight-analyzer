@@ -25,16 +25,31 @@ export const usePurchaseHandler = (resultId: string) => {
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { 
           resultId,
+          userId: session.user.id,
           mode: 'payment',
-          priceAmount: 1499 // $14.99 in cents
+          priceAmount: 1499, // $14.99 in cents
+          metadata: {
+            resultId, // Explicitly include resultId in metadata
+            isGuest: false
+          }
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Checkout creation error:', error);
+        throw error;
+      }
       
       if (!data?.url) {
+        console.error('No checkout URL received');
         throw new Error('No checkout URL received');
       }
+
+      console.log('Redirecting to checkout:', {
+        resultId,
+        checkoutUrl: data.url,
+        timestamp: new Date().toISOString()
+      });
 
       window.location.href = data.url;
     } catch (error: any) {
@@ -76,7 +91,12 @@ export const usePurchaseHandler = (resultId: string) => {
           resultId,
           mode: 'payment',
           giftRecipientEmail: giftEmail,
-          priceAmount: 1499 // $14.99 in cents
+          priceAmount: 1499, // $14.99 in cents
+          metadata: {
+            resultId,
+            isGift: true,
+            giftRecipientEmail: giftEmail
+          }
         }
       });
 
@@ -127,7 +147,12 @@ export const usePurchaseHandler = (resultId: string) => {
           resultId,
           mode: 'payment',
           email,
-          priceAmount: 1499 // $14.99 in cents
+          priceAmount: 1499, // $14.99 in cents
+          metadata: {
+            resultId,
+            isGuest: true,
+            email
+          }
         }
       });
 
