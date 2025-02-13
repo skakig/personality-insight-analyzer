@@ -2,6 +2,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from 'https://esm.sh/stripe@14.21.0';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { handleGuestPurchase } from './handlers/guest-purchase.ts';
+import { handleRegularPurchase } from './handlers/regular-purchase.ts';
 
 const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
 const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
@@ -55,60 +57,27 @@ async function logWebhookEvent(event: Stripe.Event, status = 'pending', errorMes
 }
 
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
-  const resultId = session.metadata?.resultId;
-  if (!resultId) {
-    throw new Error('No resultId found in session metadata');
-  }
-
-  console.log('Processing completed checkout:', {
-    sessionId: session.id,
-    resultId,
-    metadata: session.metadata,
-    timestamp: new Date().toISOString()
-  });
-
   // Check if this session was already processed
-  const { data: existingResult } = await supabase
-    .from('quiz_results')
-    .select('is_purchased, stripe_session_id')
-    .eq('id', resultId)
+  const { data: existingEvent } = await supabase
+    .from('stripe_webhook_events')
+    .select('status')
+    .eq('stripe_event_id', session.id)
+    .eq('status', 'completed')
     .maybeSingle();
 
-  if (existingResult?.is_purchased && existingResult?.stripe_session_id === session.id) {
+  if (existingEvent) {
     console.log('Session already processed:', session.id);
     return;
   }
 
-  // Update the quiz result
-  const { error: updateError } = await supabase
-    .from('quiz_results')
-    .update({
-      is_purchased: true,
-      is_detailed: true,
-      stripe_session_id: session.id,
-      access_method: 'purchase'
-    })
-    .eq('id', resultId);
+  // Determine if this is a guest purchase
+  const isGuestPurchase = !session.customer && session.metadata?.email;
 
-  if (updateError) {
-    throw new Error(`Failed to update quiz result: ${updateError.message}`);
+  if (isGuestPurchase) {
+    await handleGuestPurchase(session);
+  } else {
+    await handleRegularPurchase(session);
   }
-
-  console.log('Successfully updated quiz result:', {
-    resultId,
-    sessionId: session.id,
-    timestamp: new Date().toISOString()
-  });
-}
-
-async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
-  // Log successful payment
-  console.log('Payment succeeded:', {
-    paymentIntentId: paymentIntent.id,
-    amount: paymentIntent.amount,
-    metadata: paymentIntent.metadata,
-    timestamp: new Date().toISOString()
-  });
 }
 
 serve(async (req) => {
@@ -152,10 +121,6 @@ serve(async (req) => {
       switch (event.type) {
         case 'checkout.session.completed': {
           await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
-          break;
-        }
-        case 'payment_intent.succeeded': {
-          await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
           break;
         }
         // Add more event types as needed
