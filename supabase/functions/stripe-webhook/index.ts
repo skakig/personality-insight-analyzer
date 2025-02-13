@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from 'https://esm.sh/stripe@14.21.0';
 import { handleGuestPurchase } from "./handlers/guest-purchase.ts";
@@ -8,16 +7,17 @@ import { handleRegularPurchase } from "./handlers/regular-purchase.ts";
 const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
 const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
 
-console.log('Edge function started. Environment check:', {
-  hasWebhookSecret: !!webhookSecret,
-  hasStripeKey: !!stripeKey,
-  webhookSecretPrefix: webhookSecret?.substring(0, 6),
-  stripeKeyPrefix: stripeKey?.substring(0, 6),
-  timestamp: new Date().toISOString()
-});
+if (!webhookSecret) {
+  throw new Error('Missing STRIPE_WEBHOOK_SECRET. Please set it in your Edge Function secrets.');
+}
 
-const stripe = new Stripe(stripeKey || '', {
+if (!stripeKey) {
+  throw new Error('Missing STRIPE_SECRET_KEY. Please set it in your Edge Function secrets.');
+}
+
+const stripe = new Stripe(stripeKey, {
   apiVersion: '2023-10-16',
+  httpClient: Stripe.createFetchHttpClient(), // Ensure we're using fetch
 });
 
 const corsHeaders = {
@@ -27,107 +27,101 @@ const corsHeaders = {
 
 serve(async (req) => {
   try {
+    // Handle CORS
     if (req.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
     }
 
     const signature = req.headers.get('stripe-signature');
-    
     if (!signature) {
-      console.error('No Stripe signature found in request headers');
-      throw new Error('No Stripe signature found');
+      throw new Error('No stripe signature in request');
     }
 
-    if (!webhookSecret) {
-      console.error('Webhook secret not configured');
-      throw new Error('Webhook secret not configured');
-    }
-
-    // Get the raw body as text
+    // Get the raw body and log its details
     const rawBody = await req.text();
-    console.log('Received webhook payload:', {
-      size: rawBody.length,
-      signature: signature,
-      timestamp: new Date().toISOString()
+    console.log('Webhook request details:', {
+      method: req.method,
+      contentType: req.headers.get('content-type'),
+      bodyLength: rawBody.length,
+      signatureHeader: signature.substring(0, 20) + '...',
+      timestamp: new Date().toISOString(),
     });
 
-    let event: Stripe.Event;
-    
+    // Verify the webhook signature
+    let event;
     try {
-      // Use constructEventAsync instead of constructEvent
       event = await stripe.webhooks.constructEventAsync(
         rawBody,
         signature,
-        webhookSecret
+        webhookSecret,
+        undefined,
+        Stripe.createSubtleCryptoProvider() // Explicitly use SubtleCrypto
       );
-      console.log('Webhook signature verified successfully');
     } catch (err) {
-      console.error('Webhook signature verification failed:', {
+      console.error('⚠️ Webhook signature verification failed:', {
         error: err.message,
-        signature: signature,
-        timestamp: new Date().toISOString()
+        bodyPreview: rawBody.substring(0, 100) + '...',
+        signatureUsed: signature,
       });
-      throw new Error(`Webhook signature verification failed: ${err.message}`);
+      throw err;
     }
 
-    console.log('Processing webhook event:', {
-      type: event.type,
-      id: event.id,
-      timestamp: new Date().toISOString()
+    // Log successful verification
+    console.log('✅ Webhook signature verified successfully:', {
+      eventId: event.id,
+      eventType: event.type,
     });
 
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object;
-      console.log('Processing completed checkout session:', {
-        sessionId: session.id,
-        metadata: session.metadata,
-        timestamp: new Date().toISOString()
-      });
-
-      if (session.metadata?.isGuest === 'true') {
-        console.log('Processing guest purchase');
-        await handleGuestPurchase(session);
-      } else {
-        const customerId = session.customer;
-        console.log('Retrieving customer:', customerId);
-        const customer = await stripe.customers.retrieve(customerId as string);
-        const userId = customer.metadata.supabaseUid;
-        const productType = session.metadata?.productType;
-
-        console.log('Processing purchase for user:', {
-          userId,
-          productType,
+    // Handle the event
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object;
+        console.log('Processing checkout session:', {
           sessionId: session.id,
-          timestamp: new Date().toISOString()
+          metadata: session.metadata,
         });
 
-        if (productType === 'credits') {
-          await handleCreditPurchase(session, userId);
+        // Handle based on metadata
+        if (session.metadata?.isGuest === 'true') {
+          await handleGuestPurchase(session);
         } else {
-          await handleRegularPurchase(session);
-        }
-      }
+          const customer = await stripe.customers.retrieve(session.customer as string);
+          const userId = customer.metadata?.supabaseUid;
+          
+          if (!userId) {
+            throw new Error('No supabaseUid found in customer metadata');
+          }
 
-      console.log('Purchase processing completed successfully');
+          if (session.metadata?.productType === 'credits') {
+            await handleCreditPurchase(session, userId);
+          } else {
+            await handleRegularPurchase(session);
+          }
+        }
+        break;
+      }
+      // Add other event types as needed
+      default:
+        console.log(`Unhandled event type: ${event.type}`);
     }
 
     return new Response(JSON.stringify({ received: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
-  } catch (error) {
+  } catch (err) {
     console.error('Webhook error:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-      timestamp: new Date().toISOString()
+      message: err.message,
+      stack: err.stack,
     });
-    
+
     return new Response(
       JSON.stringify({
-        error: error.message,
-        type: error.name,
-        timestamp: new Date().toISOString()
+        error: {
+          message: err.message,
+          type: err.constructor.name,
+          stack: err.stack,
+        }
       }),
       {
         status: 400,
@@ -136,3 +130,57 @@ serve(async (req) => {
     );
   }
 });
+
+// Helper functions
+async function handleGuestPurchase(session: Stripe.Checkout.Session) {
+  const resultId = session.metadata?.resultId;
+
+  if (!resultId) {
+    throw new Error('No resultId found in session metadata');
+  }
+
+  console.log('Guest purchase details:', {
+    sessionId: session.id,
+    resultId: resultId,
+  });
+
+  // Placeholder: Logic to handle guest purchase, e.g., store resultId against the email
+  console.log('Simulating storing resultId against email for guest purchase');
+}
+
+async function handleCreditPurchase(session: Stripe.Checkout.Session, userId: string) {
+  const amount = session.metadata?.amount;
+
+  if (!userId) {
+    throw new Error('No userId provided');
+  }
+
+  if (!amount) {
+    throw new Error('No amount provided');
+  }
+
+  console.log('Credit purchase details:', {
+    sessionId: session.id,
+    userId: userId,
+    amount: amount,
+  });
+
+  // Placeholder: Logic to handle credit purchase, e.g., update user credits in database
+  console.log('Simulating updating user credits in database');
+}
+
+async function handleRegularPurchase(session: Stripe.Checkout.Session) {
+  const resultId = session.metadata?.resultId;
+
+  if (!resultId) {
+    throw new Error('No resultId found in session metadata');
+  }
+
+  console.log('Regular purchase details:', {
+    sessionId: session.id,
+    resultId: resultId,
+  });
+
+  // Placeholder: Logic to handle regular purchase, e.g., mark result as purchased in database
+  console.log('Simulating marking result as purchased in database');
+}
