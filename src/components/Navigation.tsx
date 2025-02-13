@@ -4,14 +4,22 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { toast } from "@/components/ui/use-toast";
 
 export const Navigation = ({ session }: { session?: any }) => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    navigate("/");
+    try {
+      await supabase.auth.signOut();
+      // Always navigate home after sign out attempt, regardless of success
+      navigate("/");
+    } catch (error) {
+      console.error('Signout error:', error);
+      // Even if there's an error, navigate home as the session is likely invalid
+      navigate("/");
+    }
   };
 
   return (
