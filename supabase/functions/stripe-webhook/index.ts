@@ -54,8 +54,8 @@ serve(async (req) => {
     let event: Stripe.Event;
     
     try {
-      // Use the raw body text directly with the signature
-      event = stripe.webhooks.constructEvent(
+      // Use constructEventAsync instead of constructEvent
+      event = await stripe.webhooks.constructEventAsync(
         rawBody,
         signature,
         webhookSecret
