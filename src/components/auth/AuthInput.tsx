@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { AuthInputProps } from "@/types/auth";
 
