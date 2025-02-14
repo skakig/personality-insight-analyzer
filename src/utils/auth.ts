@@ -7,12 +7,22 @@ export interface AuthCredentials {
   password: string;
 }
 
+const getRedirectURL = () => {
+  // Check if we're in development or production
+  const isDevelopment = window.location.hostname === 'localhost';
+  const baseURL = isDevelopment 
+    ? 'http://localhost:8080'
+    : 'https://themoralhierarchy.com';
+    
+  return `${baseURL}/auth`;
+};
+
 export const signUp = async ({ email, password }: AuthCredentials) => {
   const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: `${window.location.origin}/auth`
+      emailRedirectTo: getRedirectURL()
     }
   });
   
@@ -43,7 +53,7 @@ export const signIn = async ({ email, password }: AuthCredentials) => {
 
 export const resetPassword = async (email: string) => {
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}/auth?reset=true`,
+    redirectTo: getRedirectURL(),
   });
 
   if (error) {
