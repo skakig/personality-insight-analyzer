@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Clock } from "lucide-react";
@@ -52,6 +51,13 @@ export const PurchaseNotification = () => {
 
   if (!currentPurchase) return null;
 
+  // Mask the name by keeping first letter and replacing rest with asterisks
+  const maskName = (name: string) => {
+    const parts = name.split(' ');
+    const firstName = parts[0];
+    return `${firstName[0]}${'*'.repeat(firstName.length - 1)}${parts.length > 1 ? ' ' + parts[1][0] : ''}`;
+  };
+
   return (
     <AnimatePresence>
       {isVisible && (
@@ -68,7 +74,7 @@ export const PurchaseNotification = () => {
               </div>
               <div className="flex-1">
                 <p className="text-sm font-medium text-gray-900">
-                  {currentPurchase.name} from {currentPurchase.location}
+                  {maskName(currentPurchase.name)} from {currentPurchase.location}
                 </p>
                 <p className="text-sm text-gray-500 mt-1">
                   just purchased a {currentPurchase.product_type}
