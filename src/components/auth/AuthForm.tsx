@@ -4,95 +4,60 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { AuthInput } from "./AuthInput";
-import { signIn, signUp, resetPassword } from "@/utils/auth";
-import { AuthFormProps } from "@/types/auth";
+import { signIn, signUp } from "@/utils/auth";
+
+interface AuthFormProps {
+  onSuccess: () => void;
+}
 
 export const AuthForm = ({ onSuccess }: AuthFormProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
-  const [isForgotPassword, setIsForgotPassword] = useState(false);
-  const [errors, setErrors] = useState<{
-    email?: string;
-    password?: string;
-  }>({});
   const navigate = useNavigate();
-
-  const validateForm = () => {
-    const newErrors: typeof errors = {};
-    
-    if (!email) {
-      newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = "Please enter a valid email";
-    }
-    
-    if (!isForgotPassword && !password) {
-      newErrors.password = "Password is required";
-    } else if (!isForgotPassword && password.length < 6) {
-      newErrors.password = "Password must be at least 6 characters";
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-    
     setLoading(true);
-    setErrors({});
 
     try {
-      if (isForgotPassword) {
-        await resetPassword(email);
-        toast({
-          title: "Success",
-          description: "If an account exists with this email, you will receive password reset instructions.",
-        });
-        setIsForgotPassword(false);
-      } else if (isSignUp) {
+      console.log('Attempting authentication:', { 
+        mode: isSignUp ? 'signup' : 'signin',
+        email,
+        timestamp: new Date().toISOString()
+      });
+
+      if (isSignUp) {
         await signUp({ email, password });
-        toast({
-          title: "Success",
-          description: "Please check your email to verify your account.",
-        });
       } else {
         const { data, error } = await signIn({ email, password });
+        console.log('Sign in response:', { 
+          success: !!data?.session,
+          error: error?.message,
+          timestamp: new Date().toISOString()
+        });
+        
         if (error) throw error;
         if (data?.session) {
           navigate("/dashboard");
         }
       }
     } catch (error: any) {
-      console.error('Auth error:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Authentication failed. Please try again.",
-        variant: "destructive",
+      console.error('Authentication error details:', {
+        message: error.message,
+        status: error.status,
+        timestamp: new Date().toISOString()
       });
       
-      if (error.message?.toLowerCase().includes("email")) {
-        setErrors(prev => ({ ...prev, email: error.message }));
-      } else if (error.message?.toLowerCase().includes("password")) {
-        setErrors(prev => ({ ...prev, password: error.message }));
-      }
+      toast({
+        title: "Error",
+        description: error.message || "Authentication failed. Please check your credentials and try again.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
-  };
-
-  const switchMode = (mode: 'signin' | 'signup' | 'forgot') => {
-    setIsSignUp(mode === 'signup');
-    setIsForgotPassword(mode === 'forgot');
-    setErrors({});
-    setEmail("");
-    setPassword("");
   };
 
   return (
@@ -103,18 +68,14 @@ export const AuthForm = ({ onSuccess }: AuthFormProps) => {
           value={email}
           onChange={setEmail}
           placeholder="Email address"
-          error={errors.email}
         />
-        {!isForgotPassword && (
-          <AuthInput
-            type="password"
-            value={password}
-            onChange={setPassword}
-            placeholder="Password"
-            minLength={6}
-            error={errors.password}
-          />
-        )}
+        <AuthInput
+          type="password"
+          value={password}
+          onChange={setPassword}
+          placeholder="Password"
+          minLength={6}
+        />
       </div>
 
       <div>
@@ -123,30 +84,19 @@ export const AuthForm = ({ onSuccess }: AuthFormProps) => {
           className="w-full"
           disabled={loading}
         >
-          {loading ? "Loading..." : isForgotPassword ? "Reset Password" : isSignUp ? "Sign Up" : "Sign In"}
+          {loading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
         </Button>
       </div>
 
-      <div className="flex flex-col items-center space-y-2">
-        {!isForgotPassword && (
-          <Button
-            variant="link"
-            onClick={() => switchMode(isSignUp ? 'signin' : 'signup')}
-            className="text-sm"
-          >
-            {isSignUp
-              ? "Already have an account? Sign in"
-              : "Don't have an account? Sign up"}
-          </Button>
-        )}
+      <div className="text-center">
         <Button
           variant="link"
-          onClick={() => switchMode(isForgotPassword ? 'signin' : 'forgot')}
+          onClick={() => setIsSignUp(!isSignUp)}
           className="text-sm"
         >
-          {isForgotPassword
-            ? "Back to Sign In"
-            : "Forgot your password?"}
+          {isSignUp
+            ? "Already have an account? Sign in"
+            : "Don't have an account? Sign up"}
         </Button>
       </div>
     </form>
