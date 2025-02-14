@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Clock } from "lucide-react";
@@ -54,8 +55,10 @@ export const PurchaseNotification = () => {
   // Mask the name by keeping first letter and replacing rest with asterisks
   const maskName = (name: string) => {
     const parts = name.split(' ');
+    if (parts.length === 1) return name; // If only one name, return as is
     const firstName = parts[0];
-    return `${firstName[0]}${'*'.repeat(firstName.length - 1)}${parts.length > 1 ? ' ' + parts[1][0] : ''}`;
+    const surname = parts[1];
+    return `${firstName} ${surname[0]}${'*'.repeat(surname.length - 1)}`;
   };
 
   return (
