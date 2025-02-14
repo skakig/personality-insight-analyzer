@@ -18,6 +18,12 @@ const getRedirectURL = () => {
 };
 
 export const signUp = async ({ email, password }: AuthCredentials) => {
+  console.log('Signup attempt:', { 
+    email,
+    timestamp: new Date().toISOString(),
+    redirectTo: getRedirectURL()
+  });
+
   const { error } = await supabase.auth.signUp({
     email,
     password,
@@ -27,7 +33,11 @@ export const signUp = async ({ email, password }: AuthCredentials) => {
   });
   
   if (error) {
-    console.error('Signup error:', error);
+    console.error('Signup error:', {
+      message: error.message,
+      status: error.status,
+      stack: error.stack
+    });
     throw error;
   }
   
@@ -38,13 +48,22 @@ export const signUp = async ({ email, password }: AuthCredentials) => {
 };
 
 export const signIn = async ({ email, password }: AuthCredentials) => {
+  console.log('Signin attempt:', { 
+    email,
+    timestamp: new Date().toISOString()
+  });
+
   const response = await supabase.auth.signInWithPassword({
     email,
     password,
   });
 
   if (response.error) {
-    console.error('Signin error:', response.error);
+    console.error('Signin error:', {
+      message: response.error.message,
+      status: response.error.status,
+      stack: response.error.stack
+    });
     throw response.error;
   }
 
