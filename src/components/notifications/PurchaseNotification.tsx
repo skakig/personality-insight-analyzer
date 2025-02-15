@@ -30,8 +30,8 @@ export const PurchaseNotification = () => {
         const purchase = {
           ...data,
           product_type: data.product_type.toLowerCase() === "detailed analysis" ? "Full Report" : data.product_type,
-          // Ensure time_ago_minutes is a number
-          time_ago_minutes: typeof data.time_ago_minutes === 'number' ? data.time_ago_minutes : 5
+          // Ensure time_ago_minutes is a number and has a valid default
+          time_ago_minutes: Number.isInteger(data.time_ago_minutes) ? data.time_ago_minutes : 5
         };
         setCurrentPurchase(purchase);
         setIsVisible(true);
@@ -58,16 +58,17 @@ export const PurchaseNotification = () => {
 
   // Mask the name by keeping first letter and replacing rest with asterisks
   const maskName = (name: string) => {
+    if (!name) return ''; // Handle null or undefined names
     const parts = name.split(' ');
     if (parts.length === 1) return name; // If only one name, return as is
     const firstName = parts[0];
     const surname = parts[1];
-    return `${firstName} ${surname[0]}${'*'.repeat(surname.length - 1)}`;
+    return `${firstName} ${surname[0]}${'*'.repeat(Math.max(0, surname.length - 1))}`;
   };
 
   return (
     <AnimatePresence>
-      {isVisible && (
+      {isVisible && currentPurchase && (
         <motion.div
           initial={{ x: 100, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
