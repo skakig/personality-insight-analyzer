@@ -17,8 +17,8 @@ const pricingPlans = [
       "Personal growth recommendations",
       "Email support"
     ],
-    priceId: "price_1QloJQJy5TVq3Z9HTnIN6BX5", // Single assessment price
-    paymentType: "payment" as const // one-time payment
+    priceId: "price_1QloJQJy5TVq3Z9HTnIN6BX5",
+    paymentType: "payment" as const
   },
   {
     name: "Pro",
@@ -31,8 +31,8 @@ const pricingPlans = [
       "Priority support",
       "Custom report branding"
     ],
-    priceId: "price_1QnmsaJy5TVq3Z9HpNI2p8xI", // Pro subscription price
-    paymentType: "subscription" as const, // recurring payment
+    priceId: "price_1QnmsaJy5TVq3Z9HpNI2p8xI",
+    paymentType: "subscription" as const,
     highlight: true
   },
   {
@@ -47,8 +47,8 @@ const pricingPlans = [
       "Custom integration options",
       "24/7 phone support"
     ],
-    priceId: "price_1Qlc6YJy5TVq3Z9Hya2ukkhJ", // Enterprise subscription price
-    paymentType: "subscription" as const // recurring payment
+    priceId: "price_1Qlc6YJy5TVq3Z9Hya2ukkhJ",
+    paymentType: "subscription" as const
   }
 ];
 
