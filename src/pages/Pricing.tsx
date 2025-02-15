@@ -59,23 +59,51 @@ const Pricing = () => {
   const handleSubscribe = async (priceId: string, paymentType: "payment" | "subscription" = "subscription") => {
     setLoading(priceId);
     try {
-      const response = await supabase.functions.invoke('create-subscription', {
-        body: { 
-          priceId,
-          mode: paymentType,
-          email: null // We'll handle email collection in Stripe Checkout
-        }
-      });
+      let response;
+      
+      // Use different endpoints for one-time payments vs subscriptions
+      if (paymentType === "payment") {
+        response = await supabase.functions.invoke('create-checkout-session', {
+          body: { 
+            resultId: null, // No specific result ID for general purchase
+            mode: 'payment',
+            priceAmount: 1499,
+            metadata: {
+              isGuest: true
+            }
+          }
+        });
+      } else {
+        console.log('Creating subscription with:', { priceId, paymentType });
+        response = await supabase.functions.invoke('create-subscription', {
+          body: { 
+            priceId,
+            mode: paymentType,
+            metadata: {
+              isGuest: true
+            }
+          }
+        });
+      }
 
-      if (response.error) throw response.error;
-      if (!response.data?.url) throw new Error('No checkout URL received');
+      console.log('Checkout response:', response);
+
+      if (response.error) {
+        console.error('Checkout error:', response.error);
+        throw new Error(response.error.message || 'Failed to create checkout session');
+      }
+      
+      if (!response.data?.url) {
+        console.error('No checkout URL in response:', response);
+        throw new Error('No checkout URL received');
+      }
 
       window.location.href = response.data.url;
     } catch (error: any) {
-      console.error('Error:', error);
+      console.error('Error details:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to start subscription process",
+        description: error.message || "Failed to start checkout process",
         variant: "destructive",
       });
     } finally {
