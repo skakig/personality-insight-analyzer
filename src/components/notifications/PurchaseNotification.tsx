@@ -1,8 +1,6 @@
-
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Clock } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Purchase {
@@ -10,7 +8,7 @@ interface Purchase {
   name: string;
   location: string;
   product_type: string;
-  purchase_time: string;
+  time_ago_minutes: number;
 }
 
 export const PurchaseNotification = () => {
@@ -83,7 +81,7 @@ export const PurchaseNotification = () => {
                   just purchased a {currentPurchase.product_type}
                 </p>
                 <p className="text-xs text-gray-400 mt-1">
-                  {formatDistanceToNow(new Date(currentPurchase.purchase_time), { addSuffix: true })}
+                  {currentPurchase.time_ago_minutes} {currentPurchase.time_ago_minutes === 1 ? 'minute' : 'minutes'} ago
                 </p>
               </div>
             </div>

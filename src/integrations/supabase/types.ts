@@ -231,7 +231,7 @@ export type Database = {
           location: string
           name: string
           product_type: string
-          purchase_time: string | null
+          time_ago_minutes: number
         }
         Insert: {
           created_at?: string | null
@@ -240,7 +240,7 @@ export type Database = {
           location: string
           name: string
           product_type: string
-          purchase_time?: string | null
+          time_ago_minutes?: number
         }
         Update: {
           created_at?: string | null
@@ -249,7 +249,7 @@ export type Database = {
           location?: string
           name?: string
           product_type?: string
-          purchase_time?: string | null
+          time_ago_minutes?: number
         }
         Relationships: []
       }
@@ -534,7 +534,7 @@ export type Database = {
           name: string
           location: string
           product_type: string
-          purchase_time: string
+          time_ago_minutes: number
           is_real: boolean
           created_at: string
         }[]
