@@ -411,7 +411,7 @@ export type Database = {
           stripe_session_id: string | null
           temp_access_expires_at: string | null
           temp_access_token: string | null
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           access_method?: string | null
@@ -431,7 +431,7 @@ export type Database = {
           stripe_session_id?: string | null
           temp_access_expires_at?: string | null
           temp_access_token?: string | null
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           access_method?: string | null
@@ -451,7 +451,7 @@ export type Database = {
           stripe_session_id?: string | null
           temp_access_expires_at?: string | null
           temp_access_token?: string | null
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
