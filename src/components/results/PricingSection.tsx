@@ -9,20 +9,25 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface PricingSectionProps {
   session: any;
+  quizResultId: string | null;
 }
 
-export const PricingSection = ({ session }: PricingSectionProps) => {
+export const PricingSection = ({ session, quizResultId }: PricingSectionProps) => {
   const [email, setEmail] = useState("");
   const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleGetDetailedResults = async () => {
-    if (session) {
+    if (session?.user) {
       try {
         const { data, error } = await supabase.functions.invoke('create-checkout-session', {
           body: { 
+            resultId: quizResultId,
             priceAmount: 1499,
-            mode: 'payment'
+            mode: 'payment',
+            metadata: {
+              userId: session.user.id
+            }
           }
         });
 
@@ -30,7 +35,7 @@ export const PricingSection = ({ session }: PricingSectionProps) => {
         if (!data?.url) throw new Error('No checkout URL received');
         
         window.location.href = data.url;
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error:', error);
         toast({
           title: "Error",
@@ -65,10 +70,18 @@ export const PricingSection = ({ session }: PricingSectionProps) => {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('create-guest-checkout', {
+      const guestAccessToken = localStorage.getItem('guestAccessToken');
+      
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { 
+          resultId: quizResultId,
           email,
           priceAmount: 1499,
+          metadata: {
+            isGuest: true,
+            email,
+            tempAccessToken: guestAccessToken
+          }
         }
       });
 
@@ -76,7 +89,7 @@ export const PricingSection = ({ session }: PricingSectionProps) => {
       if (!data?.url) throw new Error('No checkout URL received');
 
       window.location.href = data.url;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error:', error);
       toast({
         title: "Error",

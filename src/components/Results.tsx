@@ -1,12 +1,12 @@
 
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
-import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { ResultsHeader } from "./results/ResultsHeader";
 import { CharacteristicsList } from "./results/CharacteristicsList";
 import { PricingSection } from "./results/PricingSection";
+import { useEffect, useState } from "react";
 
 interface ResultsProps {
   personalityType: string;
@@ -15,6 +15,17 @@ interface ResultsProps {
 
 export const Results = ({ personalityType, session }: ResultsProps) => {
   const navigate = useNavigate();
+  const [quizResultId, setQuizResultId] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Get quiz result ID from localStorage for guest users
+    if (!session?.user) {
+      const storedResultId = localStorage.getItem('guestQuizResultId');
+      if (storedResultId) {
+        setQuizResultId(storedResultId);
+      }
+    }
+  }, [session]);
 
   const keyCharacteristics = [
     "Strong survival instincts",
@@ -50,7 +61,10 @@ export const Results = ({ personalityType, session }: ResultsProps) => {
                 icon="secondary"
               />
             </div>
-            <PricingSection session={session} />
+            <PricingSection 
+              session={session} 
+              quizResultId={quizResultId}
+            />
           </CardContent>
         </Card>
       </div>

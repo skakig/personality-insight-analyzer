@@ -6,7 +6,7 @@ import { calculatePersonalityType } from "@/utils/personalityCalculator";
 import { fetchQuizQuestions } from "@/utils/quizUtils";
 import { useQuizState } from "./useQuizState";
 import { supabase } from "@/integrations/supabase/client";
-import { QuizState } from "@/types/quiz"; // Add this import
+import { QuizState } from "@/types/quiz";
 
 export const useQuiz = (session: Session | null) => {
   const { state, updateState, setQuestions, setError, updateProgress } = useQuizState();
@@ -81,19 +81,19 @@ export const useQuiz = (session: Session | null) => {
         const answersArray = Object.values(newAnswers);
         const personalityType = calculatePersonalityType(answersArray);
 
-        // Generate a UUID for guest users
-        const guestUserId = session?.user?.id ?? crypto.randomUUID();
+        // Generate temporary access token for guest users
+        const tempAccessToken = session?.user ? null : crypto.randomUUID();
+        const tempAccessExpiresAt = session?.user ? null : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
         
-        // Create quiz result with temporary access token for guests
+        // Create quiz result
         const { data: quizResult, error: resultError } = await supabase
           .from('quiz_results')
           .insert({
             personality_type: personalityType,
             answers: newAnswers,
-            user_id: guestUserId,
-            temp_access_token: session?.user ? null : crypto.randomUUID(),
-            temp_access_expires_at: session?.user ? null : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
-            guest_email: null // Will be set during purchase
+            user_id: session?.user?.id || null,
+            temp_access_token: tempAccessToken,
+            temp_access_expires_at: tempAccessExpiresAt
           })
           .select('*')
           .single();
@@ -105,7 +105,9 @@ export const useQuiz = (session: Session | null) => {
 
         if (!session?.user) {
           localStorage.setItem('guestQuizResultId', quizResult.id);
-          localStorage.setItem('guestUserId', guestUserId);
+          if (tempAccessToken) {
+            localStorage.setItem('guestAccessToken', tempAccessToken);
+          }
         }
 
         const updates: Partial<QuizState> = {
