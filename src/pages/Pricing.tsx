@@ -59,12 +59,23 @@ const Pricing = () => {
   const handleSubscribe = async (priceId: string, paymentType: "payment" | "subscription" = "subscription") => {
     setLoading(priceId);
     try {
-      const response = await supabase.functions.invoke('create-subscription', {
-        body: { 
-          priceId,
-          mode: paymentType
-        }
-      });
+      let response;
+      
+      if (paymentType === "payment") {
+        response = await supabase.functions.invoke('create-checkout-session', {
+          body: { 
+            priceAmount: 1499,
+            email: null
+          }
+        });
+      } else {
+        response = await supabase.functions.invoke('create-subscription', {
+          body: { 
+            priceId,
+            mode: paymentType
+          }
+        });
+      }
 
       if (response.error) throw response.error;
       if (!response.data?.url) throw new Error('No checkout URL received');
