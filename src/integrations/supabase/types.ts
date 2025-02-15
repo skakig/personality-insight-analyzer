@@ -148,6 +148,8 @@ export type Database = {
       }
       guest_purchases: {
         Row: {
+          access_expires_at: string | null
+          access_token: string | null
           created_at: string
           email: string
           id: string
@@ -162,6 +164,8 @@ export type Database = {
           subscription_id: string | null
         }
         Insert: {
+          access_expires_at?: string | null
+          access_token?: string | null
           created_at?: string
           email: string
           id?: string
@@ -176,6 +180,8 @@ export type Database = {
           subscription_id?: string | null
         }
         Update: {
+          access_expires_at?: string | null
+          access_token?: string | null
           created_at?: string
           email?: string
           id?: string
@@ -395,11 +401,16 @@ export type Database = {
           detailed_analysis: string | null
           guest_access_expires_at: string | null
           guest_access_token: string | null
+          guest_email: string | null
           id: string
           is_detailed: boolean | null
           is_purchased: boolean | null
           personality_type: string
+          purchase_amount: number | null
+          purchase_date: string | null
           stripe_session_id: string | null
+          temp_access_expires_at: string | null
+          temp_access_token: string | null
           user_id: string
         }
         Insert: {
@@ -410,11 +421,16 @@ export type Database = {
           detailed_analysis?: string | null
           guest_access_expires_at?: string | null
           guest_access_token?: string | null
+          guest_email?: string | null
           id?: string
           is_detailed?: boolean | null
           is_purchased?: boolean | null
           personality_type: string
+          purchase_amount?: number | null
+          purchase_date?: string | null
           stripe_session_id?: string | null
+          temp_access_expires_at?: string | null
+          temp_access_token?: string | null
           user_id: string
         }
         Update: {
@@ -425,11 +441,16 @@ export type Database = {
           detailed_analysis?: string | null
           guest_access_expires_at?: string | null
           guest_access_token?: string | null
+          guest_email?: string | null
           id?: string
           is_detailed?: boolean | null
           is_purchased?: boolean | null
           personality_type?: string
+          purchase_amount?: number | null
+          purchase_date?: string | null
           stripe_session_id?: string | null
+          temp_access_expires_at?: string | null
+          temp_access_token?: string | null
           user_id?: string
         }
         Relationships: [
@@ -691,6 +712,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_expired_guest_access: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       cleanup_expired_tokens: {
         Args: Record<PropertyKey, never>
         Returns: undefined
