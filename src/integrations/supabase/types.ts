@@ -152,6 +152,8 @@ export type Database = {
           email: string
           id: string
           metadata: Json | null
+          pdf_generated: boolean | null
+          pdf_url: string | null
           price_id: string | null
           purchase_type: string
           result_id: string | null
@@ -164,6 +166,8 @@ export type Database = {
           email: string
           id?: string
           metadata?: Json | null
+          pdf_generated?: boolean | null
+          pdf_url?: string | null
           price_id?: string | null
           purchase_type: string
           result_id?: string | null
@@ -176,6 +180,8 @@ export type Database = {
           email?: string
           id?: string
           metadata?: Json | null
+          pdf_generated?: boolean | null
+          pdf_url?: string | null
           price_id?: string | null
           purchase_type?: string
           result_id?: string | null
@@ -387,6 +393,8 @@ export type Database = {
           category_scores: Json | null
           created_at: string
           detailed_analysis: string | null
+          guest_access_expires_at: string | null
+          guest_access_token: string | null
           id: string
           is_detailed: boolean | null
           is_purchased: boolean | null
@@ -400,6 +408,8 @@ export type Database = {
           category_scores?: Json | null
           created_at?: string
           detailed_analysis?: string | null
+          guest_access_expires_at?: string | null
+          guest_access_token?: string | null
           id?: string
           is_detailed?: boolean | null
           is_purchased?: boolean | null
@@ -413,6 +423,8 @@ export type Database = {
           category_scores?: Json | null
           created_at?: string
           detailed_analysis?: string | null
+          guest_access_expires_at?: string | null
+          guest_access_token?: string | null
           id?: string
           is_detailed?: boolean | null
           is_purchased?: boolean | null
@@ -629,6 +641,8 @@ export type Database = {
           email: string
           expires_at: string
           id: string
+          purchase_id: string | null
+          result_id: string | null
           token: string
           updated_at: string | null
           used: boolean | null
@@ -638,6 +652,8 @@ export type Database = {
           email: string
           expires_at?: string
           id?: string
+          purchase_id?: string | null
+          result_id?: string | null
           token: string
           updated_at?: string | null
           used?: boolean | null
@@ -647,17 +663,38 @@ export type Database = {
           email?: string
           expires_at?: string
           id?: string
+          purchase_id?: string | null
+          result_id?: string | null
           token?: string
           updated_at?: string | null
           used?: boolean | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "temp_access_tokens_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "guest_purchases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "temp_access_tokens_result_id_fkey"
+            columns: ["result_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_results"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      cleanup_expired_tokens: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       get_random_purchase_notification: {
         Args: Record<PropertyKey, never>
         Returns: {
