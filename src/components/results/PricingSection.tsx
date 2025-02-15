@@ -5,6 +5,7 @@ import { useState } from "react";
 import { PriceDisplay } from "./pricing/PriceDisplay";
 import { EmailDialog } from "./pricing/EmailDialog";
 import { PricingFooter } from "./pricing/PricingFooter";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PricingSectionProps {
   session: any;
@@ -18,19 +19,19 @@ export const PricingSection = ({ session }: PricingSectionProps) => {
   const handleGetDetailedResults = async () => {
     if (session) {
       try {
-        const response = await fetch('/api/create-checkout-session', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
+        const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+          body: { 
+            priceAmount: 1499,
+            mode: 'payment'
+          }
         });
 
-        const { url } = await response.json();
-        if (url) {
-          window.location.href = url;
-        }
+        if (error) throw error;
+        if (!data?.url) throw new Error('No checkout URL received');
+        
+        window.location.href = data.url;
       } catch (error) {
+        console.error('Error:', error);
         toast({
           title: "Error",
           description: "Failed to initiate checkout. Please try again.",
@@ -64,22 +65,19 @@ export const PricingSection = ({ session }: PricingSectionProps) => {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/create-guest-checkout-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
+      const { data, error } = await supabase.functions.invoke('create-guest-checkout', {
+        body: { 
           email,
           priceAmount: 1499,
-        }),
+        }
       });
 
-      const { url } = await response.json();
-      if (url) {
-        window.location.href = url;
-      }
+      if (error) throw error;
+      if (!data?.url) throw new Error('No checkout URL received');
+
+      window.location.href = data.url;
     } catch (error) {
+      console.error('Error:', error);
       toast({
         title: "Error",
         description: "Failed to initiate checkout. Please try again.",
