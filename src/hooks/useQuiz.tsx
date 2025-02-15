@@ -79,6 +79,9 @@ export const useQuiz = (session: Session | null) => {
         console.log('Quiz completed, calculating results');
         const answersArray = Object.values(newAnswers);
         const personalityType = calculatePersonalityType(answersArray);
+
+        // Generate a UUID for guest users
+        const guestUserId = session?.user?.id ?? crypto.randomUUID();
         
         // Create quiz result with temporary access token for guests
         const { data: quizResult, error: resultError } = await supabase
@@ -86,12 +89,12 @@ export const useQuiz = (session: Session | null) => {
           .insert({
             personality_type: personalityType,
             answers: newAnswers,
-            user_id: session?.user?.id ?? 'guest',
+            user_id: guestUserId,
             temp_access_token: session?.user ? null : crypto.randomUUID(),
             temp_access_expires_at: session?.user ? null : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
             guest_email: null // Will be set during purchase
           })
-          .select()
+          .select('*')
           .single();
 
         if (resultError) {
@@ -101,15 +104,21 @@ export const useQuiz = (session: Session | null) => {
 
         if (!session?.user) {
           localStorage.setItem('guestQuizResultId', quizResult.id);
+          localStorage.setItem('guestUserId', guestUserId);
         }
 
-        updateState({
+        const updates: Partial<QuizState> = {
           answers: newAnswers,
           personalityType,
           currentStep: "results",
-          progress: 100,
-          quizResultId: quizResult.id
-        });
+          progress: 100
+        };
+
+        if (quizResult?.id) {
+          updates.quizResultId = quizResult.id;
+        }
+
+        updateState(updates);
 
         // Update quiz progress for logged-in users
         if (session?.user) {
