@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Clock } from "lucide-react";
@@ -17,15 +18,20 @@ export const PurchaseNotification = () => {
 
   useEffect(() => {
     const fetchRandomPurchase = async () => {
+      console.log('Fetching random purchase...');
       const { data, error } = await supabase
         .rpc('get_random_purchase_notification')
         .maybeSingle();
+
+      console.log('Fetch result:', { data, error });
 
       if (data && !error) {
         // Transform product_type if it's "detailed analysis"
         const purchase = {
           ...data,
-          product_type: data.product_type.toLowerCase() === "detailed analysis" ? "Full Report" : data.product_type
+          product_type: data.product_type.toLowerCase() === "detailed analysis" ? "Full Report" : data.product_type,
+          // Ensure time_ago_minutes is a number
+          time_ago_minutes: typeof data.time_ago_minutes === 'number' ? data.time_ago_minutes : 5
         };
         setCurrentPurchase(purchase);
         setIsVisible(true);
