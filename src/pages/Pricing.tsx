@@ -59,7 +59,7 @@ const Pricing = () => {
   const handleSubscribe = async (priceId: string, paymentType: "payment" | "subscription" = "subscription") => {
     setLoading(priceId);
     try {
-      const response = await supabase.functions.invoke('create-checkout-session', {
+      const response = await supabase.functions.invoke('create-subscription', {
         body: { 
           priceId,
           mode: paymentType
