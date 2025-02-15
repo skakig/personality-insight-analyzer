@@ -20,4 +20,5 @@ export interface QuizState {
   answers: Record<string, number>;
   personalityType: string | null;
   progress: number;
+  quizResultId?: string;
 }

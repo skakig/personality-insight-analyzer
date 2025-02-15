@@ -80,15 +80,16 @@ export const useQuiz = (session: Session | null) => {
         const answersArray = Object.values(newAnswers);
         const personalityType = calculatePersonalityType(answersArray);
         
-        // Create quiz result in database
+        // Create quiz result with temporary access token for guests
         const { data: quizResult, error: resultError } = await supabase
           .from('quiz_results')
           .insert({
             personality_type: personalityType,
             answers: newAnswers,
-            user_id: session?.user?.id || 'guest',
-            temp_access_token: crypto.randomUUID(),
-            temp_access_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours
+            user_id: session?.user?.id ?? 'guest',
+            temp_access_token: session?.user ? null : crypto.randomUUID(),
+            temp_access_expires_at: session?.user ? null : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
+            guest_email: null // Will be set during purchase
           })
           .select()
           .single();
@@ -98,11 +99,10 @@ export const useQuiz = (session: Session | null) => {
           throw resultError;
         }
 
-        // Store result ID in localStorage for guest users
         if (!session?.user) {
           localStorage.setItem('guestQuizResultId', quizResult.id);
         }
-        
+
         updateState({
           answers: newAnswers,
           personalityType,
@@ -111,6 +111,7 @@ export const useQuiz = (session: Session | null) => {
           quizResultId: quizResult.id
         });
 
+        // Update quiz progress for logged-in users
         if (session?.user) {
           try {
             const { error: progressError } = await supabase
@@ -125,7 +126,6 @@ export const useQuiz = (session: Session | null) => {
               console.error('Error updating quiz progress:', progressError);
               throw progressError;
             }
-
           } catch (error: any) {
             console.error('Error saving progress:', {
               error,

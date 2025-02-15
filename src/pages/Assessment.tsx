@@ -14,7 +14,6 @@ const Assessment = () => {
   useEffect(() => {
     const fetchResult = async () => {
       try {
-        // Check if we have a valid ID
         if (!id || id === ':id?') {
           toast({
             title: "Invalid assessment ID",
@@ -25,15 +24,9 @@ const Assessment = () => {
           return;
         }
 
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          toast({
-            title: "Authentication required",
-            description: "Please sign in to view your results",
-            variant: "destructive",
-          });
-          return;
-        }
+        // Check for guest access via localStorage
+        const guestQuizResultId = localStorage.getItem('guestQuizResultId');
+        const isGuestAccess = guestQuizResultId === id;
 
         const { data, error } = await supabase
           .from('quiz_results')
@@ -52,7 +45,7 @@ const Assessment = () => {
           return;
         }
 
-        // If success parameter is present, show success message
+        // Handle successful purchase
         if (searchParams.get('success') === 'true') {
           toast({
             title: "Purchase successful!",
