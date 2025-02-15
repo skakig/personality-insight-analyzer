@@ -47,7 +47,7 @@ serve(async (req) => {
       },
       allow_promotion_codes: true,
       billing_address_collection: 'required',
-      customer_creation: 'always',
+      // Remove customer_creation for subscription mode
     });
 
     console.log('Created Stripe session:', session.id);
