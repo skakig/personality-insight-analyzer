@@ -14,50 +14,42 @@ serve(async (req) => {
   }
 
   try {
-    const { priceId, mode = 'subscription' } = await req.json();
+    const { priceId, mode = 'subscription', email = null } = await req.json();
     if (!priceId) {
       throw new Error('Price ID is required');
-    }
-
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-    );
-
-    const authHeader = req.headers.get('Authorization')!;
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user } } = await supabaseClient.auth.getUser(token);
-
-    if (!user?.email) {
-      throw new Error('User email not found');
     }
 
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
       apiVersion: '2023-10-16',
     });
 
-    // Check if customer exists
-    const customers = await stripe.customers.list({
-      email: user.email,
-      limit: 1,
-    });
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
-    let customerId = customers.data[0]?.id;
+    // Create a guest purchase record if no authenticated user
+    let guestPurchaseId;
+    if (!email) {
+      const { data: guestPurchase, error: insertError } = await supabaseAdmin
+        .from('guest_purchases')
+        .insert({
+          purchase_type: 'subscription',
+          price_id: priceId,
+        })
+        .select()
+        .single();
 
-    // Create customer if doesn't exist
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        metadata: {
-          supabaseUid: user.id,
-        },
-      });
-      customerId = customer.id;
+      if (insertError) {
+        console.error('Error creating guest purchase:', insertError);
+        throw new Error('Failed to create guest purchase record');
+      }
+
+      guestPurchaseId = guestPurchase.id;
     }
 
-    // Create checkout session with the correct mode (payment or subscription)
+    // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
-      customer: customerId,
       line_items: [
         {
           price: priceId,
@@ -66,8 +58,20 @@ serve(async (req) => {
       ],
       mode: mode as 'payment' | 'subscription',
       success_url: `${req.headers.get('origin')}/dashboard?success=true`,
-      cancel_url: `${req.headers.get('origin')}/dashboard?success=false`,
+      cancel_url: `${req.headers.get('origin')}/pricing?canceled=true`,
+      ...(email && { customer_email: email }),
+      metadata: {
+        ...(guestPurchaseId && { guestPurchaseId, isGuest: 'true' }),
+      },
     });
+
+    // Update guest purchase with Stripe session ID if applicable
+    if (guestPurchaseId) {
+      await supabaseAdmin
+        .from('guest_purchases')
+        .update({ stripe_session_id: session.id })
+        .eq('id', guestPurchaseId);
+    }
 
     return new Response(
       JSON.stringify({ url: session.url }),

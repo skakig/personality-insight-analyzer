@@ -152,30 +152,36 @@ export type Database = {
           email: string
           id: string
           metadata: Json | null
+          price_id: string | null
           purchase_type: string
           result_id: string | null
           status: string | null
           stripe_session_id: string | null
+          subscription_id: string | null
         }
         Insert: {
           created_at?: string
           email: string
           id?: string
           metadata?: Json | null
+          price_id?: string | null
           purchase_type: string
           result_id?: string | null
           status?: string | null
           stripe_session_id?: string | null
+          subscription_id?: string | null
         }
         Update: {
           created_at?: string
           email?: string
           id?: string
           metadata?: Json | null
+          price_id?: string | null
           purchase_type?: string
           result_id?: string | null
           status?: string | null
           stripe_session_id?: string | null
+          subscription_id?: string | null
         }
         Relationships: [
           {
