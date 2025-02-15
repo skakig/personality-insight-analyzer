@@ -31,14 +31,15 @@ serve(async (req) => {
       apiVersion: '2023-10-16',
     });
 
-    const session = await stripe.checkout.sessions.create({
+    // Create a basic checkout session configuration
+    const sessionConfig = {
       line_items: [
         {
           price: priceId,
           quantity: 1,
         },
       ],
-      mode: mode,
+      mode,
       success_url: `${req.headers.get('origin')}/dashboard?success=true`,
       cancel_url: `${req.headers.get('origin')}/pricing?canceled=true`,
       metadata: {
@@ -47,8 +48,19 @@ serve(async (req) => {
       },
       allow_promotion_codes: true,
       billing_address_collection: 'required',
-      // Remove customer_creation for subscription mode
-    });
+    };
+
+    // Add payment_method_types for subscriptions
+    if (mode === 'subscription') {
+      Object.assign(sessionConfig, {
+        payment_method_types: ['card'],
+        subscription_data: {
+          trial_period_days: 14 // Optional: Add a trial period
+        }
+      });
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionConfig);
 
     console.log('Created Stripe session:', session.id);
 
