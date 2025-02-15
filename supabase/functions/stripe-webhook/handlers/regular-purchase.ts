@@ -36,6 +36,18 @@ export async function handleRegularPurchase(session: any) {
         });
     }
 
+    // Update quiz result access
+    if (metadata?.resultId) {
+      await supabase
+        .from('quiz_results')
+        .update({ 
+          is_purchased: true,
+          is_detailed: true,
+          access_method: 'purchase'
+        })
+        .eq('id', metadata.resultId);
+    }
+
     // Send purchase confirmation email
     await resend.emails.send({
       from: "The Moral Hierarchy <onboarding@resend.dev>",
@@ -50,7 +62,8 @@ export async function handleRegularPurchase(session: any) {
           <li>Plan: ${metadata?.plan_type || 'Pro'}</li>
           <li>Amount: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</li>
         </ul>
-        <p>You can now access all features by logging into your dashboard.</p>
+        <p>You can now access your full report by visiting:</p>
+        <p><a href="${Deno.env.get('SITE_URL')}/assessment/${metadata?.resultId}">View Your Full Report</a></p>
         <p>If you have any questions, please don't hesitate to contact us.</p>
       `
     });
