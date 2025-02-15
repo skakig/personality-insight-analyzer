@@ -57,27 +57,12 @@ const Pricing = () => {
   const [loading, setLoading] = useState("");
 
   const handleSubscribe = async (priceId: string, paymentType: "payment" | "subscription" = "subscription") => {
-    const session = await supabase.auth.getSession();
-    if (!session.data.session) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to subscribe to a plan",
-        variant: "destructive",
-      });
-      navigate("/auth");
-      return;
-    }
-
     setLoading(priceId);
     try {
       const response = await supabase.functions.invoke('create-subscription', {
         body: { 
           priceId,
-          userId: session.data.session.user.id,
           mode: paymentType // This will be either "payment" or "subscription"
-        },
-        headers: {
-          Authorization: `Bearer ${session.data.session.access_token}`
         }
       });
 
