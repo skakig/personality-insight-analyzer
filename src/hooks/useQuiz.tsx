@@ -80,28 +80,39 @@ export const useQuiz = (session: Session | null) => {
         const answersArray = Object.values(newAnswers);
         const personalityType = calculatePersonalityType(answersArray);
         
+        // Create quiz result in database
+        const { data: quizResult, error: resultError } = await supabase
+          .from('quiz_results')
+          .insert({
+            personality_type: personalityType,
+            answers: newAnswers,
+            user_id: session?.user?.id || 'guest',
+            temp_access_token: crypto.randomUUID(),
+            temp_access_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours
+          })
+          .select()
+          .single();
+
+        if (resultError) {
+          console.error('Error saving quiz results:', resultError);
+          throw resultError;
+        }
+
+        // Store result ID in localStorage for guest users
+        if (!session?.user) {
+          localStorage.setItem('guestQuizResultId', quizResult.id);
+        }
+        
         updateState({
           answers: newAnswers,
           personalityType,
           currentStep: "results",
-          progress: 100
+          progress: 100,
+          quizResultId: quizResult.id
         });
 
         if (session?.user) {
           try {
-            const { error: resultsError } = await supabase
-              .from('quiz_results')
-              .insert({
-                user_id: session.user.id,
-                personality_type: personalityType,
-                answers: newAnswers
-              });
-
-            if (resultsError) {
-              console.error('Error saving quiz results:', resultsError);
-              throw resultsError;
-            }
-
             const { error: progressError } = await supabase
               .from('quiz_progress')
               .upsert({
@@ -116,7 +127,7 @@ export const useQuiz = (session: Session | null) => {
             }
 
           } catch (error: any) {
-            console.error('Error saving results:', {
+            console.error('Error saving progress:', {
               error,
               userId: session.user.id,
               personalityType
