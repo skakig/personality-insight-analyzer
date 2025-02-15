@@ -1,24 +1,22 @@
 
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { PriceDisplay } from "./pricing/PriceDisplay";
+import { EmailDialog } from "./pricing/EmailDialog";
+import { PricingFooter } from "./pricing/PricingFooter";
 
 interface PricingSectionProps {
   session: any;
 }
 
 export const PricingSection = ({ session }: PricingSectionProps) => {
-  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleGetDetailedResults = async () => {
     if (session) {
-      // If user is logged in, proceed with regular checkout
       try {
         const response = await fetch('/api/create-checkout-session', {
           method: 'POST',
@@ -40,7 +38,6 @@ export const PricingSection = ({ session }: PricingSectionProps) => {
         });
       }
     } else {
-      // If user is not logged in, open email dialog
       setIsEmailDialogOpen(true);
     }
   };
@@ -74,7 +71,7 @@ export const PricingSection = ({ session }: PricingSectionProps) => {
         },
         body: JSON.stringify({ 
           email,
-          priceAmount: 1499, // $14.99 in cents
+          priceAmount: 1499,
         }),
       });
 
@@ -96,13 +93,7 @@ export const PricingSection = ({ session }: PricingSectionProps) => {
 
   return (
     <div className="text-center pt-6">
-      <div className="mb-8">
-        <p className="text-3xl font-bold mb-2">
-          <span className="text-primary line-through opacity-75">$29.99</span>
-          <span className="ml-3">$14.99</span>
-        </p>
-        <p className="text-sm text-gray-500">Limited Time Offer</p>
-      </div>
+      <PriceDisplay originalPrice="$29.99" discountedPrice="$14.99" />
       
       <Button
         onClick={handleGetDetailedResults}
@@ -112,37 +103,16 @@ export const PricingSection = ({ session }: PricingSectionProps) => {
         Get Your Full Report Now
       </Button>
       
-      <div className="mt-4 space-y-2">
-        <p className="text-sm text-gray-500">
-          30-day money-back guarantee
-        </p>
-        <p className="text-xs text-gray-400">
-          Your growth journey starts here. Join thousands of leaders who have transformed their approach to ethical decision-making.
-        </p>
-      </div>
+      <PricingFooter />
 
-      <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Enter your email to continue</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <Input
-              type="email"
-              placeholder="Email address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <Button 
-              onClick={handleGuestCheckout}
-              className="w-full"
-              disabled={loading}
-            >
-              {loading ? "Processing..." : "Continue to Checkout"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <EmailDialog
+        isOpen={isEmailDialogOpen}
+        onOpenChange={setIsEmailDialogOpen}
+        email={email}
+        onEmailChange={(e) => setEmail(e.target.value)}
+        onSubmit={handleGuestCheckout}
+        loading={loading}
+      />
     </div>
   );
 };
