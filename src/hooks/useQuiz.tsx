@@ -6,6 +6,7 @@ import { calculatePersonalityType } from "@/utils/personalityCalculator";
 import { fetchQuizQuestions } from "@/utils/quizUtils";
 import { useQuizState } from "./useQuizState";
 import { supabase } from "@/integrations/supabase/client";
+import { QuizState } from "@/types/quiz"; // Add this import
 
 export const useQuiz = (session: Session | null) => {
   const { state, updateState, setQuestions, setError, updateProgress } = useQuizState();
