@@ -203,7 +203,9 @@ export type Database = {
           status: string
           stripe_customer_id: string | null
           stripe_price_id: string | null
+          stripe_session_id: string | null
           stripe_subscription_id: string | null
+          temp_access_token: string | null
           updated_at: string
         }
         Insert: {
@@ -215,7 +217,9 @@ export type Database = {
           status?: string
           stripe_customer_id?: string | null
           stripe_price_id?: string | null
+          stripe_session_id?: string | null
           stripe_subscription_id?: string | null
+          temp_access_token?: string | null
           updated_at?: string
         }
         Update: {
@@ -227,10 +231,20 @@ export type Database = {
           status?: string
           stripe_customer_id?: string | null
           stripe_price_id?: string | null
+          stripe_session_id?: string | null
           stripe_subscription_id?: string | null
+          temp_access_token?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "guest_subscriptions_temp_access_token_fkey"
+            columns: ["temp_access_token"]
+            isOneToOne: false
+            referencedRelation: "temp_access_tokens"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       newsletter_subscribers: {
         Row: {
@@ -608,6 +622,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      temp_access_tokens: {
+        Row: {
+          created_at: string | null
+          email: string
+          expires_at: string
+          id: string
+          token: string
+          updated_at: string | null
+          used: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          expires_at?: string
+          id?: string
+          token: string
+          updated_at?: string | null
+          used?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          expires_at?: string
+          id?: string
+          token?: string
+          updated_at?: string | null
+          used?: boolean | null
+        }
+        Relationships: []
       }
     }
     Views: {
