@@ -53,10 +53,7 @@ serve(async (req) => {
     // Add payment_method_types for subscriptions
     if (mode === 'subscription') {
       Object.assign(sessionConfig, {
-        payment_method_types: ['card'],
-        subscription_data: {
-          trial_period_days: 14 // Optional: Add a trial period
-        }
+        payment_method_types: ['card']
       });
     }
 
