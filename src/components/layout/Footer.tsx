@@ -52,7 +52,10 @@ export const Footer = () => {
         }
       );
 
-      if (!response.ok) throw new Error("Failed to send welcome email");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to send welcome email");
+      }
 
       toast({
         title: "Success!",
@@ -137,7 +140,7 @@ export const Footer = () => {
         {/* Bottom Section */}
         <div className="pt-8 border-t">
           <div className="text-center space-y-6">
-            <p className="text-gray-600">TheMoralHierarchy.com © 2024 – All Rights Reserved.</p>
+            <p className="text-gray-600">TheMoralHierarchy.com © {new Date().getFullYear()} – All Rights Reserved.</p>
             <div className="space-y-4">
               <p className="text-gray-900 font-medium">Strive for moral clarity. Take the test today.</p>
               <Button 
