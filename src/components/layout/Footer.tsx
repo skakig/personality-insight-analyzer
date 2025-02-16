@@ -46,7 +46,6 @@ export const Footer = () => {
 
     setLoading(true);
     try {
-      // First check if email exists
       const { data: existingSubscriber } = await supabase
         .from('newsletter_subscribers')
         .select('email')
@@ -65,7 +64,6 @@ export const Footer = () => {
         return;
       }
 
-      // Proceed with subscription if email doesn't exist
       const { error: insertError } = await supabase
         .from('newsletter_subscribers')
         .insert([{ email }]);
@@ -85,11 +83,9 @@ export const Footer = () => {
         throw insertError;
       }
 
-      // Get session and send welcome email
       const { data: { session } } = await supabase.auth.getSession();
 
       try {
-        // Send welcome email with better error logging
         console.log('Sending welcome email to:', email);
         const response = await fetch(
           "https://caebnpbdprrptogirxky.supabase.co/functions/v1/send-welcome-email",
@@ -111,10 +107,8 @@ export const Footer = () => {
         console.log('Welcome email sent successfully:', responseData);
       } catch (emailError) {
         console.error('Welcome email error:', emailError);
-        // Don't throw here - we still want to show subscription success
       }
 
-      // Show success state
       setIsSubscribed(true);
       setIsAlreadySubscribed(false);
       toast({
@@ -136,21 +130,26 @@ export const Footer = () => {
   };
 
   const handleStartJourney = () => {
-    navigate("/");
-    // Trigger the quiz start after a short delay to ensure navigation is complete
-    setTimeout(() => {
+    if (window.location.pathname === '/') {
       const startQuizButton = document.querySelector('button[data-start-quiz]');
       if (startQuizButton instanceof HTMLButtonElement) {
         startQuizButton.click();
       }
-    }, 100);
+    } else {
+      navigate("/");
+      setTimeout(() => {
+        const startQuizButton = document.querySelector('button[data-start-quiz]');
+        if (startQuizButton instanceof HTMLButtonElement) {
+          startQuizButton.click();
+        }
+      }, 500);
+    }
   };
 
   return (
     <footer className="border-t bg-white/80 backdrop-blur-sm">
       <div className="container mx-auto px-4 py-12 md:py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
-          {/* Quick Links */}
           <div>
             <h3 className="font-semibold text-gray-900 mb-4">Quick Links</h3>
             <ul className="space-y-3">
@@ -162,7 +161,6 @@ export const Footer = () => {
             </ul>
           </div>
 
-          {/* Legal Links */}
           <div>
             <h3 className="font-semibold text-gray-900 mb-4">Legal</h3>
             <ul className="space-y-3">
@@ -172,7 +170,6 @@ export const Footer = () => {
             </ul>
           </div>
 
-          {/* Newsletter Signup */}
           <div>
             <h3 className="font-semibold text-gray-900 mb-4">Stay Updated</h3>
             {isSubscribed ? (
@@ -213,7 +210,6 @@ export const Footer = () => {
             )}
           </div>
 
-          {/* Social Media */}
           <div>
             <h3 className="font-semibold text-gray-900 mb-4">Connect With Us</h3>
             <div className="flex gap-4">
@@ -233,7 +229,6 @@ export const Footer = () => {
           </div>
         </div>
 
-        {/* Bottom Section */}
         <div className="pt-8 border-t">
           <div className="text-center space-y-6">
             <p className="text-gray-600">TheMoralHierarchy.com © {new Date().getFullYear()} – All Rights Reserved.</p>
