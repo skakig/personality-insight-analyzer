@@ -12,26 +12,11 @@ export const Footer = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const validateEmail = (email: string) => {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
-  };
-
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!email) {
       toast({
         title: "Please enter your email",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!validateEmail(email)) {
-      toast({
-        title: "Invalid email format",
-        description: "Please enter a valid email address.",
         variant: "destructive",
       });
       return;
