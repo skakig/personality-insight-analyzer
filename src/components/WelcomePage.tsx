@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { ArrowRight, CheckCircle2, Brain, Target, Lightbulb, Clock, FileText, Zap } from "lucide-react";
@@ -40,7 +39,7 @@ export const WelcomePage = ({ onStart }: { onStart: () => void }) => {
             <Button 
               onClick={onStart}
               size="lg"
-              className="text-lg px-8 py-6 rounded-full bg-white text-primary hover:bg-opacity-90 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+              className="text-lg px-8 py-6 rounded-full bg-white text-primary hover:bg-white/90 hover:text-primary/90 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
             >
               Start Free Assessment
               <ArrowRight className="ml-2 h-5 w-5" />
@@ -186,7 +185,7 @@ export const WelcomePage = ({ onStart }: { onStart: () => void }) => {
               <Button 
                 onClick={onStart}
                 size="lg"
-                className="text-lg px-8 py-6 rounded-full bg-white text-primary hover:bg-opacity-90 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                className="text-lg px-8 py-6 rounded-full bg-white text-primary hover:bg-white/90 hover:text-primary/90 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
               >
                 Start Free Assessment
                 <ArrowRight className="ml-2 h-5 w-5" />
