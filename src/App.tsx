@@ -21,17 +21,16 @@ import { CookieConsent } from "./components/CookieConsent";
 import { Session } from '@supabase/supabase-js';
 import { useState, useEffect } from 'react';
 import { supabase } from "@/integrations/supabase/client";
+import { Footer } from "@/components/layout/Footer";
 
 const App = () => {
   const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
 
-    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -42,30 +41,33 @@ const App = () => {
   }, []);
 
   return (
-    <>
+    <div className="flex flex-col min-h-screen">
       <Router>
         <SiteHeader />
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/faq" element={<FAQ />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/terms" element={<Terms />} />
-          <Route path="/refund" element={<Refund />} />
-          <Route
-            path="/dashboard"
-            element={
-              <RequireAuth>
-                <Dashboard session={session} />
-              </RequireAuth>
-            }
-          />
-          <Route path="/login" element={<LoginPage />} />
-        </Routes>
+        <main className="flex-grow">
+          <Routes>
+            <Route path="/" element={<Index session={session} />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/faq" element={<FAQ />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/refund" element={<Refund />} />
+            <Route
+              path="/dashboard"
+              element={
+                <RequireAuth>
+                  <Dashboard session={session} />
+                </RequireAuth>
+              }
+            />
+            <Route path="/login" element={<LoginPage />} />
+          </Routes>
+        </main>
+        <Footer />
       </Router>
       <CookieConsent />
-    </>
+    </div>
   );
 };
 
