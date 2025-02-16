@@ -12,6 +12,7 @@ export const Footer = () => {
   const [loading, setLoading] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [emailError, setEmailError] = useState("");
+  const [isAlreadySubscribed, setIsAlreadySubscribed] = useState(false);
   const navigate = useNavigate();
 
   const validateEmail = (email: string) => {
@@ -55,6 +56,7 @@ export const Footer = () => {
 
       if (existingSubscriber) {
         setIsSubscribed(true);
+        setIsAlreadySubscribed(true);
         toast({
           title: "Already Subscribed",
           description: "This email is already subscribed to our newsletter.",
@@ -72,6 +74,7 @@ export const Footer = () => {
       if (insertError) {
         if (insertError.code === '23505') {
           setIsSubscribed(true);
+          setIsAlreadySubscribed(true);
           toast({
             title: "Already Subscribed",
             description: "This email is already subscribed to our newsletter.",
@@ -114,6 +117,7 @@ export const Footer = () => {
 
       // Show success state
       setIsSubscribed(true);
+      setIsAlreadySubscribed(false);
       toast({
         title: "Successfully Subscribed! 🎉",
         description: "Thank you for joining our newsletter. Watch your inbox for updates!",
@@ -173,7 +177,11 @@ export const Footer = () => {
             {isSubscribed ? (
               <div className="bg-green-50 rounded-lg p-4 text-green-800 flex items-center space-x-2">
                 <Check className="h-5 w-5 text-green-600" />
-                <p>Thank you for subscribing! Check your email for updates.</p>
+                <p>
+                  {isAlreadySubscribed 
+                    ? "You've already subscribed to our newsletter!"
+                    : "Thank you for subscribing! Check your email for updates."}
+                </p>
               </div>
             ) : (
               <>
