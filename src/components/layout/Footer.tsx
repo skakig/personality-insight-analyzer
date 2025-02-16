@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -53,6 +54,7 @@ export const Footer = () => {
         .maybeSingle();
 
       if (existingSubscriber) {
+        setIsSubscribed(true);
         toast({
           title: "Already Subscribed",
           description: "This email is already subscribed to our newsletter.",
@@ -69,6 +71,7 @@ export const Footer = () => {
 
       if (insertError) {
         if (insertError.code === '23505') {
+          setIsSubscribed(true);
           toast({
             title: "Already Subscribed",
             description: "This email is already subscribed to our newsletter.",
@@ -83,21 +86,30 @@ export const Footer = () => {
       // Get session and send welcome email
       const { data: { session } } = await supabase.auth.getSession();
 
-      // Send welcome email
-      const response = await fetch(
-        "https://caebnpbdprrptogirxky.supabase.co/functions/v1/send-welcome-email",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({ email }),
-        }
-      );
+      try {
+        // Send welcome email with better error logging
+        console.log('Sending welcome email to:', email);
+        const response = await fetch(
+          "https://caebnpbdprrptogirxky.supabase.co/functions/v1/send-welcome-email",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${session?.access_token}`,
+            },
+            body: JSON.stringify({ email }),
+          }
+        );
 
-      if (!response.ok) {
-        console.error('Welcome email error:', await response.json());
+        const responseData = await response.json();
+        if (!response.ok) {
+          console.error('Welcome email error:', responseData);
+          throw new Error('Failed to send welcome email');
+        }
+        console.log('Welcome email sent successfully:', responseData);
+      } catch (emailError) {
+        console.error('Welcome email error:', emailError);
+        // Don't throw here - we still want to show subscription success
       }
 
       // Show success state
@@ -117,6 +129,15 @@ export const Footer = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleStartJourney = () => {
+    navigate("/");
+    // Trigger the quiz start
+    const startQuizButton = document.querySelector('button[data-start-quiz]');
+    if (startQuizButton instanceof HTMLButtonElement) {
+      startQuizButton.click();
     }
   };
 
@@ -210,7 +231,7 @@ export const Footer = () => {
             <div className="space-y-4">
               <p className="text-gray-900 font-medium">Strive for moral clarity. Take the test today.</p>
               <Button 
-                onClick={() => navigate("/")} 
+                onClick={handleStartJourney} 
                 variant="outline" 
                 className="group"
               >
