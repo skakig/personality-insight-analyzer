@@ -22,6 +22,7 @@ import { Session } from '@supabase/supabase-js';
 import { useState, useEffect } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { Footer } from "@/components/layout/Footer";
+import { Question } from "@/components/Question";
 
 const App = () => {
   const [session, setSession] = useState<Session | null>(null);
@@ -53,6 +54,7 @@ const App = () => {
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/refund" element={<Refund />} />
+            <Route path="/test" element={<Question />} />
             <Route
               path="/dashboard"
               element={
