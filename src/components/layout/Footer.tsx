@@ -34,14 +34,14 @@ export const Footer = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase
+      // Check if email exists using maybeSingle() instead of single()
+      const { data: existingSubscriber } = await supabase
         .from('newsletter_subscribers')
         .select('email')
         .eq('email', email)
-        .single();
+        .maybeSingle();
 
-      if (!error) {
-        // Email already exists
+      if (existingSubscriber) {
         toast({
           title: "Already subscribed",
           description: "This email is already subscribed to our newsletter.",
@@ -57,23 +57,36 @@ export const Footer = () => {
         .from('newsletter_subscribers')
         .insert([{ email }]);
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        // Handle duplicate key error specifically
+        if (insertError.code === '23505') {
+          toast({
+            title: "Already subscribed",
+            description: "This email is already subscribed to our newsletter.",
+            variant: "default",
+          });
+          setEmail("");
+          return;
+        }
+        throw insertError;
+      }
 
-      // Send welcome email
+      // Send welcome email with authorization header
       const response = await fetch(
         "https://caebnpbdprrptogirxky.supabase.co/functions/v1/send-welcome-email",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Authorization": `Bearer ${supabase.auth.getSession()?.access_token}`,
           },
           body: JSON.stringify({ email }),
         }
       );
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to send welcome email");
+        console.error('Welcome email error:', await response.json());
+        // Don't throw here - we still want to show success for the subscription
       }
 
       toast({
@@ -82,21 +95,12 @@ export const Footer = () => {
       });
       setEmail("");
     } catch (error: any) {
-      // Handle specific error cases
-      if (error?.message?.includes('duplicate key')) {
-        toast({
-          title: "Already subscribed",
-          description: "This email is already subscribed to our newsletter.",
-          variant: "default",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to subscribe. Please try again.",
-          variant: "destructive",
-        });
-      }
       console.error('Subscription error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to subscribe. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
