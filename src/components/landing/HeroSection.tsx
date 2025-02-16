@@ -4,6 +4,17 @@ import { motion } from "framer-motion";
 import { ArrowRight, CheckCircle2, Brain, Target, Lightbulb, Zap } from "lucide-react";
 
 export const HeroSection = ({ onStart }: { onStart: () => void }) => {
+  const handleStartClick = () => {
+    const button = document.querySelector('#start-assessment-btn');
+    if (button) {
+      button.setAttribute('disabled', 'true');
+      // Add loading state with animation
+      button.classList.add('animate-pulse');
+    }
+    // Call the actual onStart handler
+    onStart();
+  };
+
   return (
     <motion.section 
       initial={{ opacity: 0 }}
@@ -11,6 +22,22 @@ export const HeroSection = ({ onStart }: { onStart: () => void }) => {
       className="relative min-h-[80vh] bg-gradient-to-br from-primary/90 via-primary/80 to-secondary/70 flex items-center"
     >
       <div className="container mx-auto px-4 pt-16 pb-24 text-center relative z-10">
+        {/* Schema.org structured data for better SEO */}
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            "name": "The Moral Hierarchy Assessment",
+            "description": "Discover your moral development level through our scientifically-backed assessment.",
+            "applicationCategory": "Assessment",
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            }
+          })}
+        </script>
+
         <motion.h1 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -36,9 +63,11 @@ export const HeroSection = ({ onStart }: { onStart: () => void }) => {
           className="space-y-8"
         >
           <Button 
-            onClick={onStart}
+            id="start-assessment-btn"
+            onClick={handleStartClick}
             size="lg"
             className="text-xl px-12 py-8 rounded-full bg-white text-primary hover:bg-white/90 hover:text-primary/90 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold w-full md:w-auto max-w-lg"
+            aria-label="Start free moral development assessment"
           >
             Start Free Assessment
             <ArrowRight className="ml-2 h-6 w-6" />
