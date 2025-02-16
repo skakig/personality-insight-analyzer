@@ -1,32 +1,43 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
-import { Twitter, Instagram, Linkedin, Youtube, ArrowRight } from "lucide-react";
+import { Twitter, Instagram, Linkedin, Youtube, ArrowRight, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Footer = () => {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [emailError, setEmailError] = useState("");
   const navigate = useNavigate();
+
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+    if (!email) {
+      return "Please enter your email address";
+    }
+    if (!emailRegex.test(email)) {
+      return "Please enter a valid email address (e.g., name@example.com)";
+    }
+    return "";
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newEmail = e.target.value;
+    setEmail(newEmail);
+    setEmailError(validateEmail(newEmail));
+  };
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) {
+    const error = validateEmail(email);
+    if (error) {
+      setEmailError(error);
       toast({
-        title: "Please enter your email",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
-    if (!emailRegex.test(email)) {
-      toast({
-        title: "Invalid email format",
-        description: "Please enter a valid email address.",
+        title: "Invalid Email",
+        description: error,
         variant: "destructive",
       });
       return;
@@ -34,18 +45,32 @@ export const Footer = () => {
 
     setLoading(true);
     try {
-      // Attempt to insert directly and handle any duplicate key errors
+      // First check if email exists
+      const { data: existingSubscriber } = await supabase
+        .from('newsletter_subscribers')
+        .select('email')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (existingSubscriber) {
+        toast({
+          title: "Already Subscribed",
+          description: "This email is already subscribed to our newsletter.",
+          variant: "default",
+        });
+        setEmail("");
+        return;
+      }
+
+      // Proceed with subscription if email doesn't exist
       const { error: insertError } = await supabase
         .from('newsletter_subscribers')
-        .insert([{ email }])
-        .select()
-        .single();
+        .insert([{ email }]);
 
       if (insertError) {
-        // Handle duplicate key error specifically
         if (insertError.code === '23505') {
           toast({
-            title: "Already subscribed",
+            title: "Already Subscribed",
             description: "This email is already subscribed to our newsletter.",
             variant: "default",
           });
@@ -58,7 +83,7 @@ export const Footer = () => {
       // Get session and send welcome email
       const { data: { session } } = await supabase.auth.getSession();
 
-      // Send welcome email with authorization header
+      // Send welcome email
       const response = await fetch(
         "https://caebnpbdprrptogirxky.supabase.co/functions/v1/send-welcome-email",
         {
@@ -73,19 +98,21 @@ export const Footer = () => {
 
       if (!response.ok) {
         console.error('Welcome email error:', await response.json());
-        // Don't throw here - we still want to show success for the subscription
       }
 
+      // Show success state
+      setIsSubscribed(true);
       toast({
-        title: "Success!",
-        description: "Thank you for subscribing to our newsletter.",
+        title: "Successfully Subscribed! 🎉",
+        description: "Thank you for joining our newsletter. Watch your inbox for updates!",
+        variant: "default",
       });
       setEmail("");
     } catch (error: any) {
       console.error('Subscription error:', error);
       toast({
-        title: "Error",
-        description: "Failed to subscribe. Please try again.",
+        title: "Subscription Failed",
+        description: "We couldn't subscribe you at this moment. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -122,19 +149,38 @@ export const Footer = () => {
           {/* Newsletter Signup */}
           <div>
             <h3 className="font-semibold text-gray-900 mb-4">Stay Updated</h3>
-            <p className="text-gray-600 mb-4">Subscribe for insights on self-improvement & moral growth!</p>
-            <form onSubmit={handleSubscribe} className="space-y-2">
-              <Input
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="bg-white"
-              />
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Subscribing..." : "Subscribe"}
-              </Button>
-            </form>
+            {isSubscribed ? (
+              <div className="bg-green-50 rounded-lg p-4 text-green-800 flex items-center space-x-2">
+                <Check className="h-5 w-5 text-green-600" />
+                <p>Thank you for subscribing! Check your email for updates.</p>
+              </div>
+            ) : (
+              <>
+                <p className="text-gray-600 mb-4">Subscribe for insights on self-improvement & moral growth!</p>
+                <form onSubmit={handleSubscribe} className="space-y-2">
+                  <div className="space-y-1">
+                    <Input
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={handleEmailChange}
+                      className={`bg-white ${emailError ? 'border-red-500 focus:ring-red-500' : ''}`}
+                      aria-invalid={!!emailError}
+                    />
+                    {emailError && (
+                      <p className="text-sm text-red-500">{emailError}</p>
+                    )}
+                  </div>
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    disabled={loading || !!emailError}
+                  >
+                    {loading ? "Subscribing..." : "Subscribe"}
+                  </Button>
+                </form>
+              </>
+            )}
           </div>
 
           {/* Social Media */}
