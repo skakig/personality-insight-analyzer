@@ -5,8 +5,6 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { Twitter, Instagram, Linkedin, Youtube, ArrowRight, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuiz } from "@/hooks/useQuiz";
-import { useAuth } from "@/hooks/useAuth";
 
 export const Footer = () => {
   const [email, setEmail] = useState("");
@@ -15,8 +13,6 @@ export const Footer = () => {
   const [emailError, setEmailError] = useState("");
   const [isAlreadySubscribed, setIsAlreadySubscribed] = useState(false);
   const navigate = useNavigate();
-  const { session } = useAuth();
-  const { handleStart } = useQuiz(session);
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
@@ -134,10 +130,7 @@ export const Footer = () => {
   };
 
   const handleStartJourney = () => {
-    if (window.location.pathname !== '/') {
-      navigate('/');
-    }
-    handleStart();
+    navigate('/');
   };
 
   return (
@@ -228,9 +221,9 @@ export const Footer = () => {
             <p className="text-gray-600">TheMoralHierarchy.com © {new Date().getFullYear()} – All Rights Reserved.</p>
             <div className="space-y-4">
               <p className="text-gray-900 font-medium">Strive for moral clarity. Take the test today.</p>
-              <Button 
-                onClick={handleStartJourney} 
-                variant="outline" 
+              <Button
+                onClick={() => navigate('/')}
+                variant="outline"
                 className="group"
               >
                 Start Your Moral Journey
