@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -33,28 +34,12 @@ export const Footer = () => {
 
     setLoading(true);
     try {
-      // Check if email exists using maybeSingle() instead of single()
-      const { data: existingSubscriber } = await supabase
-        .from('newsletter_subscribers')
-        .select('email')
-        .eq('email', email)
-        .maybeSingle();
-
-      if (existingSubscriber) {
-        toast({
-          title: "Already subscribed",
-          description: "This email is already subscribed to our newsletter.",
-          variant: "default",
-        });
-        setEmail("");
-        setLoading(false);
-        return;
-      }
-
-      // Email doesn't exist, proceed with subscription
+      // Attempt to insert directly and handle any duplicate key errors
       const { error: insertError } = await supabase
         .from('newsletter_subscribers')
-        .insert([{ email }]);
+        .insert([{ email }])
+        .select()
+        .single();
 
       if (insertError) {
         // Handle duplicate key error specifically
