@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { ArrowRight, CheckCircle2, Brain, Target, Lightbulb, Clock, FileText, Zap } from "lucide-react";
@@ -9,9 +10,9 @@ export const WelcomePage = ({ onStart }: { onStart: () => void }) => {
       <motion.section 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="relative min-h-[90vh] bg-gradient-to-br from-primary/90 via-primary/80 to-secondary/70 flex items-center"
+        className="relative min-h-[80vh] bg-gradient-to-br from-primary/90 via-primary/80 to-secondary/70 flex items-center"
       >
-        <div className="container mx-auto px-4 pt-20 pb-32 text-center relative z-10">
+        <div className="container mx-auto px-4 pt-16 pb-24 text-center relative z-10">
           <motion.h1 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -34,7 +35,7 @@ export const WelcomePage = ({ onStart }: { onStart: () => void }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="space-y-8"
+            className="space-y-6"
           >
             <Button 
               onClick={onStart}
@@ -59,12 +60,37 @@ export const WelcomePage = ({ onStart }: { onStart: () => void }) => {
               ))}
             </div>
 
+            {/* New: Additional Benefits Section */}
+            <div className="mt-8 space-y-4">
+              <p className="text-white text-lg md:text-xl font-medium">
+                Join the community committed to being better today than they were yesterday.
+              </p>
+              <div className="grid md:grid-cols-2 gap-4 max-w-2xl mx-auto text-white/90">
+                <div className="flex items-center gap-2 text-sm md:text-base">
+                  <Brain className="h-5 w-5 flex-shrink-0" />
+                  <span>Understand your unique moral perspective</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm md:text-base">
+                  <Target className="h-5 w-5 flex-shrink-0" />
+                  <span>Set clear goals for personal growth</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm md:text-base">
+                  <Lightbulb className="h-5 w-5 flex-shrink-0" />
+                  <span>Gain insights into your decision-making</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm md:text-base">
+                  <Zap className="h-5 w-5 flex-shrink-0" />
+                  <span>Enhance your leadership potential</span>
+                </div>
+              </div>
+            </div>
+
             {/* Social Proof */}
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 1 }}
-              className="text-white/80 text-sm md:text-base"
+              className="text-white/80 text-sm md:text-base mt-8"
             >
               Join over 50,000+ individuals who have discovered their moral potential
             </motion.div>
