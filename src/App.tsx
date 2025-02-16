@@ -9,6 +9,12 @@ import Dashboard from "./pages/Dashboard";
 import BookLanding from "./pages/BookLanding";
 import Pricing from "./pages/Pricing";
 import { GiftSuccess } from "./pages/GiftSuccess";
+import About from "./pages/About";
+import Contact from "./pages/Contact";
+import FAQ from "./pages/FAQ";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
+import Refund from "./pages/Refund";
 import { useEffect, useState } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -83,6 +89,12 @@ function App() {
             <Route path="/book" element={<BookLanding />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/gift-success" element={<GiftSuccess />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/faq" element={<FAQ />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/refund" element={<Refund />} />
           </Routes>
         </main>
         <PurchaseNotification />
