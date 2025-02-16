@@ -25,7 +25,7 @@ export const HeroSection = ({ onPreOrder }: HeroSectionProps) => {
           <Button 
             size="lg"
             onClick={onPreOrder}
-            className="w-full md:w-auto text-base md:text-lg px-6 md:px-8 py-5 md:py-6 rounded-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-all duration-300"
+            className="w-full md:w-auto text-base md:text-lg px-8 py-6 rounded-full bg-primary text-white hover:bg-primary/90 hover:text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
           >
             Pre-order Now - $29.99
             <ArrowRight className="ml-2 h-5 w-5" />
@@ -33,7 +33,7 @@ export const HeroSection = ({ onPreOrder }: HeroSectionProps) => {
           <Button 
             variant="outline"
             size="lg"
-            className="w-full md:w-auto text-base md:text-lg px-6 md:px-8 py-5 md:py-6 rounded-full hover:bg-gray-50"
+            className="w-full md:w-auto text-base md:text-lg px-8 py-6 rounded-full hover:bg-gray-50 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
           >
             Learn More
             <BookOpen className="ml-2 h-5 w-5" />
