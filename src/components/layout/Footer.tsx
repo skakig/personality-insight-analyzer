@@ -36,9 +36,28 @@ export const Footer = () => {
     try {
       const { error } = await supabase
         .from('newsletter_subscribers')
+        .select('email')
+        .eq('email', email)
+        .single();
+
+      if (!error) {
+        // Email already exists
+        toast({
+          title: "Already subscribed",
+          description: "This email is already subscribed to our newsletter.",
+          variant: "default",
+        });
+        setEmail("");
+        setLoading(false);
+        return;
+      }
+
+      // Email doesn't exist, proceed with subscription
+      const { error: insertError } = await supabase
+        .from('newsletter_subscribers')
         .insert([{ email }]);
 
-      if (error) throw error;
+      if (insertError) throw insertError;
 
       // Send welcome email
       const response = await fetch(
@@ -62,12 +81,22 @@ export const Footer = () => {
         description: "Thank you for subscribing to our newsletter.",
       });
       setEmail("");
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to subscribe. Please try again.",
-        variant: "destructive",
-      });
+    } catch (error: any) {
+      // Handle specific error cases
+      if (error?.message?.includes('duplicate key')) {
+        toast({
+          title: "Already subscribed",
+          description: "This email is already subscribed to our newsletter.",
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to subscribe. Please try again.",
+          variant: "destructive",
+        });
+      }
+      console.error('Subscription error:', error);
     } finally {
       setLoading(false);
     }
