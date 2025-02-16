@@ -1,9 +1,9 @@
 
-import { BenefitsList } from "./purchase/BenefitsList";
-import { PurchaseButton } from "./purchase/PurchaseButton";
-import { EmailPurchaseDialog } from "./purchase/EmailPurchaseDialog";
-import { GiftPurchaseDialog } from "./purchase/GiftPurchaseDialog";
-import { usePurchaseHandler } from "./purchase/usePurchaseHandler";
+import { BenefitsList } from "@/components/assessment/purchase/BenefitsList";
+import { PurchaseButton } from "@/components/assessment/purchase/PurchaseButton";
+import { EmailPurchaseDialog } from "@/components/assessment/purchase/EmailPurchaseDialog";
+import { GiftPurchaseDialog } from "@/components/assessment/purchase/GiftPurchaseDialog";
+import { usePurchaseHandler } from "@/components/assessment/purchase/usePurchaseHandler";
 import { Button } from "@/components/ui/button";
 import { LockOpen } from "lucide-react";
 
