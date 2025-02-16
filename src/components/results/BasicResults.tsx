@@ -12,14 +12,42 @@ interface BasicResultsProps {
 
 export const BasicResults = ({ personalityType, getLevelDescription }: BasicResultsProps) => {
   const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [name, setName] = useState("");
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSending(true);
 
     try {
+      const resultId = localStorage.getItem('guestQuizResultId');
+      const accessToken = localStorage.getItem('guestAccessToken');
+
+      if (!resultId || !accessToken) {
+        throw new Error('No guest result found');
+      }
+
+      // Update the quiz result with guest email
+      const { error: updateError } = await supabase
+        .from('quiz_results')
+        .update({ guest_email: email })
+        .eq('id', resultId)
+        .eq('temp_access_token', accessToken);
+
+      if (updateError) throw updateError;
+
+      // Create temporary access token
+      const { error: tokenError } = await supabase
+        .from('temp_access_tokens')
+        .insert({
+          token: accessToken,
+          email: email,
+          result_id: resultId
+        });
+
+      if (tokenError) throw tokenError;
+
+      // Send results email
       const { data, error } = await supabase.functions.invoke('send-results', {
         body: {
           email,
@@ -36,7 +64,7 @@ export const BasicResults = ({ personalityType, getLevelDescription }: BasicResu
       });
       setEmail("");
       setName("");
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending results:', error);
       toast({
         title: "Error",
@@ -118,6 +146,9 @@ export const BasicResults = ({ personalityType, getLevelDescription }: BasicResu
           >
             {isSending ? "Sending..." : "Get Basic Results"}
           </Button>
+          <p className="text-xs text-gray-500">
+            Save your results and create an account later to access your full history
+          </p>
         </form>
       </div>
     </motion.div>

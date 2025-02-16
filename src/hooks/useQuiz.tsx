@@ -103,11 +103,9 @@ export const useQuiz = (session: Session | null) => {
           throw resultError;
         }
 
-        if (!session?.user) {
+        if (!session?.user && tempAccessToken) {
           localStorage.setItem('guestQuizResultId', quizResult.id);
-          if (tempAccessToken) {
-            localStorage.setItem('guestAccessToken', tempAccessToken);
-          }
+          localStorage.setItem('guestAccessToken', tempAccessToken);
         }
 
         const updates: Partial<QuizState> = {
