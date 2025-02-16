@@ -52,9 +52,11 @@ export const WhatYoullLearn = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.2 }}
-                className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300"
+                className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300 text-center"
               >
-                <item.icon className="w-12 h-12 mb-4 text-primary" />
+                <div className="flex justify-center mb-4">
+                  <item.icon className="w-12 h-12 text-primary" />
+                </div>
                 <h3 className="text-xl font-semibold mb-2">{item.title}</h3>
                 <p className="text-gray-600">{item.description}</p>
               </motion.div>
