@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -138,11 +137,13 @@ export const Footer = () => {
 
   const handleStartJourney = () => {
     navigate("/");
-    // Trigger the quiz start
-    const startQuizButton = document.querySelector('button[data-start-quiz]');
-    if (startQuizButton instanceof HTMLButtonElement) {
-      startQuizButton.click();
-    }
+    // Trigger the quiz start after a short delay to ensure navigation is complete
+    setTimeout(() => {
+      const startQuizButton = document.querySelector('button[data-start-quiz]');
+      if (startQuizButton instanceof HTMLButtonElement) {
+        startQuizButton.click();
+      }
+    }, 100);
   };
 
   return (
