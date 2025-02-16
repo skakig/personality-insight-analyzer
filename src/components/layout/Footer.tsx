@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -71,6 +70,9 @@ export const Footer = () => {
         throw insertError;
       }
 
+      // Get session and send welcome email
+      const { data: { session } } = await supabase.auth.getSession();
+
       // Send welcome email with authorization header
       const response = await fetch(
         "https://caebnpbdprrptogirxky.supabase.co/functions/v1/send-welcome-email",
@@ -78,7 +80,7 @@ export const Footer = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${supabase.auth.getSession()?.access_token}`,
+            "Authorization": `Bearer ${session?.access_token}`,
           },
           body: JSON.stringify({ email }),
         }
