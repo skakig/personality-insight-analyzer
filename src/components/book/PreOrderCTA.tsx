@@ -44,10 +44,10 @@ export const PreOrderCTA = () => {
           <Button 
             size="lg"
             onClick={handlePreOrder}
-            className="text-lg px-8 py-6 rounded-full bg-white text-primary hover:bg-white/90 transition-all duration-300"
+            className="text-lg px-8 py-6 rounded-full bg-white text-primary hover:bg-white/90 hover:text-primary/90 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
           >
             Pre-order for $29.99
-            <ArrowRight className="ml-2" />
+            <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
           <p className="mt-6 text-white/80">
             Limited time offer - Price will increase after launch

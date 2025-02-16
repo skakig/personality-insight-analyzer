@@ -1,19 +1,16 @@
 
-import React from 'react';
-import { Check } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ArrowRight } from "lucide-react";
 
 interface PricingPlanProps {
   name: string;
   price: string;
   description: string;
   features: string[];
-  priceId: string;
   highlight?: boolean;
   loading: string;
-  paymentType?: "payment" | "subscription";
-  onSubscribe: (priceId: string) => void;
+  onSubscribe: () => void;
+  priceId: string;
 }
 
 export const PricingPlan = ({
@@ -21,58 +18,34 @@ export const PricingPlan = ({
   price,
   description,
   features,
-  priceId,
   highlight,
   loading,
-  paymentType = "subscription",
-  onSubscribe
+  onSubscribe,
+  priceId
 }: PricingPlanProps) => {
   return (
-    <Card 
-      className={`flex flex-col relative ${
-        highlight 
-          ? 'border-primary shadow-lg scale-105 z-10' 
-          : 'border-gray-200'
-      }`}
-    >
-      {highlight && (
-        <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-          <span className="bg-primary text-white px-3 py-1 rounded-full text-sm font-medium">
-            Most Popular
-          </span>
-        </div>
-      )}
-      <CardHeader>
-        <CardTitle className="text-2xl">{name}</CardTitle>
-        <CardDescription>
-          <div className="mt-2">
-            <span className="text-4xl font-bold">{price}</span>
-            <span className="text-gray-500">{paymentType === "subscription" ? "/month" : " one-time"}</span>
-          </div>
-          <p className="mt-2 text-gray-600">{description}</p>
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex-grow flex flex-col">
-        <ul className="space-y-3 mb-8 flex-grow">
-          {features.map((feature) => (
-            <li key={feature} className="flex items-start">
-              <Check className="h-5 w-5 text-green-500 mr-2 shrink-0" />
-              <span className="text-gray-600">{feature}</span>
-            </li>
-          ))}
-        </ul>
-        <Button
-          onClick={() => onSubscribe(priceId)}
-          disabled={loading === priceId}
-          className={`w-full ${
-            highlight 
-              ? 'bg-primary hover:bg-primary/90' 
-              : ''
-          }`}
-        >
-          {loading === priceId ? "Processing..." : "Get Started"}
-        </Button>
-      </CardContent>
-    </Card>
+    <div className={`rounded-xl p-8 ${highlight ? 'border-2 border-primary shadow-lg' : 'border border-gray-200'}`}>
+      <h3 className="text-2xl font-bold mb-4">{name}</h3>
+      <p className="text-4xl font-bold mb-6">{price}</p>
+      <p className="text-gray-600 mb-6">{description}</p>
+      
+      <ul className="space-y-3 mb-8">
+        {features.map((feature) => (
+          <li key={feature} className="flex items-start">
+            <span className="text-green-500 mr-2">✓</span>
+            {feature}
+          </li>
+        ))}
+      </ul>
+
+      <Button
+        onClick={onSubscribe}
+        disabled={loading === priceId}
+        className="w-full px-8 py-6 rounded-full bg-primary text-white hover:bg-primary/90 hover:text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
+      >
+        {loading === priceId ? "Processing..." : "Get Started"}
+        <ArrowRight className="ml-2 h-5 w-5" />
+      </Button>
+    </div>
   );
 };
