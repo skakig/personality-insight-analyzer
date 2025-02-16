@@ -28,13 +28,13 @@ const Assessment = () => {
         const guestQuizResultId = localStorage.getItem('guestQuizResultId');
         const isGuestAccess = guestQuizResultId === id;
 
-        const { data, error } = await supabase
+        const { data, error: resultError } = await supabase
           .from('quiz_results')
           .select('*')
           .eq('id', id)
           .maybeSingle();
 
-        if (error) throw error;
+        if (resultError) throw resultError;
 
         if (!data) {
           toast({
