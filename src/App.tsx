@@ -1,3 +1,4 @@
+
 import {
   BrowserRouter as Router,
   Routes,
@@ -13,18 +14,39 @@ import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
 import Refund from "@/pages/Refund";
 import Dashboard from "@/pages/Dashboard";
-import { useSession, useSupabaseClient } from "@supabase/auth-helpers-react";
+import { createClient } from '@supabase/supabase-js';
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { CookieConsent } from "./components/CookieConsent";
+import { Session } from '@supabase/supabase-js';
+import { useState, useEffect } from 'react';
+import { supabase } from "@/integrations/supabase/client";
 
 const App = () => {
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   return (
     <>
       <Router>
         <SiteHeader />
         <Routes>
-          <Route path="/" element={<Index />} />
+          <Route path="/" element={<Index session={session} />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/faq" element={<FAQ />} />
@@ -35,7 +57,7 @@ const App = () => {
             path="/dashboard"
             element={
               <RequireAuth>
-                <Dashboard />
+                <Dashboard session={session} />
               </RequireAuth>
             }
           />
@@ -48,7 +70,7 @@ const App = () => {
 };
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const session = useSession();
+  const session = supabase.auth.getSession();
 
   if (!session) {
     return <Navigate to="/login" replace />;
@@ -58,8 +80,6 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 }
 
 function LoginPage() {
-  const supabaseClient = useSupabaseClient();
-
   return (
     <div className="flex justify-center items-center min-h-screen bg-gray-50">
       <div className="w-full max-w-md p-6 bg-white rounded-lg shadow-md">
@@ -67,7 +87,7 @@ function LoginPage() {
           Login / Sign Up
         </h2>
         <Auth
-          supabaseClient={supabaseClient}
+          supabaseClient={supabase}
           appearance={{ theme: ThemeSupa }}
           providers={["google", "github"]}
           redirectTo={`${window.location.origin}/dashboard`}
