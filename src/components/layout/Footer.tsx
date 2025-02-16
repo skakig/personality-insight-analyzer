@@ -22,6 +22,16 @@ export const Footer = () => {
       return;
     }
 
+    const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+    if (!emailRegex.test(email)) {
+      toast({
+        title: "Invalid email format",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const { error } = await supabase
@@ -29,6 +39,20 @@ export const Footer = () => {
         .insert([{ email }]);
 
       if (error) throw error;
+
+      // Send welcome email
+      const response = await fetch(
+        "https://caebnpbdprrptogirxky.supabase.co/functions/v1/send-welcome-email",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email }),
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to send welcome email");
 
       toast({
         title: "Success!",
@@ -49,7 +73,6 @@ export const Footer = () => {
   return (
     <footer className="border-t bg-white/80 backdrop-blur-sm">
       <div className="container mx-auto px-4 py-12 md:py-16">
-        {/* Main Footer Content */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
           {/* Quick Links */}
           <div>
@@ -60,6 +83,16 @@ export const Footer = () => {
               <li><button onClick={() => navigate("/about")} className="text-gray-600 hover:text-primary transition-colors">About</button></li>
               <li><button onClick={() => navigate("/contact")} className="text-gray-600 hover:text-primary transition-colors">Contact</button></li>
               <li><button onClick={() => navigate("/faq")} className="text-gray-600 hover:text-primary transition-colors">FAQ</button></li>
+            </ul>
+          </div>
+
+          {/* Legal Links */}
+          <div>
+            <h3 className="font-semibold text-gray-900 mb-4">Legal</h3>
+            <ul className="space-y-3">
+              <li><button onClick={() => navigate("/privacy")} className="text-gray-600 hover:text-primary transition-colors">Privacy Policy</button></li>
+              <li><button onClick={() => navigate("/terms")} className="text-gray-600 hover:text-primary transition-colors">Terms of Service</button></li>
+              <li><button onClick={() => navigate("/refund")} className="text-gray-600 hover:text-primary transition-colors">Refund Policy</button></li>
             </ul>
           </div>
 
@@ -79,16 +112,6 @@ export const Footer = () => {
                 {loading ? "Subscribing..." : "Subscribe"}
               </Button>
             </form>
-          </div>
-
-          {/* Legal Links */}
-          <div>
-            <h3 className="font-semibold text-gray-900 mb-4">Legal</h3>
-            <ul className="space-y-3">
-              <li><button onClick={() => navigate("/privacy")} className="text-gray-600 hover:text-primary transition-colors">Privacy Policy</button></li>
-              <li><button onClick={() => navigate("/terms")} className="text-gray-600 hover:text-primary transition-colors">Terms of Service</button></li>
-              <li><button onClick={() => navigate("/refund")} className="text-gray-600 hover:text-primary transition-colors">Refund Policy</button></li>
-            </ul>
           </div>
 
           {/* Social Media */}
