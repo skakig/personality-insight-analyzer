@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -6,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { Twitter, Instagram, Linkedin, Youtube, ArrowRight, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuiz } from "@/hooks/useQuiz";
+import { useAuth } from "@/hooks/useAuth";
 
 export const Footer = () => {
   const [email, setEmail] = useState("");
@@ -14,6 +15,8 @@ export const Footer = () => {
   const [emailError, setEmailError] = useState("");
   const [isAlreadySubscribed, setIsAlreadySubscribed] = useState(false);
   const navigate = useNavigate();
+  const { session } = useAuth();
+  const { handleStart } = useQuiz(session);
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
@@ -131,20 +134,10 @@ export const Footer = () => {
   };
 
   const handleStartJourney = () => {
-    if (window.location.pathname === '/') {
-      const startQuizButton = document.querySelector('button[data-start-quiz]');
-      if (startQuizButton instanceof HTMLButtonElement) {
-        startQuizButton.click();
-      }
-    } else {
-      navigate("/");
-      setTimeout(() => {
-        const startQuizButton = document.querySelector('button[data-start-quiz]');
-        if (startQuizButton instanceof HTMLButtonElement) {
-          startQuizButton.click();
-        }
-      }, 500);
+    if (window.location.pathname !== '/') {
+      navigate('/');
     }
+    handleStart();
   };
 
   return (
@@ -239,7 +232,6 @@ export const Footer = () => {
                 onClick={handleStartJourney} 
                 variant="outline" 
                 className="group"
-                data-start-quiz
               >
                 Start Your Moral Journey
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
