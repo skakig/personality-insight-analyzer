@@ -46,7 +46,7 @@ const App = () => {
       <Router>
         <SiteHeader />
         <Routes>
-          <Route path="/" element={<Index session={session} />} />
+          <Route path="/" element={<Index />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/faq" element={<FAQ />} />
@@ -70,7 +70,21 @@ const App = () => {
 };
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const session = supabase.auth.getSession();
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   if (!session) {
     return <Navigate to="/login" replace />;
