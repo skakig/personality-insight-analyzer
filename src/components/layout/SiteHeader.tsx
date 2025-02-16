@@ -19,8 +19,8 @@ export const SiteHeader = () => {
           <Link to="/pricing" className="text-gray-700 hover:text-gray-900">
             Pricing
           </Link>
-          <Button asChild>
-            <Link to="/login">Login</Link>
+          <Button asChild variant="default" className="bg-primary text-white hover:bg-primary/90">
+            <Link to="/login">Sign In</Link>
           </Button>
         </nav>
       </div>

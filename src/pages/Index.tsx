@@ -3,7 +3,7 @@ import { Session } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Brain, Target, Lightbulb, Zap } from "lucide-react";
+import { Brain, Target, Lightbulb, Zap, ArrowRight } from "lucide-react";
 
 interface IndexProps {
   session: Session | null;
@@ -15,78 +15,40 @@ const Index = ({ session }: IndexProps) => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="py-20 px-4 gradient-bg text-white">
+      <section className="py-20 px-4 bg-gradient-to-br from-[#7C3AED] via-[#6D28D9] to-[#5B21B6] text-white">
         <div className="container mx-auto text-center">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6">
-            Discover Your Moral Level
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6">
+            Discover Your Moral Development Level
           </h1>
-          <p className="text-xl md:text-2xl mb-8 max-w-2xl mx-auto">
-            Understand where you stand in the moral hierarchy and learn how to advance to higher levels of ethical development.
+          <p className="text-xl md:text-2xl mb-12 max-w-3xl mx-auto">
+            Unlock insights about your ethical framework and elevate your leadership potential through our scientifically-backed assessment.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button
-              size="lg"
-              onClick={() => navigate("/test")}
-              className="bg-white text-primary hover:bg-gray-100"
-            >
-              Take the Test
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={() => navigate("/book")}
-              className="border-white text-white hover:bg-white/10"
-            >
-              Learn More
-            </Button>
-          </div>
-          
+          <Button
+            size="lg"
+            onClick={() => navigate("/test")}
+            className="text-xl px-12 py-8 rounded-full bg-white text-primary hover:bg-white/90 hover:text-primary/90 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
+          >
+            Start Free Assessment
+            <ArrowRight className="ml-2 h-6 w-6" />
+          </Button>
+
           {/* Value Propositions */}
-          <div className="mt-12 flex flex-wrap justify-center gap-4">
+          <div className="mt-16 flex flex-wrap justify-center gap-8">
             {[
-              { icon: <Brain className="h-5 w-5" />, text: "Scientific Assessment" },
-              { icon: <Zap className="h-5 w-5" />, text: "Instant Results" },
-              { icon: <Lightbulb className="h-5 w-5" />, text: "Personal Insights" }
+              { icon: <Brain className="h-6 w-6" />, text: "Scientific Assessment" },
+              { icon: <Zap className="h-6 w-6" />, text: "Instant Results" },
+              { icon: <Lightbulb className="h-6 w-6" />, text: "Personal Insights" }
             ].map((item) => (
-              <div key={item.text} className="flex items-center gap-2 text-white/90 text-sm md:text-base bg-white/10 px-4 py-2 rounded-full">
+              <div key={item.text} className="flex items-center gap-3 bg-white/10 px-6 py-3 rounded-full">
                 {item.icon}
-                <span>{item.text}</span>
+                <span className="text-lg">{item.text}</span>
               </div>
             ))}
           </div>
-        </div>
 
-        {/* Social Proof */}
-        <div className="text-center mt-8 text-white/80">
-          <p>Join over 50,000+ individuals who have discovered their moral potential</p>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="py-20 px-4 bg-white">
-        <div className="container mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">
-            Why Take the Moral Level Test?
-          </h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center p-6">
-              <h3 className="text-xl font-semibold mb-4">Self-Understanding</h3>
-              <p className="text-gray-600">
-                Gain deep insights into your moral reasoning and ethical decision-making process.
-              </p>
-            </div>
-            <div className="text-center p-6">
-              <h3 className="text-xl font-semibold mb-4">Growth Path</h3>
-              <p className="text-gray-600">
-                Discover concrete steps to advance to higher levels of moral development.
-              </p>
-            </div>
-            <div className="text-center p-6">
-              <h3 className="text-xl font-semibold mb-4">Community</h3>
-              <p className="text-gray-600">
-                Connect with others on similar moral development journeys.
-              </p>
-            </div>
+          {/* Social Proof */}
+          <div className="mt-12 text-white/80">
+            <p className="text-lg">Join over 50,000+ individuals who have discovered their moral potential</p>
           </div>
         </div>
       </section>
@@ -117,6 +79,21 @@ const Index = ({ session }: IndexProps) => {
                   icon: Lightbulb,
                   title: "Leadership Path",
                   description: "Discover how to lead with greater moral clarity and purpose."
+                },
+                {
+                  icon: Brain,
+                  title: "Personality Blindsides",
+                  description: "Identify hidden patterns that may be limiting your moral growth."
+                },
+                {
+                  icon: Lightbulb,
+                  title: "Why Improving Matters",
+                  description: "Understand the profound impact of moral development on your life and leadership."
+                },
+                {
+                  icon: Target,
+                  title: "TMH Roadmap",
+                  description: "Get a clear path for advancing through the nine levels of moral development."
                 }
               ].map((item, index) => (
                 <motion.div
@@ -151,7 +128,8 @@ const Index = ({ session }: IndexProps) => {
             onClick={() => navigate("/test")}
             className="bg-primary text-white hover:bg-primary/90"
           >
-            Start Now
+            Start Free Assessment
+            <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </div>
       </section>
