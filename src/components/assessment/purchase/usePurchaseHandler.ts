@@ -1,213 +1,28 @@
 
-import { useState } from "react";
-import { toast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { useModalState } from "./hooks/useModalState";
+import { useDirectPurchase } from "./hooks/useDirectPurchase";
+import { useGiftPurchase } from "./hooks/useGiftPurchase";
+import { useEmailPurchase } from "./hooks/useEmailPurchase";
+import { useSaveReport } from "./hooks/useSaveReport";
 
 export const usePurchaseHandler = (resultId: string) => {
-  const [purchaseLoading, setPurchaseLoading] = useState(false);
-  const [giftEmail, setGiftEmail] = useState("");
-  const [email, setEmail] = useState("");
-  const [isGiftDialogOpen, setIsGiftDialogOpen] = useState(false);
-  const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
+  const {
+    purchaseLoading,
+    setPurchaseLoading,
+    giftEmail,
+    setGiftEmail,
+    email,
+    setEmail,
+    isGiftDialogOpen,
+    setIsGiftDialogOpen,
+    isEmailDialogOpen,
+    setIsEmailDialogOpen,
+  } = useModalState();
 
-  const handlePurchase = async () => {
-    try {
-      setPurchaseLoading(true);
-      console.log('Initiating checkout for result:', resultId);
-      
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-        body: { 
-          resultId,
-          mode: 'payment',
-          priceAmount: 1499, // $14.99 in cents
-          metadata: {
-            resultId,
-            isGuest: !session?.user
-          }
-        }
-      });
-
-      if (error) {
-        console.error('Checkout creation error:', error);
-        throw error;
-      }
-      
-      if (!data?.url) {
-        console.error('No checkout URL received');
-        throw new Error('No checkout URL received');
-      }
-
-      console.log('Redirecting to checkout:', {
-        resultId,
-        checkoutUrl: data.url,
-        timestamp: new Date().toISOString()
-      });
-
-      window.location.href = data.url;
-    } catch (error: any) {
-      console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to initiate checkout. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setPurchaseLoading(false);
-    }
-  };
-
-  const handleGiftPurchase = async () => {
-    if (!giftEmail) {
-      toast({
-        title: "Email Required",
-        description: "Please enter the recipient's email address.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(giftEmail)) {
-      toast({
-        title: "Invalid Email",
-        description: "Please enter a valid email address.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setPurchaseLoading(true);
-      
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-        body: { 
-          resultId,
-          mode: 'payment',
-          giftRecipientEmail: giftEmail,
-          priceAmount: 1499,
-          metadata: {
-            resultId,
-            isGift: true,
-            giftRecipientEmail: giftEmail
-          }
-        }
-      });
-
-      if (error) throw error;
-      
-      if (!data?.url) {
-        throw new Error('No checkout URL received');
-      }
-
-      window.location.href = data.url;
-    } catch (error: any) {
-      console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to initiate checkout. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setPurchaseLoading(false);
-      setIsGiftDialogOpen(false);
-    }
-  };
-
-  const handleEmailPurchase = async () => {
-    if (!email) {
-      toast({
-        title: "Email Required",
-        description: "Please enter your email address to receive the report.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      toast({
-        title: "Invalid Email",
-        description: "Please enter a valid email address.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setPurchaseLoading(true);
-      
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-        body: { 
-          resultId,
-          mode: 'payment',
-          email,
-          priceAmount: 1499,
-          metadata: {
-            resultId,
-            isGuest: true,
-            email
-          }
-        }
-      });
-
-      if (error) throw error;
-      
-      if (!data?.url) {
-        throw new Error('No checkout URL received');
-      }
-
-      window.location.href = data.url;
-    } catch (error: any) {
-      console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to initiate checkout. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setPurchaseLoading(false);
-      setIsEmailDialogOpen(false);
-    }
-  };
-
-  const handleSaveReport = async () => {
-    try {
-      setPurchaseLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        // User is already logged in, just update the report ownership
-        const { error } = await supabase
-          .from('quiz_results')
-          .update({ 
-            user_id: session.user.id,
-            temp_access_token: null,
-            temp_access_expires_at: null 
-          })
-          .eq('id', resultId);
-
-        if (error) throw error;
-
-        toast({
-          title: "Success",
-          description: "Your report has been saved to your account!",
-        });
-      } else {
-        // Redirect to auth page with return URL
-        const returnUrl = `/assessment/${resultId}`;
-        window.location.href = `/auth?returnTo=${encodeURIComponent(returnUrl)}`;
-      }
-    } catch (error: any) {
-      console.error('Error saving report:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save your report. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setPurchaseLoading(false);
-    }
-  };
+  const handlePurchase = useDirectPurchase(resultId, setPurchaseLoading);
+  const handleGiftPurchase = useGiftPurchase(resultId, giftEmail, setPurchaseLoading, setIsGiftDialogOpen);
+  const handleEmailPurchase = useEmailPurchase(resultId, email, setPurchaseLoading, setIsEmailDialogOpen);
+  const handleSaveReport = useSaveReport(resultId, setPurchaseLoading);
 
   return {
     purchaseLoading,
