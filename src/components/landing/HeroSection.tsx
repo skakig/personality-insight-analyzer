@@ -38,10 +38,10 @@ export const HeroSection = ({ onStart }: { onStart: () => void }) => {
           <Button 
             onClick={onStart}
             size="lg"
-            className="text-lg px-8 py-6 rounded-full bg-white text-primary hover:bg-white/90 hover:text-primary/90 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
+            className="text-xl px-12 py-8 rounded-full bg-white text-primary hover:bg-white/90 hover:text-primary/90 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold w-full md:w-auto max-w-lg"
           >
             Start Free Assessment
-            <ArrowRight className="ml-2 h-5 w-5" />
+            <ArrowRight className="ml-2 h-6 w-6" />
           </Button>
 
           {/* Trust Signals and Benefits */}

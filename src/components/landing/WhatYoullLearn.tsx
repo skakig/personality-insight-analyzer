@@ -29,6 +29,21 @@ export const WhatYoullLearn = () => {
                 icon: Lightbulb,
                 title: "Leadership Path",
                 description: "Discover how to lead with greater moral clarity and purpose."
+              },
+              {
+                icon: Brain,
+                title: "Personality Blindsides",
+                description: "Identify hidden patterns that may be limiting your moral growth."
+              },
+              {
+                icon: Lightbulb,
+                title: "Why Improving Matters",
+                description: "Understand the profound impact of moral development on your life and leadership."
+              },
+              {
+                icon: Target,
+                title: "TMH Roadmap",
+                description: "Get a clear path for advancing through the nine levels of moral development."
               }
             ].map((item, index) => (
               <motion.div

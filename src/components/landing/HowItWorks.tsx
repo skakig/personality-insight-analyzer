@@ -23,12 +23,12 @@ export const HowItWorks = () => {
               {
                 icon: Zap,
                 title: "Instant Analysis",
-                description: "Get your results immediately with our AI-powered analysis."
+                description: "Get your results immediately, based on the revolutionary The Moral Hierarchy Framework."
               },
               {
                 icon: FileText,
                 title: "Detailed Insights",
-                description: "Receive a comprehensive report about your moral development level."
+                description: "Receive a comprehensive report about your moral development level and a personalized roadmap for development."
               }
             ].map((step, index) => (
               <motion.div
