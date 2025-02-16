@@ -23,7 +23,7 @@ export const usePurchaseHandler = (resultId: string) => {
           mode: 'payment',
           priceAmount: 1499, // $14.99 in cents
           metadata: {
-            resultId, // Explicitly include resultId in metadata
+            resultId,
             isGuest: !session?.user
           }
         }
@@ -85,7 +85,7 @@ export const usePurchaseHandler = (resultId: string) => {
           resultId,
           mode: 'payment',
           giftRecipientEmail: giftEmail,
-          priceAmount: 1499, // $14.99 in cents
+          priceAmount: 1499,
           metadata: {
             resultId,
             isGift: true,
@@ -141,7 +141,7 @@ export const usePurchaseHandler = (resultId: string) => {
           resultId,
           mode: 'payment',
           email,
-          priceAmount: 1499, // $14.99 in cents
+          priceAmount: 1499,
           metadata: {
             resultId,
             isGuest: true,
@@ -170,6 +170,45 @@ export const usePurchaseHandler = (resultId: string) => {
     }
   };
 
+  const handleSaveReport = async () => {
+    try {
+      setPurchaseLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        // User is already logged in, just update the report ownership
+        const { error } = await supabase
+          .from('quiz_results')
+          .update({ 
+            user_id: session.user.id,
+            temp_access_token: null,
+            temp_access_expires_at: null 
+          })
+          .eq('id', resultId);
+
+        if (error) throw error;
+
+        toast({
+          title: "Success",
+          description: "Your report has been saved to your account!",
+        });
+      } else {
+        // Redirect to auth page with return URL
+        const returnUrl = `/assessment/${resultId}`;
+        window.location.href = `/auth?returnTo=${encodeURIComponent(returnUrl)}`;
+      }
+    } catch (error: any) {
+      console.error('Error saving report:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save your report. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setPurchaseLoading(false);
+    }
+  };
+
   return {
     purchaseLoading,
     giftEmail,
@@ -182,6 +221,7 @@ export const usePurchaseHandler = (resultId: string) => {
     setIsEmailDialogOpen,
     handlePurchase,
     handleGiftPurchase,
-    handleEmailPurchase
+    handleEmailPurchase,
+    handleSaveReport
   };
 };

@@ -1,9 +1,13 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
-import * as puppeteer from 'https://deno.land/x/puppeteer@16.2.0/mod.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { Resend } from 'npm:resend@2.0.0';
 
 const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,98 +16,71 @@ const corsHeaders = {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const { email, personalityType, analysis, scores, isPdf } = await req.json();
+    const { email, name, resultId, isGuest } = await req.json();
 
-    const scoresList = scores ? Object.entries(scores)
-      .map(([category, score]) => `
-        <div style="margin-bottom: 10px;">
-          <strong>${category}:</strong> ${score}
-        </div>
-      `).join('') : 'No detailed scores available';
+    // Fetch the quiz result details
+    const { data: result, error: resultError } = await supabase
+      .from('quiz_results')
+      .select('*')
+      .eq('id', resultId)
+      .single();
 
-    const emailHtml = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Your Detailed Moral Development Report</title>
-        </head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f5f5f7;">
-          <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; padding: 32px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <div style="text-align: center; margin-bottom: 32px;">
-              <h1 style="color: #1d1d1f; font-size: 24px; margin-bottom: 16px;">
-                Your Level ${personalityType} Detailed Report
-              </h1>
-            </div>
-            
-            <div style="margin-bottom: 32px;">
-              <h2 style="color: #1d1d1f; font-size: 20px; margin-bottom: 16px;">Category Scores</h2>
-              <div style="background: #f5f5f7; padding: 20px; border-radius: 12px;">
-                ${scoresList}
-              </div>
-            </div>
-            
-            <div style="margin-bottom: 32px;">
-              <h2 style="color: #1d1d1f; font-size: 20px; margin-bottom: 16px;">Detailed Analysis</h2>
-              <div style="background: #f5f5f7; padding: 20px; border-radius: 12px;">
-                <p style="margin: 0; color: #424245;">
-                  ${analysis || 'No detailed analysis available'}
-                </p>
-              </div>
-            </div>
-            
-            <div style="text-align: center; color: #86868b; font-size: 12px; margin-top: 32px;">
-              <p style="margin: 0;">
-                © ${new Date().getFullYear()} Moral Development Assessment. All rights reserved.
-              </p>
-            </div>
+    if (resultError) throw resultError;
+
+    // Send the detailed report email
+    const { data: emailResult, error: emailError } = await resend.emails.send({
+      from: 'The Moral Hierarchy <onboarding@resend.dev>',
+      to: [email],
+      subject: 'Your Detailed Moral Hierarchy Analysis',
+      html: `
+        <h1>Your Detailed Moral Analysis Report</h1>
+        <p>Dear ${name},</p>
+        <p>Thank you for purchasing your detailed moral analysis report. Your insights are now available!</p>
+        
+        <h2>Your Results Overview</h2>
+        <p>Moral Level: ${result.personality_type}</p>
+        
+        ${isGuest ? `
+          <div style="margin: 20px 0; padding: 20px; background-color: #f5f5f7; border-radius: 8px;">
+            <h3>Secure Your Report</h3>
+            <p>To ensure you never lose access to your report and unlock additional features:</p>
+            <p>
+              <a href="${Deno.env.get('SITE_URL')}/assessment/${resultId}" 
+                 style="display: inline-block; background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
+                Create Your Account
+              </a>
+            </p>
           </div>
-        </body>
-      </html>
-    `;
-
-    let pdfAttachment;
-    if (isPdf) {
-      const browser = await puppeteer.launch();
-      const page = await browser.newPage();
-      await page.setContent(emailHtml);
-      pdfAttachment = await page.pdf();
-      await browser.close();
-    }
-
-    const data = await resend.emails.send({
-      from: 'Moral Development <reports@moraldevelopment.app>',
-      to: email,
-      subject: `Your Level ${personalityType} Detailed Report`,
-      html: emailHtml,
-      attachments: isPdf ? [{
-        filename: 'detailed-report.pdf',
-        content: pdfAttachment
-      }] : undefined
+        ` : ''}
+        
+        <p>Access your full report here:</p>
+        <p>
+          <a href="${Deno.env.get('SITE_URL')}/assessment/${resultId}"
+             style="display: inline-block; background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
+            View Full Report
+          </a>
+        </p>
+        
+        <p>Best regards,<br>The Moral Hierarchy Team</p>
+      `,
     });
 
-    console.log('Email sent successfully:', data);
+    if (emailError) throw emailError;
 
     return new Response(
-      JSON.stringify({ success: true, data }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
+      JSON.stringify({ success: true }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
+
   } catch (error) {
-    console.error('Error sending email:', error);
+    console.error('Error sending detailed report:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });
