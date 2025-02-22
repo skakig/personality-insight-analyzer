@@ -47,13 +47,28 @@ const Assessment = () => {
 
         // Handle successful purchase
         if (searchParams.get('success') === 'true') {
-          toast({
-            title: "Purchase successful!",
-            description: "Your detailed report is now available.",
-          });
+          // Wait a short moment for the webhook to process
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          // Fetch the result again to get updated purchase status
+          const { data: refreshedData, error: refreshError } = await supabase
+            .from('quiz_results')
+            .select('*')
+            .eq('id', id)
+            .maybeSingle();
+            
+          if (refreshError) throw refreshError;
+          
+          if (refreshedData) {
+            setResult(refreshedData);
+            toast({
+              title: "Purchase successful!",
+              description: "Your detailed report is now available.",
+            });
+          }
+        } else {
+          setResult(data);
         }
-
-        setResult(data);
       } catch (error: any) {
         console.error('Error fetching result:', error);
         toast({
