@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,21 +15,6 @@ const Assessment = () => {
   const [loading, setLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
 
-  const checkPurchaseStatus = async (purchaseId: string) => {
-    const { data, error } = await supabase
-      .from('purchase_tracking')
-      .select('*')
-      .eq('id', purchaseId)
-      .single();
-
-    if (error) {
-      console.error('Error checking purchase status:', error);
-      return false;
-    }
-
-    return data?.status === 'completed';
-  };
-
   useEffect(() => {
     const fetchResult = async () => {
       try {
@@ -42,8 +28,10 @@ const Assessment = () => {
           return;
         }
 
+        // Get current session and access token
         const { data: { session } } = await supabase.auth.getSession();
         const userId = session?.user?.id;
+        const accessToken = searchParams.get('token');
 
         const isPostPurchase = searchParams.get('success') === 'true';
         const purchaseId = localStorage.getItem('currentPurchaseId');
@@ -90,13 +78,19 @@ const Assessment = () => {
           }
         }
 
-        const query = supabase
+        // Build query based on auth status
+        let query = supabase
           .from('quiz_results')
           .select('*')
           .eq('id', id);
 
         if (userId) {
-          query.eq('user_id', userId);
+          // Authenticated user - check user_id
+          query = query.eq('user_id', userId);
+        } else if (accessToken) {
+          // Guest with token - verify token and expiration
+          query = query.eq('guest_access_token', accessToken)
+            .gte('guest_access_expires_at', new Date().toISOString());
         }
 
         const { data, error: resultError } = await query.maybeSingle();
@@ -115,7 +109,7 @@ const Assessment = () => {
           
           toast({
             title: "Result not found",
-            description: "The requested assessment result could not be found",
+            description: "The requested assessment result could not be found or access has expired",
             variant: "destructive",
           });
           setLoading(false);
@@ -130,6 +124,24 @@ const Assessment = () => {
             description: "Your detailed report is now available.",
           });
         }
+
+        // Show account creation prompt for guests
+        if (!userId && data.guest_email) {
+          toast({
+            title: "Create an Account",
+            description: "Create an account to keep permanent access to your report",
+            action: (
+              <a 
+                href={`/auth?email=${encodeURIComponent(data.guest_email)}&action=signup`}
+                className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary/90"
+              >
+                Sign Up
+              </a>
+            ),
+            duration: 10000,
+          });
+        }
+
       } catch (error: any) {
         console.error('Error fetching result:', error);
         toast({
