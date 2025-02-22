@@ -5,13 +5,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { DetailedReport } from "@/components/results/DetailedReport";
 import { toast } from "@/components/ui/use-toast";
 
+const MAX_RETRIES = 10;
+const RETRY_DELAY = 2000;
+
 const Assessment = () => {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
-  const maxRetries = 5;
 
   useEffect(() => {
     const fetchResult = async () => {
@@ -54,18 +56,39 @@ const Assessment = () => {
         if (resultError) throw resultError;
 
         if (!data) {
-          if (searchParams.get('success') === 'true' && retryCount < maxRetries) {
-            // If this is post-purchase and we haven't maxed out retries, wait and try again
-            await new Promise(resolve => setTimeout(resolve, 2000));
+          const isPostPurchase = searchParams.get('success') === 'true';
+          
+          if (isPostPurchase && retryCount < MAX_RETRIES) {
+            console.log(`Attempt ${retryCount + 1} of ${MAX_RETRIES} to fetch result`);
+            
+            // Show a loading message on first attempt
+            if (retryCount === 0) {
+              toast({
+                title: "Processing your purchase",
+                description: "Please wait while we prepare your report...",
+              });
+            }
+            
+            // Wait and retry
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
             setRetryCount(prev => prev + 1);
             return; // This will trigger another useEffect run
           }
           
-          toast({
-            title: "Result not found",
-            description: "The requested assessment result could not be found",
-            variant: "destructive",
-          });
+          if (isPostPurchase) {
+            toast({
+              title: "Unable to load your report",
+              description: "Please refresh the page or contact support if the issue persists.",
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "Result not found",
+              description: "The requested assessment result could not be found",
+              variant: "destructive",
+            });
+          }
+          
           setLoading(false);
           return;
         }
@@ -97,7 +120,14 @@ const Assessment = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          {retryCount > 0 && (
+            <p className="text-sm text-gray-600">
+              Processing your purchase... ({retryCount}/{MAX_RETRIES})
+            </p>
+          )}
+        </div>
       </div>
     );
   }
