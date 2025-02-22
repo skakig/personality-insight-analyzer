@@ -1,9 +1,9 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { createClient } from '@supabase/supabase-js';
 import Stripe from 'https://esm.sh/stripe@14.21.0';
-import { handleGuestPurchase } from "./handlers/guest-purchase.ts";
-import { handleRegularPurchase } from "./handlers/regular-purchase.ts";
+import { handleGuestPurchase } from './handlers/guest-purchase.ts';
+import { handleRegularPurchase } from './handlers/regular-purchase.ts';
 
 const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
 const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
@@ -26,7 +26,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-async function logWebhookEvent(event: any, status = 'pending', errorMessage?: string) {
+async function logWebhookEvent(event: Stripe.Event, status = 'pending', errorMessage?: string) {
   try {
     console.log('Logging webhook event:', {
       id: event.id,
@@ -53,6 +53,30 @@ async function logWebhookEvent(event: any, status = 'pending', errorMessage?: st
     }
   } catch (err) {
     console.error('Failed to log webhook event:', err);
+  }
+}
+
+async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+  // Check if this session was already processed
+  const { data: existingEvent } = await supabase
+    .from('stripe_webhook_events')
+    .select('status')
+    .eq('stripe_event_id', session.id)
+    .eq('status', 'completed')
+    .maybeSingle();
+
+  if (existingEvent) {
+    console.log('Session already processed:', session.id);
+    return;
+  }
+
+  // Determine if this is a guest purchase
+  const isGuestPurchase = !session.customer && session.metadata?.email;
+
+  if (isGuestPurchase) {
+    await handleGuestPurchase(supabase, session);
+  } else {
+    await handleRegularPurchase(supabase, session);
   }
 }
 
@@ -94,17 +118,12 @@ serve(async (req) => {
     await logWebhookEvent(event);
 
     try {
-      if (event.type === 'checkout.session.completed') {
-        const session = event.data.object as Stripe.Checkout.Session;
-        
-        // Determine if this is a guest purchase
-        const isGuestPurchase = !session.customer && session.metadata?.email;
-
-        if (isGuestPurchase) {
-          await handleGuestPurchase(supabase, event);
-        } else {
-          await handleRegularPurchase(supabase, event);
+      switch (event.type) {
+        case 'checkout.session.completed': {
+          await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
+          break;
         }
+        // Add more event types as needed
       }
 
       // Mark event as completed

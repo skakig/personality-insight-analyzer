@@ -1,11 +1,10 @@
 
-import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 export const handleGuestPurchase = async (
   supabase: SupabaseClient,
-  event: any
+  session: any
 ) => {
-  const session = event.data.object;
   const metadata = session.metadata;
   
   console.log('Processing guest purchase:', {
