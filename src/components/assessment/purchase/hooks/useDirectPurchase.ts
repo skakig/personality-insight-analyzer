@@ -37,7 +37,8 @@ export const useDirectPurchase = (
           status: 'initiated',
           metadata: {
             isGuest: !session?.user,
-            initiatedAt: new Date().toISOString()
+            initiatedAt: new Date().toISOString(),
+            returnUrl: `/assessment/${resultId}`
           }
         })
         .select()
@@ -47,6 +48,10 @@ export const useDirectPurchase = (
         console.error('Error creating purchase tracking:', trackingError);
         throw trackingError;
       }
+
+      // Store tracking ID and result ID in localStorage
+      localStorage.setItem('currentPurchaseId', trackingData.id);
+      localStorage.setItem('purchaseResultId', resultId);
 
       // 3. Create Stripe checkout session
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
@@ -58,7 +63,8 @@ export const useDirectPurchase = (
             resultId,
             userId: session?.user?.id,
             purchaseTrackingId: trackingData.id,
-            isGuest: !session?.user
+            isGuest: !session?.user,
+            returnUrl: `/assessment/${resultId}`
           }
         }
       });
@@ -69,22 +75,19 @@ export const useDirectPurchase = (
       }
       
       if (!data?.url) {
-        console.error('No checkout URL received');
         throw new Error('No checkout URL received');
       }
 
-      // Store tracking ID in localStorage for retrieval after redirect
-      localStorage.setItem('currentPurchaseId', trackingData.id);
-
       console.log('Redirecting to checkout:', {
         resultId,
+        trackingId: trackingData.id,
         checkoutUrl: data.url,
         timestamp: new Date().toISOString()
       });
 
       window.location.href = data.url;
     } catch (error: any) {
-      console.error('Error:', error);
+      console.error('Purchase error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to initiate checkout. Please try again.",

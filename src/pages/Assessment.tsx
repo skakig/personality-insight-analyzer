@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +14,6 @@ const Assessment = () => {
   const [loading, setLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
 
-  // New function to check purchase status
   const checkPurchaseStatus = async (purchaseId: string) => {
     const { data, error } = await supabase
       .from('purchase_tracking')
@@ -47,13 +45,23 @@ const Assessment = () => {
         const { data: { session } } = await supabase.auth.getSession();
         const userId = session?.user?.id;
 
-        // Check if returning from purchase
         const isPostPurchase = searchParams.get('success') === 'true';
         const purchaseId = localStorage.getItem('currentPurchaseId');
+        const storedResultId = localStorage.getItem('purchaseResultId');
+
+        if (isPostPurchase && storedResultId && storedResultId !== id) {
+          console.error('Result ID mismatch:', { stored: storedResultId, current: id });
+          toast({
+            title: "Error",
+            description: "Invalid assessment result",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
 
         let purchaseCompleted = false;
         if (isPostPurchase && purchaseId) {
-          // Show initial loading message
           if (retryCount === 0) {
             toast({
               title: "Processing your purchase",
@@ -61,9 +69,14 @@ const Assessment = () => {
             });
           }
 
-          // Check purchase status
-          purchaseCompleted = await checkPurchaseStatus(purchaseId);
+          const { data: purchaseData } = await supabase
+            .from('purchase_tracking')
+            .select('status')
+            .eq('id', purchaseId)
+            .single();
           
+          purchaseCompleted = purchaseData?.status === 'completed';
+
           if (!purchaseCompleted && retryCount < MAX_RETRIES) {
             console.log(`Attempt ${retryCount + 1} of ${MAX_RETRIES} to confirm purchase`);
             await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
@@ -73,16 +86,15 @@ const Assessment = () => {
 
           if (purchaseCompleted) {
             localStorage.removeItem('currentPurchaseId');
+            localStorage.removeItem('purchaseResultId');
           }
         }
 
-        // Fetch the result
         const query = supabase
           .from('quiz_results')
           .select('*')
           .eq('id', id);
 
-        // Add user-specific filters
         if (userId) {
           query.eq('user_id', userId);
         }
@@ -94,24 +106,24 @@ const Assessment = () => {
         if (!data) {
           if (isPostPurchase) {
             toast({
-              title: "Unable to load your report",
-              description: "Please refresh the page or contact support if the issue persists.",
-              variant: "destructive",
+              title: "Purchase processed",
+              description: "Please wait while we load your report...",
             });
-          } else {
-            toast({
-              title: "Result not found",
-              description: "The requested assessment result could not be found",
-              variant: "destructive",
-            });
+            setTimeout(fetchResult, 2000);
+            return;
           }
+          
+          toast({
+            title: "Result not found",
+            description: "The requested assessment result could not be found",
+            variant: "destructive",
+          });
           setLoading(false);
           return;
         }
 
         setResult(data);
 
-        // Show success message if purchase was completed
         if (purchaseCompleted) {
           toast({
             title: "Purchase successful!",
