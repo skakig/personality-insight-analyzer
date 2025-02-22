@@ -15,6 +15,22 @@ const Assessment = () => {
   const [loading, setLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
 
+  // New function to check purchase status
+  const checkPurchaseStatus = async (purchaseId: string) => {
+    const { data, error } = await supabase
+      .from('purchase_tracking')
+      .select('*')
+      .eq('id', purchaseId)
+      .single();
+
+    if (error) {
+      console.error('Error checking purchase status:', error);
+      return false;
+    }
+
+    return data?.status === 'completed';
+  };
+
   useEffect(() => {
     const fetchResult = async () => {
       try {
@@ -31,10 +47,36 @@ const Assessment = () => {
         const { data: { session } } = await supabase.auth.getSession();
         const userId = session?.user?.id;
 
-        // Check for guest access via localStorage
-        const guestQuizResultId = localStorage.getItem('guestQuizResultId');
-        const isGuestAccess = guestQuizResultId === id;
+        // Check if returning from purchase
+        const isPostPurchase = searchParams.get('success') === 'true';
+        const purchaseId = localStorage.getItem('currentPurchaseId');
 
+        let purchaseCompleted = false;
+        if (isPostPurchase && purchaseId) {
+          // Show initial loading message
+          if (retryCount === 0) {
+            toast({
+              title: "Processing your purchase",
+              description: "Please wait while we prepare your report...",
+            });
+          }
+
+          // Check purchase status
+          purchaseCompleted = await checkPurchaseStatus(purchaseId);
+          
+          if (!purchaseCompleted && retryCount < MAX_RETRIES) {
+            console.log(`Attempt ${retryCount + 1} of ${MAX_RETRIES} to confirm purchase`);
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+            setRetryCount(prev => prev + 1);
+            return;
+          }
+
+          if (purchaseCompleted) {
+            localStorage.removeItem('currentPurchaseId');
+          }
+        }
+
+        // Fetch the result
         const query = supabase
           .from('quiz_results')
           .select('*')
@@ -43,12 +85,6 @@ const Assessment = () => {
         // Add user-specific filters
         if (userId) {
           query.eq('user_id', userId);
-        } else if (isGuestAccess) {
-          // For guest access, verify the temp access token
-          const guestAccessToken = localStorage.getItem('guestAccessToken');
-          if (guestAccessToken) {
-            query.eq('temp_access_token', guestAccessToken);
-          }
         }
 
         const { data, error: resultError } = await query.maybeSingle();
@@ -56,25 +92,6 @@ const Assessment = () => {
         if (resultError) throw resultError;
 
         if (!data) {
-          const isPostPurchase = searchParams.get('success') === 'true';
-          
-          if (isPostPurchase && retryCount < MAX_RETRIES) {
-            console.log(`Attempt ${retryCount + 1} of ${MAX_RETRIES} to fetch result`);
-            
-            // Show a loading message on first attempt
-            if (retryCount === 0) {
-              toast({
-                title: "Processing your purchase",
-                description: "Please wait while we prepare your report...",
-              });
-            }
-            
-            // Wait and retry
-            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-            setRetryCount(prev => prev + 1);
-            return; // This will trigger another useEffect run
-          }
-          
           if (isPostPurchase) {
             toast({
               title: "Unable to load your report",
@@ -88,15 +105,14 @@ const Assessment = () => {
               variant: "destructive",
             });
           }
-          
           setLoading(false);
           return;
         }
 
         setResult(data);
 
-        // Show success message if returning from purchase
-        if (searchParams.get('success') === 'true') {
+        // Show success message if purchase was completed
+        if (purchaseCompleted) {
           toast({
             title: "Purchase successful!",
             description: "Your detailed report is now available.",

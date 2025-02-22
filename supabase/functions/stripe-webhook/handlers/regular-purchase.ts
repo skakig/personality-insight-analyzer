@@ -17,44 +17,53 @@ const corsHeaders = {
 export async function handleRegularPurchase(session: any) {
   console.log('Processing purchase session:', session);
   
-  const { customer, customer_details, metadata } = session;
+  const { customer_details, metadata } = session;
   const email = customer_details?.email;
   const userId = metadata?.userId;
   const resultId = metadata?.resultId;
-  const purchaseType = metadata?.type || 'report';
+  const purchaseTrackingId = metadata?.purchaseTrackingId;
 
   try {
-    // 1. Update the quiz result first
+    // 1. Update purchase tracking status
+    if (purchaseTrackingId) {
+      const { error: trackingError } = await supabase
+        .from('purchase_tracking')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          stripe_session_id: session.id
+        })
+        .eq('id', purchaseTrackingId);
+
+      if (trackingError) {
+        console.error('Error updating purchase tracking:', trackingError);
+        throw trackingError;
+      }
+    }
+
+    // 2. Update the quiz result
     if (resultId) {
       console.log('Updating quiz result:', { resultId, email, userId });
       
       const updateData: any = {
         is_purchased: true,
         is_detailed: true,
+        purchase_status: 'completed',
+        purchase_completed_at: new Date().toISOString(),
         access_method: 'purchase',
         purchase_date: new Date().toISOString(),
         purchase_amount: session.amount_total,
         stripe_session_id: session.id
       };
 
-      // For guest purchases, store the email
+      // For guest purchases, store the email and generate temp access
       if (email && !userId) {
         updateData.guest_email = email;
-        
-        // Generate a temporary access token
-        const tempToken = crypto.randomUUID();
-        updateData.temp_access_token = tempToken;
-        updateData.temp_access_expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours
-        
-        // Store token for future account linking
-        await supabase.from('temp_access_tokens').insert({
-          token: tempToken,
-          email: email,
-          result_id: resultId
-        });
+        updateData.temp_access_token = crypto.randomUUID();
+        updateData.temp_access_expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
       }
 
-      // If we have a userId, associate it directly
+      // If we have a userId, associate it
       if (userId) {
         updateData.user_id = userId;
       }
@@ -70,7 +79,7 @@ export async function handleRegularPurchase(session: any) {
       }
     }
 
-    // 2. Send appropriate email based on purchase type
+    // 3. Send confirmation email
     const formattedAmount = new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: session.currency.toUpperCase()
@@ -78,55 +87,38 @@ export async function handleRegularPurchase(session: any) {
 
     const siteUrl = Deno.env.get('SITE_URL') || 'https://themoralhierarchy.com';
     const reportUrl = `${siteUrl}/assessment/${resultId}`;
-    
-    let emailSubject = '';
+
+    const emailSubject = 'Your Moral Hierarchy Full Report is Ready!';
     let emailContent = '';
 
-    if (purchaseType === 'subscription') {
-      emailSubject = 'Welcome to The Moral Hierarchy Pro!';
+    // Different content for guest vs signed-in users
+    if (userId) {
       emailContent = `
-        <h1>Welcome to The Moral Hierarchy Pro!</h1>
-        <p>Thank you for subscribing to The Moral Hierarchy!</p>
-        <p>Your subscription has been successfully activated.</p>
+        <h1>Thank You for Your Purchase!</h1>
+        <p>Your Full Report is now ready to view.</p>
         <p>Purchase Details:</p>
         <ul>
-          <li>Plan: ${metadata?.plan_type || 'Pro'}</li>
+          <li>Item: Detailed Moral Analysis Report</li>
           <li>Amount: ${formattedAmount}</li>
         </ul>
-        <p>You can now access all premium features and reports.</p>
+        <p>Access your report here:</p>
+        <p><a href="${reportUrl}">View Your Full Report</a></p>
       `;
     } else {
-      emailSubject = 'Your Moral Hierarchy Full Report is Ready!';
-      
-      // Different content for guest vs signed-in users
-      if (userId) {
-        emailContent = `
-          <h1>Thank You for Your Purchase!</h1>
-          <p>Your Full Report is now ready to view.</p>
-          <p>Purchase Details:</p>
-          <ul>
-            <li>Item: Detailed Moral Analysis Report</li>
-            <li>Amount: ${formattedAmount}</li>
-          </ul>
-          <p>Access your report here:</p>
-          <p><a href="${reportUrl}">View Your Full Report</a></p>
-        `;
-      } else {
-        emailContent = `
-          <h1>Thank You for Your Purchase!</h1>
-          <p>Your Full Report is now ready to view.</p>
-          <p>Purchase Details:</p>
-          <ul>
-            <li>Item: Detailed Moral Analysis Report</li>
-            <li>Amount: ${formattedAmount}</li>
-          </ul>
-          <p>Access your report here:</p>
-          <p><a href="${reportUrl}">View Your Full Report</a></p>
-          <p>To save your report and access it anytime:</p>
-          <p><a href="${siteUrl}/auth?setup=true&email=${encodeURIComponent(email)}">Create Your Account</a></p>
-          <p><small>Your report will be automatically linked to your account when you sign up with this email.</small></p>
-        `;
-      }
+      emailContent = `
+        <h1>Thank You for Your Purchase!</h1>
+        <p>Your Full Report is now ready to view.</p>
+        <p>Purchase Details:</p>
+        <ul>
+          <li>Item: Detailed Moral Analysis Report</li>
+          <li>Amount: ${formattedAmount}</li>
+        </ul>
+        <p>Access your report here:</p>
+        <p><a href="${reportUrl}">View Your Full Report</a></p>
+        <p>To save your report and access it anytime:</p>
+        <p><a href="${siteUrl}/auth?setup=true&email=${encodeURIComponent(email)}">Create Your Account</a></p>
+        <p><small>Your report will be automatically linked to your account when you sign up with this email.</small></p>
+      `;
     }
 
     await resend.emails.send({
@@ -136,7 +128,7 @@ export async function handleRegularPurchase(session: any) {
       html: emailContent
     });
 
-    console.log('Successfully sent confirmation email to:', email);
+    console.log('Successfully processed purchase and sent confirmation email');
     
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

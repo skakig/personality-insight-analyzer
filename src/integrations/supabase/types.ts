@@ -324,6 +324,50 @@ export type Database = {
         }
         Relationships: []
       }
+      purchase_tracking: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          guest_email: string | null
+          id: string
+          metadata: Json | null
+          quiz_result_id: string | null
+          status: string | null
+          stripe_session_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          guest_email?: string | null
+          id?: string
+          metadata?: Json | null
+          quiz_result_id?: string | null
+          status?: string | null
+          stripe_session_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          guest_email?: string | null
+          id?: string
+          metadata?: Json | null
+          quiz_result_id?: string | null
+          status?: string | null
+          stripe_session_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_tracking_quiz_result_id_fkey"
+            columns: ["quiz_result_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_results"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quiz_progress: {
         Row: {
           completed_levels: number[] | null
@@ -407,7 +451,10 @@ export type Database = {
           is_purchased: boolean | null
           personality_type: string
           purchase_amount: number | null
+          purchase_completed_at: string | null
           purchase_date: string | null
+          purchase_initiated_at: string | null
+          purchase_status: string | null
           stripe_session_id: string | null
           temp_access_expires_at: string | null
           temp_access_token: string | null
@@ -427,7 +474,10 @@ export type Database = {
           is_purchased?: boolean | null
           personality_type: string
           purchase_amount?: number | null
+          purchase_completed_at?: string | null
           purchase_date?: string | null
+          purchase_initiated_at?: string | null
+          purchase_status?: string | null
           stripe_session_id?: string | null
           temp_access_expires_at?: string | null
           temp_access_token?: string | null
@@ -447,7 +497,10 @@ export type Database = {
           is_purchased?: boolean | null
           personality_type?: string
           purchase_amount?: number | null
+          purchase_completed_at?: string | null
           purchase_date?: string | null
+          purchase_initiated_at?: string | null
+          purchase_status?: string | null
           stripe_session_id?: string | null
           temp_access_expires_at?: string | null
           temp_access_token?: string | null
