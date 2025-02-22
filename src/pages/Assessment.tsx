@@ -35,18 +35,6 @@ const Assessment = () => {
 
         const isPostPurchase = searchParams.get('success') === 'true';
         const purchaseId = localStorage.getItem('currentPurchaseId');
-        const storedResultId = localStorage.getItem('purchaseResultId');
-
-        if (isPostPurchase && storedResultId && storedResultId !== id) {
-          console.error('Result ID mismatch:', { stored: storedResultId, current: id });
-          toast({
-            title: "Error",
-            description: "Invalid assessment result",
-            variant: "destructive",
-          });
-          setLoading(false);
-          return;
-        }
 
         let purchaseCompleted = false;
         if (isPostPurchase && purchaseId) {
@@ -74,7 +62,6 @@ const Assessment = () => {
 
           if (purchaseCompleted) {
             localStorage.removeItem('currentPurchaseId');
-            localStorage.removeItem('purchaseResultId');
           }
         }
 
@@ -98,7 +85,7 @@ const Assessment = () => {
         if (resultError) throw resultError;
 
         if (!data) {
-          if (isPostPurchase) {
+          if (isPostPurchase && retryCount < MAX_RETRIES) {
             toast({
               title: "Purchase processed",
               description: "Please wait while we load your report...",
@@ -125,7 +112,7 @@ const Assessment = () => {
           });
         }
 
-        // Show account creation prompt for guests
+        // Show account creation prompt for guests with custom URL
         if (!userId && data.guest_email) {
           toast({
             title: "Create an Account",
