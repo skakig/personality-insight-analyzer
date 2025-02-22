@@ -1,5 +1,5 @@
 
-import { SupabaseClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 export const handleGuestPurchase = async (
   supabase: SupabaseClient,

@@ -1,9 +1,9 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import Stripe from 'https://esm.sh/stripe@14.21.0';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { handleGuestPurchase } from './handlers/guest-purchase.ts';
-import { handleRegularPurchase } from './handlers/regular-purchase.ts';
+import Stripe from 'https://esm.sh/stripe@14.21.0';
+import { handleGuestPurchase } from "./handlers/guest-purchase.ts";
+import { handleRegularPurchase } from "./handlers/regular-purchase.ts";
 
 const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
 const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
@@ -26,7 +26,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-async function logWebhookEvent(event: Stripe.Event, status = 'pending', errorMessage?: string) {
+async function logWebhookEvent(event: any, status = 'pending', errorMessage?: string) {
   try {
     console.log('Logging webhook event:', {
       id: event.id,
@@ -56,30 +56,6 @@ async function logWebhookEvent(event: Stripe.Event, status = 'pending', errorMes
   }
 }
 
-async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
-  // Check if this session was already processed
-  const { data: existingEvent } = await supabase
-    .from('stripe_webhook_events')
-    .select('status')
-    .eq('stripe_event_id', session.id)
-    .eq('status', 'completed')
-    .maybeSingle();
-
-  if (existingEvent) {
-    console.log('Session already processed:', session.id);
-    return;
-  }
-
-  // Determine if this is a guest purchase
-  const isGuestPurchase = !session.customer && session.metadata?.email;
-
-  if (isGuestPurchase) {
-    await handleGuestPurchase(session);
-  } else {
-    await handleRegularPurchase(session);
-  }
-}
-
 serve(async (req) => {
   try {
     if (req.method === 'OPTIONS') {
@@ -100,7 +76,6 @@ serve(async (req) => {
 
     let event: Stripe.Event;
     try {
-      // Using constructEventAsync instead of constructEvent
       event = await stripe.webhooks.constructEventAsync(
         rawBody,
         signature,
@@ -119,12 +94,17 @@ serve(async (req) => {
     await logWebhookEvent(event);
 
     try {
-      switch (event.type) {
-        case 'checkout.session.completed': {
-          await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
-          break;
+      if (event.type === 'checkout.session.completed') {
+        const session = event.data.object as Stripe.Checkout.Session;
+        
+        // Determine if this is a guest purchase
+        const isGuestPurchase = !session.customer && session.metadata?.email;
+
+        if (isGuestPurchase) {
+          await handleGuestPurchase(supabase, event);
+        } else {
+          await handleRegularPurchase(supabase, event);
         }
-        // Add more event types as needed
       }
 
       // Mark event as completed
