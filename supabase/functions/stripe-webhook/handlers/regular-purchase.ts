@@ -13,64 +13,91 @@ export async function handleRegularPurchase(session: any) {
   const { customer, customer_details, metadata } = session;
   const email = customer_details?.email;
   const userId = metadata?.userId;
+  const resultId = metadata?.resultId;
+  const isSubscriptionPurchase = metadata?.type === 'subscription';
 
   console.log('Processing regular purchase:', {
     sessionId: session.id,
     email,
     userId,
-    customerId: customer
+    resultId,
+    customerId: customer,
+    isSubscriptionPurchase
   });
 
   try {
-    // Update subscription status
-    if (userId) {
-      await supabase
-        .from('subscriptions')
-        .upsert({
-          user_id: userId,
-          stripe_customer_id: customer,
-          stripe_subscription_id: session.subscription,
-          stripe_price_id: metadata?.priceId,
-          status: 'active',
-          plan_type: metadata?.plan_type || 'pro'
-        });
-    }
+    if (resultId) {
+      // Update quiz result access
+      const updateData = {
+        is_purchased: true,
+        is_detailed: true,
+        access_method: 'purchase',
+        purchase_date: new Date().toISOString(),
+        purchase_amount: session.amount_total
+      };
 
-    // Update quiz result access
-    if (metadata?.resultId) {
-      await supabase
+      // If we have an email but no user ID (guest purchase), store the email
+      if (email && !userId) {
+        updateData.guest_email = email;
+      }
+
+      // If we have a user ID, associate the result with the user
+      if (userId) {
+        updateData.user_id = userId;
+      }
+
+      const { error: updateError } = await supabase
         .from('quiz_results')
-        .update({ 
-          is_purchased: true,
-          is_detailed: true,
-          access_method: 'purchase'
-        })
-        .eq('id', metadata.resultId);
+        .update(updateData)
+        .eq('id', resultId);
+
+      if (updateError) throw updateError;
     }
 
-    // Send purchase confirmation email
-    await resend.emails.send({
-      from: "The Moral Hierarchy <onboarding@resend.dev>",
-      to: [email],
-      subject: "Thank You for Your Purchase!",
-      html: `
-        <h1>Purchase Confirmation</h1>
+    // Send appropriate purchase confirmation email
+    const formattedAmount = `${session.currency.toUpperCase() === 'USD' ? '$' : ''}${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}`;
+    
+    let emailSubject = '';
+    let emailContent = '';
+    
+    if (isSubscriptionPurchase) {
+      emailSubject = 'Welcome to The Moral Hierarchy Pro!';
+      emailContent = `
+        <h1>Welcome to The Moral Hierarchy Pro!</h1>
         <p>Thank you for subscribing to The Moral Hierarchy!</p>
         <p>Your subscription has been successfully activated.</p>
         <p>Purchase Details:</p>
         <ul>
           <li>Plan: ${metadata?.plan_type || 'Pro'}</li>
-          <li>Amount: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</li>
+          <li>Amount: ${formattedAmount}</li>
         </ul>
-        <p>You can now access your full report by visiting:</p>
-        <p><a href="${Deno.env.get('SITE_URL')}/assessment/${metadata?.resultId}">View Your Full Report</a></p>
-        <p>If you have any questions, please don't hesitate to contact us.</p>
-      `
+      `;
+    } else {
+      emailSubject = 'Your Full Report is Ready!';
+      emailContent = `
+        <h1>Thank You for Your Purchase!</h1>
+        <p>Your Full Report is now ready to view.</p>
+        <p>Purchase Details:</p>
+        <ul>
+          <li>Item: Full Detailed Report</li>
+          <li>Amount: ${formattedAmount}</li>
+        </ul>
+        <p>You can access your full report here:</p>
+        <p><a href="${Deno.env.get('SITE_URL')}/assessment/${resultId}">View Your Full Report</a></p>
+      `;
+    }
+
+    await resend.emails.send({
+      from: "The Moral Hierarchy <onboarding@resend.dev>",
+      to: [email],
+      subject: emailSubject,
+      html: emailContent
     });
 
-    console.log('Sent confirmation email to:', email);
+    console.log('Successfully processed purchase and sent confirmation email');
 
   } catch (error) {
     console.error('Error in regular purchase handler:', error);
+    throw error;
   }
 }

@@ -10,6 +10,8 @@ const Assessment = () => {
   const [searchParams] = useSearchParams();
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
+  const maxRetries = 5;
 
   useEffect(() => {
     const fetchResult = async () => {
@@ -24,50 +26,58 @@ const Assessment = () => {
           return;
         }
 
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id;
+
         // Check for guest access via localStorage
         const guestQuizResultId = localStorage.getItem('guestQuizResultId');
         const isGuestAccess = guestQuizResultId === id;
 
-        const { data, error: resultError } = await supabase
+        const query = supabase
           .from('quiz_results')
           .select('*')
-          .eq('id', id)
-          .maybeSingle();
+          .eq('id', id);
+
+        // Add user-specific filters
+        if (userId) {
+          query.eq('user_id', userId);
+        } else if (isGuestAccess) {
+          // For guest access, verify the temp access token
+          const guestAccessToken = localStorage.getItem('guestAccessToken');
+          if (guestAccessToken) {
+            query.eq('temp_access_token', guestAccessToken);
+          }
+        }
+
+        const { data, error: resultError } = await query.maybeSingle();
 
         if (resultError) throw resultError;
 
         if (!data) {
+          if (searchParams.get('success') === 'true' && retryCount < maxRetries) {
+            // If this is post-purchase and we haven't maxed out retries, wait and try again
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            setRetryCount(prev => prev + 1);
+            return; // This will trigger another useEffect run
+          }
+          
           toast({
             title: "Result not found",
             description: "The requested assessment result could not be found",
             variant: "destructive",
           });
+          setLoading(false);
           return;
         }
 
-        // Handle successful purchase
+        setResult(data);
+
+        // Show success message if returning from purchase
         if (searchParams.get('success') === 'true') {
-          // Wait a short moment for the webhook to process
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          
-          // Fetch the result again to get updated purchase status
-          const { data: refreshedData, error: refreshError } = await supabase
-            .from('quiz_results')
-            .select('*')
-            .eq('id', id)
-            .maybeSingle();
-            
-          if (refreshError) throw refreshError;
-          
-          if (refreshedData) {
-            setResult(refreshedData);
-            toast({
-              title: "Purchase successful!",
-              description: "Your detailed report is now available.",
-            });
-          }
-        } else {
-          setResult(data);
+          toast({
+            title: "Purchase successful!",
+            description: "Your detailed report is now available.",
+          });
         }
       } catch (error: any) {
         console.error('Error fetching result:', error);
@@ -82,7 +92,7 @@ const Assessment = () => {
     };
 
     fetchResult();
-  }, [id, searchParams]);
+  }, [id, searchParams, retryCount]);
 
   if (loading) {
     return (
