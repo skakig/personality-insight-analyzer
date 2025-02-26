@@ -25,60 +25,10 @@ export const PurchaseButton = ({
   const [internalLoading, setInternalLoading] = useState(false);
   const loading = externalLoading || internalLoading;
 
-  const verifyPurchaseStatus = async (sessionId: string) => {
-    try {
-      // Check if purchase is already completed
-      const { data: purchase, error: purchaseError } = await supabase
-        .from('guest_purchases')
-        .select('*')
-        .eq('stripe_session_id', sessionId)
-        .eq('status', 'completed')
-        .maybeSingle();
-
-      if (purchaseError) throw purchaseError;
-
-      if (purchase) {
-        if (onPurchaseComplete) onPurchaseComplete();
-        return true;
-      }
-
-      // Fallback: Check by result ID and email
-      const { data: fallbackPurchase, error: fallbackError } = await supabase
-        .from('guest_purchases')
-        .select('*')
-        .eq('result_id', resultId)
-        .eq('email', email)
-        .eq('status', 'completed')
-        .maybeSingle();
-
-      if (fallbackError) throw fallbackError;
-
-      if (fallbackPurchase) {
-        if (onPurchaseComplete) onPurchaseComplete();
-        return true;
-      }
-
-      return false;
-    } catch (error) {
-      console.error('Error verifying purchase:', error);
-      return false;
-    }
-  };
-
   const initiatePurchase = async () => {
     try {
       setInternalLoading(true);
       if (onPurchaseStart) onPurchaseStart();
-
-      // First verify if there's already a completed purchase
-      const sessionId = localStorage.getItem('stripeSessionId');
-      if (sessionId) {
-        const isVerified = await verifyPurchaseStatus(sessionId);
-        if (isVerified) {
-          setInternalLoading(false);
-          return;
-        }
-      }
 
       // Create purchase tracking record
       const accessToken = crypto.randomUUID();

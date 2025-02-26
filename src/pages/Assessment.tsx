@@ -4,16 +4,14 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { DetailedReport } from "@/components/results/DetailedReport";
 import { toast } from "@/components/ui/use-toast";
-
-const MAX_RETRIES = 10;
-const RETRY_DELAY = 2000;
+import { verifyPurchaseWithRetry } from "@/utils/purchaseUtils";
 
 const Assessment = () => {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [retryCount, setRetryCount] = useState(0);
+  const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
     const fetchResult = async () => {
@@ -32,50 +30,39 @@ const Assessment = () => {
         const { data: { session } } = await supabase.auth.getSession();
         const userId = session?.user?.id;
         const accessToken = searchParams.get('token');
-
         const isPostPurchase = searchParams.get('success') === 'true';
-        const purchaseId = localStorage.getItem('currentPurchaseId');
 
-        let purchaseCompleted = false;
-        if (isPostPurchase && purchaseId) {
-          if (retryCount === 0) {
-            toast({
-              title: "Processing your purchase",
-              description: "Please wait while we prepare your report...",
-            });
-          }
+        if (isPostPurchase) {
+          setVerifying(true);
+          toast({
+            title: "Verifying your purchase",
+            description: "Please wait while we prepare your report...",
+          });
 
-          const { data: purchaseData } = await supabase
-            .from('purchase_tracking')
-            .select('status')
-            .eq('id', purchaseId)
-            .single();
+          // Use the retry mechanism for post-purchase verification
+          const verifiedResult = await verifyPurchaseWithRetry(id);
           
-          purchaseCompleted = purchaseData?.status === 'completed';
-
-          if (!purchaseCompleted && retryCount < MAX_RETRIES) {
-            console.log(`Attempt ${retryCount + 1} of ${MAX_RETRIES} to confirm purchase`);
-            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-            setRetryCount(prev => prev + 1);
+          if (verifiedResult) {
+            setResult(verifiedResult);
+            toast({
+              title: "Purchase successful!",
+              description: "Your detailed report is now available.",
+            });
+            setLoading(false);
+            setVerifying(false);
             return;
-          }
-
-          if (purchaseCompleted) {
-            localStorage.removeItem('currentPurchaseId');
           }
         }
 
-        // Build query based on auth status
+        // Standard result fetch for non-purchase scenarios
         let query = supabase
           .from('quiz_results')
           .select('*')
           .eq('id', id);
 
         if (userId) {
-          // Authenticated user - check user_id
           query = query.eq('user_id', userId);
         } else if (accessToken) {
-          // Guest with token - verify token and expiration
           query = query.eq('guest_access_token', accessToken)
             .gte('guest_access_expires_at', new Date().toISOString());
         }
@@ -85,32 +72,24 @@ const Assessment = () => {
         if (resultError) throw resultError;
 
         if (!data) {
-          if (isPostPurchase && retryCount < MAX_RETRIES) {
+          if (verifying) {
             toast({
-              title: "Purchase processed",
-              description: "Please wait while we load your report...",
+              title: "Purchase verification failed",
+              description: "Please try refreshing the page or contact support if the issue persists.",
+              variant: "destructive",
             });
-            setTimeout(fetchResult, 2000);
-            return;
+          } else {
+            toast({
+              title: "Result not found",
+              description: "The requested assessment result could not be found or access has expired",
+              variant: "destructive",
+            });
           }
-          
-          toast({
-            title: "Result not found",
-            description: "The requested assessment result could not be found or access has expired",
-            variant: "destructive",
-          });
           setLoading(false);
           return;
         }
 
         setResult(data);
-
-        if (purchaseCompleted) {
-          toast({
-            title: "Purchase successful!",
-            description: "Your detailed report is now available.",
-          });
-        }
 
         // Show account creation prompt for guests with custom URL
         if (!userId && data.guest_email) {
@@ -138,20 +117,21 @@ const Assessment = () => {
         });
       } finally {
         setLoading(false);
+        setVerifying(false);
       }
     };
 
     fetchResult();
-  }, [id, searchParams, retryCount]);
+  }, [id, searchParams]);
 
-  if (loading) {
+  if (loading || verifying) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          {retryCount > 0 && (
+          {verifying && (
             <p className="text-sm text-gray-600">
-              Processing your purchase... ({retryCount}/{MAX_RETRIES})
+              Verifying your purchase...
             </p>
           )}
         </div>
