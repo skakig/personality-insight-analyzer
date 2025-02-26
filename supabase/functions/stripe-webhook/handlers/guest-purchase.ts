@@ -1,7 +1,7 @@
 
-import { stripe } from '../utils';
-import { createClient } from '@supabase/supabase-js';
-import { Database } from '../../../types';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { Database } from '../types.ts';
+import { stripe } from '../utils.ts';
 
 const supabase = createClient<Database>(
   Deno.env.get('SUPABASE_URL') ?? '',
