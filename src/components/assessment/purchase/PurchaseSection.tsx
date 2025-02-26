@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { CreditCard, Gift, Loader2, Mail } from "lucide-react";
 import { EmailPurchaseDialog } from "./EmailPurchaseDialog";
@@ -11,6 +11,8 @@ import { useDirectPurchase } from "./hooks/useDirectPurchase";
 import { useEmailPurchase } from "./hooks/useEmailPurchase";
 import { useGiftPurchase } from "./hooks/useGiftPurchase";
 import { CouponInput } from "./CouponInput";
+import { setupTestCoupon } from "@/utils/setupAdmin";
+import { toast } from "@/components/ui/use-toast";
 
 interface PurchaseSectionProps {
   resultId: string;
@@ -18,7 +20,7 @@ interface PurchaseSectionProps {
 }
 
 export const PurchaseSection = ({ resultId, session }: PurchaseSectionProps) => {
-  const [discountedAmount, setDiscountedAmount] = useState(1499); // Default to full price
+  const [discountedAmount, setDiscountedAmount] = useState(1499);
   const {
     purchaseLoading,
     setPurchaseLoading,
@@ -31,6 +33,22 @@ export const PurchaseSection = ({ resultId, session }: PurchaseSectionProps) => 
     isEmailDialogOpen,
     setIsEmailDialogOpen,
   } = useModalState();
+
+  useEffect(() => {
+    // Only show this in development
+    if (process.env.NODE_ENV === 'development') {
+      const setupAdmin = async () => {
+        const success = await setupTestCoupon();
+        if (success) {
+          toast({
+            title: "Test Coupon Created",
+            description: "You can now use the coupon code 'TEST50' for 50% off",
+          });
+        }
+      };
+      setupAdmin();
+    }
+  }, []);
 
   const handlePurchase = useDirectPurchase(resultId, setPurchaseLoading);
   const handleEmailPurchase = useEmailPurchase(resultId, email, setPurchaseLoading, setIsEmailDialogOpen);
@@ -93,7 +111,7 @@ export const PurchaseSection = ({ resultId, session }: PurchaseSectionProps) => 
         open={isEmailDialogOpen}
         onOpenChange={setIsEmailDialogOpen}
         email={email}
-        onEmailChange={(e) => setEmail(e.target.value)}
+        setEmail={setEmail}
         onSubmit={handleEmailPurchase}
         loading={purchaseLoading}
       />
@@ -101,8 +119,8 @@ export const PurchaseSection = ({ resultId, session }: PurchaseSectionProps) => 
       <GiftPurchaseDialog
         open={isGiftDialogOpen}
         onOpenChange={setIsGiftDialogOpen}
-        email={giftEmail}
-        onEmailChange={(e) => setGiftEmail(e.target.value)}
+        giftEmail={giftEmail}
+        setGiftEmail={setGiftEmail}
         onSubmit={handleGiftPurchase}
         loading={purchaseLoading}
       />
