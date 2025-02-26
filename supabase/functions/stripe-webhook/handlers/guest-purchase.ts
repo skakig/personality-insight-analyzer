@@ -1,96 +1,66 @@
 
-import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { stripe } from '../utils';
+import { createClient } from '@supabase/supabase-js';
+import { Database } from '../../../types';
 
-export const handleGuestPurchase = async (
-  supabase: SupabaseClient,
-  session: any
-) => {
-  const metadata = session.metadata;
-  
-  console.log('Processing guest purchase:', {
-    sessionId: session.id,
-    metadata,
-    timestamp: new Date().toISOString()
-  });
+const supabase = createClient<Database>(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+);
 
-  if (!metadata.resultId) {
-    throw new Error('No result ID found in metadata');
-  }
-
+export async function handleGuestPurchase(session: any) {
   try {
-    // 1. Update the quiz result
+    console.log('Processing guest purchase:', session.id);
+
+    const metadata = session.metadata;
+    if (!metadata?.resultId || !metadata?.email) {
+      throw new Error('Missing required metadata');
+    }
+
+    const accessToken = crypto.randomUUID();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30); // 30 days access
+
+    // Create guest purchase record
+    const { error: purchaseError } = await supabase
+      .from('guest_purchases')
+      .insert({
+        result_id: metadata.resultId,
+        email: metadata.email,
+        access_token: accessToken,
+        access_expires_at: expiresAt.toISOString(),
+        status: 'completed',
+        stripe_session_id: session.id,
+        purchase_type: 'assessment'
+      });
+
+    if (purchaseError) throw purchaseError;
+
+    // Update quiz result
     const { error: resultError } = await supabase
       .from('quiz_results')
       .update({
         is_purchased: true,
         purchase_status: 'completed',
-        purchase_completed_at: new Date().toISOString(),
-        guest_email: session.customer_details.email,
-        access_method: 'purchase'
+        purchase_date: new Date().toISOString(),
+        access_method: 'guest_purchase',
+        guest_email: metadata.email,
+        guest_access_token: accessToken,
+        guest_access_expires_at: expiresAt.toISOString(),
+        stripe_session_id: session.id
       })
       .eq('id', metadata.resultId);
 
     if (resultError) throw resultError;
 
-    // 2. Update purchase tracking
-    const { error: trackingError } = await supabase
-      .from('purchase_tracking')
-      .update({
-        status: 'completed',
-        completed_at: new Date().toISOString(),
-        guest_email: session.customer_details.email
-      })
-      .eq('quiz_result_id', metadata.resultId);
-
-    if (trackingError) throw trackingError;
-
-    // 3. Generate a temp access token
-    const accessToken = crypto.randomUUID();
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days access
-
-    const { error: tokenError } = await supabase
-      .from('quiz_results')
-      .update({
-        guest_access_token: accessToken,
-        guest_access_expires_at: expiresAt.toISOString()
-      })
-      .eq('id', metadata.resultId);
-
-    if (tokenError) throw tokenError;
-
-    // 4. Store the email for marketing
-    const { error: subscriberError } = await supabase
-      .from('newsletter_subscribers')
-      .upsert({
-        email: session.customer_details.email
-      }, {
-        onConflict: 'email'
-      });
-
-    if (subscriberError) {
-      console.error('Error adding to newsletter:', subscriberError);
-      // Don't throw, this is non-critical
-    }
-
-    // 5. Send confirmation email with report link and account creation option
-    await supabase.functions.invoke('send-results', {
-      body: {
-        email: session.customer_details.email,
-        resultId: metadata.resultId,
-        accessToken,
-        isGuest: true
-      }
-    });
-
-    console.log('Guest purchase completed successfully:', {
+    console.log('Successfully processed guest purchase:', {
       resultId: metadata.resultId,
-      email: session.customer_details.email,
-      timestamp: new Date().toISOString()
+      email: metadata.email
     });
 
+    return { success: true };
   } catch (error) {
-    console.error('Error in guest purchase handler:', error);
+    console.error('Error in handleGuestPurchase:', error);
     throw error;
   }
-};
+}
