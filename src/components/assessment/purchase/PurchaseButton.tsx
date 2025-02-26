@@ -9,30 +9,88 @@ interface PurchaseButtonProps {
   resultId: string;
   email?: string;
   onPurchaseStart?: () => void;
+  onPurchaseComplete?: () => void;
 }
 
-export const PurchaseButton = ({ resultId, email, onPurchaseStart }: PurchaseButtonProps) => {
+export const PurchaseButton = ({ 
+  resultId, 
+  email, 
+  onPurchaseStart,
+  onPurchaseComplete 
+}: PurchaseButtonProps) => {
   const [loading, setLoading] = useState(false);
+
+  const verifyPurchaseStatus = async (sessionId: string) => {
+    try {
+      // Check if purchase is already completed
+      const { data: purchase, error: purchaseError } = await supabase
+        .from('guest_purchases')
+        .select('*')
+        .eq('stripe_session_id', sessionId)
+        .eq('status', 'completed')
+        .maybeSingle();
+
+      if (purchaseError) throw purchaseError;
+
+      if (purchase) {
+        if (onPurchaseComplete) onPurchaseComplete();
+        return true;
+      }
+
+      // Fallback: Check by result ID and email
+      const { data: fallbackPurchase, error: fallbackError } = await supabase
+        .from('guest_purchases')
+        .select('*')
+        .eq('result_id', resultId)
+        .eq('email', email)
+        .eq('status', 'completed')
+        .maybeSingle();
+
+      if (fallbackError) throw fallbackError;
+
+      if (fallbackPurchase) {
+        if (onPurchaseComplete) onPurchaseComplete();
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Error verifying purchase:', error);
+      return false;
+    }
+  };
 
   const initiatePurchase = async () => {
     try {
       setLoading(true);
       if (onPurchaseStart) onPurchaseStart();
 
-      // Create purchase tracking record first
+      // First verify if there's already a completed purchase
+      const sessionId = localStorage.getItem('stripeSessionId');
+      if (sessionId) {
+        const isVerified = await verifyPurchaseStatus(sessionId);
+        if (isVerified) {
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Create purchase tracking record
       const accessToken = crypto.randomUUID();
-      const { error: trackingError } = await supabase
+      const { data: tracking, error: trackingError } = await supabase
         .from('purchase_tracking')
         .insert({
           quiz_result_id: resultId,
           guest_email: email,
           status: 'pending',
           access_token: accessToken
-        });
+        })
+        .select()
+        .single();
 
       if (trackingError) throw trackingError;
 
-      // Store tokens temporarily
+      // Store essential data
       localStorage.setItem('guestQuizResultId', resultId);
       localStorage.setItem('guestAccessToken', accessToken);
       if (email) localStorage.setItem('guestEmail', email);
@@ -47,7 +105,8 @@ export const PurchaseButton = ({ resultId, email, onPurchaseStart }: PurchaseBut
             metadata: {
               resultId,
               email,
-              accessToken
+              accessToken,
+              trackingId: tracking.id
             }
           }
         }
@@ -55,6 +114,11 @@ export const PurchaseButton = ({ resultId, email, onPurchaseStart }: PurchaseBut
 
       if (checkoutError) throw checkoutError;
       if (!checkoutData?.url) throw new Error('No checkout URL received');
+
+      // Store Stripe session ID for verification
+      if (checkoutData.sessionId) {
+        localStorage.setItem('stripeSessionId', checkoutData.sessionId);
+      }
 
       window.location.href = checkoutData.url;
     } catch (error: any) {
