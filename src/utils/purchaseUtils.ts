@@ -18,3 +18,4 @@ export const hasAnyPurchasedReport = (assessments: Array<{
 }>) => {
   return assessments.some(assessment => isPurchased(assessment));
 };
+
