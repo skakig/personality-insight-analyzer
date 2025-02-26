@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CreditCard, Gift, Loader2, Mail } from "lucide-react";
 import { EmailPurchaseDialog } from "./EmailPurchaseDialog";
@@ -34,23 +34,7 @@ export const PurchaseSection = ({ resultId, session }: PurchaseSectionProps) => 
     setIsEmailDialogOpen,
   } = useModalState();
 
-  useEffect(() => {
-    // Only show this in development
-    if (process.env.NODE_ENV === 'development') {
-      const setupAdmin = async () => {
-        const success = await setupTestCoupon();
-        if (success) {
-          toast({
-            title: "Test Coupon Created",
-            description: "You can now use the coupon code 'TEST50' for 50% off",
-          });
-        }
-      };
-      setupAdmin();
-    }
-  }, []);
-
-  const handlePurchase = useDirectPurchase(resultId, setPurchaseLoading);
+  const handleDirectPurchase = useDirectPurchase(resultId, setPurchaseLoading);
   const handleEmailPurchase = useEmailPurchase(resultId, email, setPurchaseLoading, setIsEmailDialogOpen);
   const handleGiftPurchase = useGiftPurchase(resultId, giftEmail, setPurchaseLoading, setIsGiftDialogOpen);
 
@@ -71,7 +55,7 @@ export const PurchaseSection = ({ resultId, session }: PurchaseSectionProps) => 
 
         {session?.user ? (
           <PurchaseButton
-            onClick={handlePurchase}
+            resultId={resultId}
             loading={purchaseLoading}
           />
         ) : (
