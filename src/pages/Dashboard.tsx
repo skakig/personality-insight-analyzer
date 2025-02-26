@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
@@ -8,7 +9,7 @@ import { LoadingState } from "@/components/dashboard/LoadingState";
 import { toast } from "@/hooks/use-toast";
 
 interface DashboardProps {
-  session: any;
+  session: Session | null;
 }
 
 const Dashboard = ({ session }: DashboardProps) => {
@@ -21,6 +22,14 @@ const Dashboard = ({ session }: DashboardProps) => {
 
   const fetchData = async () => {
     try {
+      if (!session?.user?.id) {
+        console.error('No user ID found in session:', session);
+        setError('User session is invalid');
+        return;
+      }
+
+      console.log('Fetching data for user:', session.user.id);
+
       // Fetch subscription data
       const { data: subscriptionData, error: subscriptionError } = await supabase
         .from('corporate_subscriptions')
@@ -49,7 +58,11 @@ const Dashboard = ({ session }: DashboardProps) => {
         setPreviousAssessments(assessments || []);
       }
     } catch (err: any) {
-      console.error('Error:', err);
+      console.error('Error in fetchData:', {
+        error: err,
+        session: session,
+        userId: session?.user?.id
+      });
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -57,7 +70,8 @@ const Dashboard = ({ session }: DashboardProps) => {
   };
 
   useEffect(() => {
-    if (!session) {
+    if (!session?.user?.id) {
+      console.log('No valid session, redirecting to auth');
       navigate("/auth");
       return;
     }

@@ -12,6 +12,7 @@ import {
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
+import { Session } from "@supabase/supabase-js";
 
 interface AdminSectionProps {
   userId: string;
@@ -30,16 +31,43 @@ export const AdminSection = ({ userId }: AdminSectionProps) => {
 
   const checkAdminStatus = async () => {
     try {
+      if (!userId) {
+        console.error('No user ID provided to AdminSection');
+        setIsAdmin(false);
+        setLoading(false);
+        return;
+      }
+
+      console.log('Checking admin status for user:', userId);
+
       const { data, error } = await supabase
         .from('admin_users')
-        .select()
+        .select('id')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
       
-      if (error) throw error;
-      setIsAdmin(!!data);
-    } catch (error) {
-      console.error('Error checking admin status:', error);
+      if (error) {
+        console.error('Error checking admin status:', {
+          error,
+          userId
+        });
+        throw error;
+      }
+
+      const hasAdminAccess = !!data;
+      console.log('Admin status result:', {
+        userId,
+        isAdmin: hasAdminAccess
+      });
+      
+      setIsAdmin(hasAdminAccess);
+    } catch (error: any) {
+      console.error('Error in checkAdminStatus:', error);
+      toast({
+        title: "Error",
+        description: "Failed to verify admin status",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -80,7 +108,14 @@ export const AdminSection = ({ userId }: AdminSectionProps) => {
           created_by: userId
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating coupon:', {
+          error,
+          userId,
+          couponCode
+        });
+        throw error;
+      }
 
       toast({
         title: "Success",
@@ -114,7 +149,10 @@ export const AdminSection = ({ userId }: AdminSectionProps) => {
     );
   }
 
-  if (!isAdmin) return null;
+  if (!isAdmin) {
+    console.log('User is not admin, hiding admin section:', userId);
+    return null;
+  }
 
   return (
     <Card>
