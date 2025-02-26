@@ -1,3 +1,4 @@
+
 import { CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText } from "lucide-react";
@@ -44,7 +45,7 @@ export const AssessmentContent = ({
           View Full Report
         </Button>
       ) : (
-        <PurchaseSection 
+        <PurchaseButton 
           resultId={resultId} 
           loading={loading}
         />
