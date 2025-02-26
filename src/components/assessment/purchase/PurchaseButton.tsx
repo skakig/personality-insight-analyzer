@@ -8,6 +8,8 @@ import { toast } from "@/hooks/use-toast";
 interface PurchaseButtonProps {
   resultId: string;
   email?: string;
+  loading?: boolean;
+  isPurchased?: boolean;
   onPurchaseStart?: () => void;
   onPurchaseComplete?: () => void;
 }
@@ -15,10 +17,13 @@ interface PurchaseButtonProps {
 export const PurchaseButton = ({ 
   resultId, 
   email, 
+  loading: externalLoading,
+  isPurchased,
   onPurchaseStart,
   onPurchaseComplete 
 }: PurchaseButtonProps) => {
-  const [loading, setLoading] = useState(false);
+  const [internalLoading, setInternalLoading] = useState(false);
+  const loading = externalLoading || internalLoading;
 
   const verifyPurchaseStatus = async (sessionId: string) => {
     try {
@@ -62,7 +67,7 @@ export const PurchaseButton = ({
 
   const initiatePurchase = async () => {
     try {
-      setLoading(true);
+      setInternalLoading(true);
       if (onPurchaseStart) onPurchaseStart();
 
       // First verify if there's already a completed purchase
@@ -70,7 +75,7 @@ export const PurchaseButton = ({
       if (sessionId) {
         const isVerified = await verifyPurchaseStatus(sessionId);
         if (isVerified) {
-          setLoading(false);
+          setInternalLoading(false);
           return;
         }
       }
@@ -128,9 +133,20 @@ export const PurchaseButton = ({
         description: "Failed to start checkout process. Please try again.",
         variant: "destructive",
       });
-      setLoading(false);
+      setInternalLoading(false);
     }
   };
+
+  if (isPurchased) {
+    return (
+      <Button 
+        onClick={() => window.location.href = `/assessment/${resultId}`}
+        className="w-full bg-primary hover:bg-primary/90"
+      >
+        View Full Report
+      </Button>
+    );
+  }
 
   return (
     <Button

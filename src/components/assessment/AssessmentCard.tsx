@@ -73,10 +73,8 @@ export const AssessmentCard = ({ result }: AssessmentCardProps) => {
       </CardHeader>
       <CardContent>
         <PurchaseButton 
-          onClick={() => navigate(`/assessment/${result.id}`)}
-          loading={false}
-          isPurchased={hasFullAccess}
           resultId={result.id}
+          isPurchased={hasFullAccess}
         />
       </CardContent>
     </Card>
