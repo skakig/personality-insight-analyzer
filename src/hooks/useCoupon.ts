@@ -39,7 +39,7 @@ export const useCoupon = () => {
       setValidating(true);
       console.log('Validating coupon:', code);
 
-      const { data: coupon, error } = await supabase
+      const { data: rawCoupon, error } = await supabase
         .from('coupons')
         .select('*')
         .eq('code', code)
@@ -55,7 +55,7 @@ export const useCoupon = () => {
         return false;
       }
 
-      if (!coupon) {
+      if (!rawCoupon) {
         toast({
           title: "Invalid Coupon",
           description: "The coupon code you entered is invalid",
@@ -63,6 +63,29 @@ export const useCoupon = () => {
         });
         return false;
       }
+
+      // Validate discount_type
+      if (!['percentage', 'fixed', 'full'].includes(rawCoupon.discount_type)) {
+        console.error('Invalid discount type:', rawCoupon.discount_type);
+        toast({
+          title: "Invalid Coupon",
+          description: "This coupon has an invalid discount type",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      // Type assertion after validation
+      const coupon: CouponDetails = {
+        id: rawCoupon.id,
+        code: rawCoupon.code,
+        discount_type: rawCoupon.discount_type as 'percentage' | 'fixed' | 'full',
+        discount_amount: rawCoupon.discount_amount,
+        current_uses: rawCoupon.current_uses,
+        max_uses: rawCoupon.max_uses,
+        expires_at: rawCoupon.expires_at,
+        is_active: rawCoupon.is_active
+      };
 
       // Validation checks
       if (!coupon.is_active) {
