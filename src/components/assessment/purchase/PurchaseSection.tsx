@@ -1,21 +1,27 @@
 
-import { BenefitsList } from "@/components/assessment/purchase/BenefitsList";
-import { PurchaseButton } from "@/components/assessment/purchase/PurchaseButton";
-import { EmailPurchaseDialog } from "@/components/assessment/purchase/EmailPurchaseDialog";
-import { GiftPurchaseDialog } from "@/components/assessment/purchase/GiftPurchaseDialog";
-import { usePurchaseHandler } from "@/components/assessment/purchase/usePurchaseHandler";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { LockOpen } from "lucide-react";
+import { CreditCard, Gift, Loader2, Mail } from "lucide-react";
+import { EmailPurchaseDialog } from "./EmailPurchaseDialog";
+import { GiftPurchaseDialog } from "./GiftPurchaseDialog";
+import { PurchaseButton } from "./PurchaseButton";
+import { BenefitsList } from "./BenefitsList";
+import { useModalState } from "./hooks/useModalState";
+import { useDirectPurchase } from "./hooks/useDirectPurchase";
+import { useEmailPurchase } from "./hooks/useEmailPurchase";
+import { useGiftPurchase } from "./hooks/useGiftPurchase";
+import { CouponInput } from "./CouponInput";
 
 interface PurchaseSectionProps {
   resultId: string;
-  loading: boolean;
-  isPurchased?: boolean;
+  session: any;
 }
 
-export const PurchaseSection = ({ resultId, loading, isPurchased }: PurchaseSectionProps) => {
+export const PurchaseSection = ({ resultId, session }: PurchaseSectionProps) => {
+  const [discountedAmount, setDiscountedAmount] = useState(1499); // Default to full price
   const {
     purchaseLoading,
+    setPurchaseLoading,
     giftEmail,
     setGiftEmail,
     email,
@@ -24,69 +30,82 @@ export const PurchaseSection = ({ resultId, loading, isPurchased }: PurchaseSect
     setIsGiftDialogOpen,
     isEmailDialogOpen,
     setIsEmailDialogOpen,
-    handlePurchase,
-    handleGiftPurchase,
-    handleEmailPurchase,
-    handleSaveReport
-  } = usePurchaseHandler(resultId);
+  } = useModalState();
+
+  const handlePurchase = useDirectPurchase(resultId, setPurchaseLoading);
+  const handleEmailPurchase = useEmailPurchase(resultId, email, setPurchaseLoading, setIsEmailDialogOpen);
+  const handleGiftPurchase = useGiftPurchase(resultId, giftEmail, setPurchaseLoading, setIsGiftDialogOpen);
+
+  const handleCouponApplied = ({ finalAmount }: { finalAmount: number }) => {
+    setDiscountedAmount(finalAmount);
+  };
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-br from-primary/5 to-secondary/5 p-6 rounded-xl border border-primary/10">
-        <div className="flex items-center gap-2 mb-4">
-          <h4 className="font-medium text-lg">
-            {isPurchased ? "Your Full Report" : "Unlock Your Full Potential"}
-          </h4>
-        </div>
-        
-        <div className="space-y-4">
-          {!isPurchased && <BenefitsList />}
-          
-          <div className="flex flex-col sm:flex-row gap-3">
-            <EmailPurchaseDialog 
-              open={isEmailDialogOpen}
-              onOpenChange={setIsEmailDialogOpen}
-              email={email}
-              setEmail={setEmail}
-              onPurchase={handleEmailPurchase}
-              loading={purchaseLoading}
-            />
-            
-            {isPurchased ? (
-              <Button
-                onClick={handleSaveReport}
-                className="w-full bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white"
-                disabled={loading}
-              >
-                <LockOpen className="mr-2 h-4 w-4" />
-                Save Your Report
-              </Button>
-            ) : (
-              <PurchaseButton 
-                onClick={() => handlePurchase()} 
-                loading={loading || purchaseLoading}
-                isPurchased={isPurchased}
-                resultId={resultId}
-              />
-            )}
-            
-            <GiftPurchaseDialog 
-              open={isGiftDialogOpen}
-              onOpenChange={setIsGiftDialogOpen}
-              giftEmail={giftEmail}
-              setGiftEmail={setGiftEmail}
-              onPurchase={handleGiftPurchase}
-              loading={purchaseLoading}
-            />
+      <BenefitsList />
+      
+      <div className="space-y-4">
+        <CouponInput 
+          originalAmount={1499}
+          onCouponApplied={handleCouponApplied}
+          className="mb-4"
+        />
+
+        {session?.user ? (
+          <PurchaseButton
+            onClick={handlePurchase}
+            loading={purchaseLoading}
+          />
+        ) : (
+          <div className="space-y-4">
+            <Button
+              onClick={() => setIsEmailDialogOpen(true)}
+              className="w-full"
+              disabled={purchaseLoading}
+            >
+              {purchaseLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Mail className="mr-2 h-4 w-4" />
+                  Purchase with Email
+                </>
+              )}
+            </Button>
+
+            <Button
+              onClick={() => setIsGiftDialogOpen(true)}
+              variant="outline"
+              className="w-full"
+              disabled={purchaseLoading}
+            >
+              <Gift className="mr-2 h-4 w-4" />
+              Purchase as Gift
+            </Button>
           </div>
-          
-          {!isPurchased && (
-            <p className="text-xs text-center text-gray-500 mt-4">
-              Join thousands of others who have transformed their approach to ethical decision-making
-            </p>
-          )}
-        </div>
+        )}
       </div>
+
+      <EmailPurchaseDialog
+        isOpen={isEmailDialogOpen}
+        onOpenChange={setIsEmailDialogOpen}
+        email={email}
+        onEmailChange={(e) => setEmail(e.target.value)}
+        onSubmit={handleEmailPurchase}
+        loading={purchaseLoading}
+      />
+
+      <GiftPurchaseDialog
+        isOpen={isGiftDialogOpen}
+        onOpenChange={setIsGiftDialogOpen}
+        email={giftEmail}
+        onEmailChange={(e) => setGiftEmail(e.target.value)}
+        onSubmit={handleGiftPurchase}
+        loading={purchaseLoading}
+      />
     </div>
   );
 };

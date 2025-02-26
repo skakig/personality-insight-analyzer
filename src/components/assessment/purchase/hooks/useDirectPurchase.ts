@@ -58,7 +58,7 @@ export const useDirectPurchase = (
         body: { 
           resultId,
           mode: 'payment',
-          priceAmount: 1499,
+          priceAmount: 1499, // Original amount - discount will be applied in the function
           metadata: {
             resultId,
             userId: session?.user?.id,
