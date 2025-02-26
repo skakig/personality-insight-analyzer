@@ -112,7 +112,7 @@ export const PurchaseSection = ({ resultId, session }: PurchaseSectionProps) => 
         onOpenChange={setIsEmailDialogOpen}
         email={email}
         setEmail={setEmail}
-        onSubmit={handleEmailPurchase}
+        onPurchase={handleEmailPurchase}
         loading={purchaseLoading}
       />
 
@@ -121,7 +121,7 @@ export const PurchaseSection = ({ resultId, session }: PurchaseSectionProps) => 
         onOpenChange={setIsGiftDialogOpen}
         giftEmail={giftEmail}
         setGiftEmail={setGiftEmail}
-        onSubmit={handleGiftPurchase}
+        onPurchase={handleGiftPurchase}
         loading={purchaseLoading}
       />
     </div>
