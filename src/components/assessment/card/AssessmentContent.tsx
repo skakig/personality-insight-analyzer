@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { FileText } from "lucide-react";
 import { HighlightSection } from "../HighlightSection";
 import { GrowthPotential } from "../GrowthPotential";
-import { PurchaseSection } from "../PurchaseSection";
+import { PurchaseButton } from "../purchase/PurchaseButton";
 import { getLevelDescription } from "../utils";
 
 interface AssessmentContentProps {
