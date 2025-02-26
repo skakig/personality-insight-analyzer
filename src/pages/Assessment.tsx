@@ -54,12 +54,13 @@ const Assessment = () => {
           }
         }
 
-        // Standard result fetch for non-purchase scenarios
+        // Standard result fetch
         let query = supabase
           .from('quiz_results')
           .select('*')
           .eq('id', id);
 
+        // Add user-specific conditions
         if (userId) {
           query = query.eq('user_id', userId);
         } else if (accessToken) {

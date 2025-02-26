@@ -22,26 +22,40 @@ export const hasAnyPurchasedReport = (assessments: Array<{
 };
 
 export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 10, delayMs = 2000) => {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      const { data: result, error } = await supabase
-        .from('quiz_results')
-        .select('*')
-        .eq('id', resultId)
-        .maybeSingle();
+  try {
+    // First check if user is logged in
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
 
-      if (error) throw error;
-      
-      if (result && isPurchased(result)) {
-        return result;
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        // Query with user_id if logged in
+        let query = supabase
+          .from('quiz_results')
+          .select('*')
+          .eq('id', resultId);
+        
+        if (userId) {
+          query = query.eq('user_id', userId);
+        }
+
+        const { data: result, error } = await query.maybeSingle();
+
+        if (error) throw error;
+        
+        if (result && isPurchased(result)) {
+          return result;
+        }
+
+        // If not found or not purchased, wait before retrying
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      } catch (error) {
+        console.error('Error verifying purchase:', error);
+        // Continue retrying despite errors
       }
-
-      // If not found or not purchased, wait before retrying
-      await new Promise(resolve => setTimeout(resolve, delayMs));
-    } catch (error) {
-      console.error('Error verifying purchase:', error);
-      // Continue retrying despite errors
     }
+  } catch (error) {
+    console.error('Session error:', error);
   }
   return null;
 };

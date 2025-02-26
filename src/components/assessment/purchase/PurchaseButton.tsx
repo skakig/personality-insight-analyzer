@@ -30,25 +30,32 @@ export const PurchaseButton = ({
       setInternalLoading(true);
       if (onPurchaseStart) onPurchaseStart();
 
+      // Get current user session
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+
       // Create purchase tracking record
       const accessToken = crypto.randomUUID();
       const { data: tracking, error: trackingError } = await supabase
         .from('purchase_tracking')
         .insert({
           quiz_result_id: resultId,
-          guest_email: email,
+          user_id: userId,
+          guest_email: !userId ? email : undefined,
           status: 'pending',
-          access_token: accessToken
+          access_token: !userId ? accessToken : undefined
         })
         .select()
         .single();
 
       if (trackingError) throw trackingError;
 
-      // Store essential data
-      localStorage.setItem('guestQuizResultId', resultId);
-      localStorage.setItem('guestAccessToken', accessToken);
-      if (email) localStorage.setItem('guestEmail', email);
+      // Store guest data only if not logged in
+      if (!userId) {
+        localStorage.setItem('guestQuizResultId', resultId);
+        localStorage.setItem('guestAccessToken', accessToken);
+        if (email) localStorage.setItem('guestEmail', email);
+      }
 
       // Create checkout session
       const { data: checkoutData, error: checkoutError } = await supabase.functions.invoke(
@@ -56,11 +63,13 @@ export const PurchaseButton = ({
         {
           body: {
             resultId,
-            email,
+            email: email || session?.user?.email,
+            userId,
             metadata: {
               resultId,
-              email,
-              accessToken,
+              email: email || session?.user?.email,
+              userId,
+              accessToken: !userId ? accessToken : undefined,
               trackingId: tracking.id
             }
           }
@@ -70,8 +79,18 @@ export const PurchaseButton = ({
       if (checkoutError) throw checkoutError;
       if (!checkoutData?.url) throw new Error('No checkout URL received');
 
-      // Store Stripe session ID for verification
+      // Store Stripe session ID
       if (checkoutData.sessionId) {
+        // Update quiz result with stripe session
+        await supabase
+          .from('quiz_results')
+          .update({ 
+            stripe_session_id: checkoutData.sessionId,
+            purchase_initiated_at: new Date().toISOString(),
+            purchase_status: 'pending'
+          })
+          .eq('id', resultId);
+
         localStorage.setItem('stripeSessionId', checkoutData.sessionId);
       }
 
