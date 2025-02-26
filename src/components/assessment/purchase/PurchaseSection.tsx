@@ -90,7 +90,7 @@ export const PurchaseSection = ({ resultId, session }: PurchaseSectionProps) => 
       </div>
 
       <EmailPurchaseDialog
-        isOpen={isEmailDialogOpen}
+        open={isEmailDialogOpen}
         onOpenChange={setIsEmailDialogOpen}
         email={email}
         onEmailChange={(e) => setEmail(e.target.value)}
@@ -99,7 +99,7 @@ export const PurchaseSection = ({ resultId, session }: PurchaseSectionProps) => 
       />
 
       <GiftPurchaseDialog
-        isOpen={isGiftDialogOpen}
+        open={isGiftDialogOpen}
         onOpenChange={setIsGiftDialogOpen}
         email={giftEmail}
         onEmailChange={(e) => setGiftEmail(e.target.value)}
