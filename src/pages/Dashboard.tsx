@@ -115,6 +115,7 @@ const Dashboard = ({ session }: DashboardProps) => {
           subscription={subscription}
           error={error}
           previousAssessments={previousAssessments}
+          session={session}
         />
       </div>
     </div>

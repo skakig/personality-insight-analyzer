@@ -2,6 +2,7 @@
 import { SubscriptionCard } from "./SubscriptionCard";
 import { QuickActionsCard } from "./QuickActionsCard";
 import { RecentAssessmentsCard } from "./RecentAssessmentsCard";
+import { AdminSection } from "./AdminSection";
 import { Assessment, Subscription } from "@/types/dashboard";
 import { hasAnyPurchasedReport } from "@/utils/purchaseUtils";
 
@@ -9,12 +10,14 @@ interface DashboardContentProps {
   subscription: Subscription | null;
   error: string | null;
   previousAssessments: Assessment[];
+  session: any;
 }
 
 export const DashboardContent = ({ 
   subscription, 
   error, 
-  previousAssessments 
+  previousAssessments,
+  session
 }: DashboardContentProps) => {
   const hasPurchasedReport = hasAnyPurchasedReport(previousAssessments);
 
@@ -40,6 +43,9 @@ export const DashboardContent = ({
           hasPurchasedReport={hasPurchasedReport}
           hasAvailableCredits={hasAvailableCredits}
         />
+        {session?.user?.id && (
+          <AdminSection userId={session.user.id} />
+        )}
       </div>
     </div>
   );
