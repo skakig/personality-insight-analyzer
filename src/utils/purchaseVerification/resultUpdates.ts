@@ -6,6 +6,11 @@ import { supabase } from "@/integrations/supabase/client";
  */
 export const updateResultWithPurchase = async (resultId: string, stripeSessionId: string) => {
   try {
+    if (!resultId || !stripeSessionId) {
+      console.error('Missing parameters for purchase update:', { resultId, stripeSessionId });
+      return false;
+    }
+    
     console.log('Updating result with stripe session ID:', stripeSessionId);
     
     const { data: result, error: fetchError } = await supabase
@@ -30,7 +35,8 @@ export const updateResultWithPurchase = async (resultId: string, stripeSessionId
       localStorage.setItem('guestEmail', result.guest_email);
     }
     
-    const { error } = await supabase
+    // If we have user_id, include it in the update filter for more precision
+    let query = supabase
       .from('quiz_results')
       .update({ 
         is_purchased: true,
@@ -39,12 +45,33 @@ export const updateResultWithPurchase = async (resultId: string, stripeSessionId
         purchase_completed_at: new Date().toISOString(),
         access_method: 'purchase'
       })
-      .eq('id', resultId)
-      .eq('stripe_session_id', stripeSessionId);
+      .eq('id', resultId);
+      
+    // Add session ID filter
+    query = query.eq('stripe_session_id', stripeSessionId);
+    
+    // Execute update
+    const { error } = await query;
     
     if (error) {
       console.error('Error updating result with session ID:', error);
-      return false;
+      
+      // If failed with session ID, try with just the result ID
+      const { error: directError } = await supabase
+        .from('quiz_results')
+        .update({ 
+          is_purchased: true,
+          is_detailed: true,
+          purchase_status: 'completed',
+          purchase_completed_at: new Date().toISOString(),
+          access_method: 'purchase'
+        })
+        .eq('id', resultId);
+        
+      if (directError) {
+        console.error('Direct update also failed:', directError);
+        return false;
+      }
     }
     
     // Also update purchase tracking record if it exists

@@ -9,6 +9,8 @@ import { updateResultWithPurchase } from "./resultUpdates";
  */
 export const checkPurchaseTracking = async (trackingId: string, resultId: string) => {
   try {
+    console.log('Checking purchase tracking:', { trackingId, resultId });
+    
     const { data: tracking, error } = await supabase
       .from('purchase_tracking')
       .select('status, completed_at, guest_email, stripe_session_id')
@@ -69,3 +71,6 @@ export const checkPurchaseTracking = async (trackingId: string, resultId: string
   
   return null;
 };
+
+// Re-export updateResultWithPurchase for backward compatibility
+export { updateResultWithPurchase } from './resultUpdates';
