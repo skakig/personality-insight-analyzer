@@ -33,7 +33,8 @@ export const usePurchaseFlow = (
           user_id: userId,
           guest_email: !userId ? email : undefined,
           status: 'pending',
-          access_token: !userId ? accessToken : undefined
+          access_token: !userId ? accessToken : undefined,
+          stripe_session_id: null // Initialize this field
         })
         .select()
         .single();
@@ -56,13 +57,17 @@ export const usePurchaseFlow = (
       if (!userId) {
         localStorage.setItem('guestQuizResultId', resultId);
         localStorage.setItem('guestAccessToken', accessToken);
-        if (email) localStorage.setItem('guestEmail', email);
-        
-        // Also update the quiz result with guest email if available
         if (email) {
+          localStorage.setItem('guestEmail', email);
+          
+          // Also update the quiz result with guest email if available
           await supabase
             .from('quiz_results')
-            .update({ guest_email: email })
+            .update({ 
+              guest_email: email,
+              guest_access_token: accessToken,
+              guest_access_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours
+            })
             .eq('id', resultId);
         }
       } 
@@ -111,18 +116,31 @@ export const usePurchaseFlow = (
         hasUrl: !!checkoutData.url
       });
 
-      // Store Stripe session ID
+      // Store Stripe session ID in tracking record
       if (checkoutData.sessionId) {
-        // Update quiz result with stripe session
-        await supabase
-          .from('quiz_results')
-          .update({ 
-            stripe_session_id: checkoutData.sessionId,
-            guest_email: email || undefined // Ensure guest email is stored
-          })
-          .eq('id', resultId);
+        try {
+          // Update purchase tracking with Stripe session ID
+          await supabase
+            .from('purchase_tracking')
+            .update({ 
+              stripe_session_id: checkoutData.sessionId 
+            })
+            .eq('id', tracking.id);
+            
+          // Update quiz result with stripe session
+          await supabase
+            .from('quiz_results')
+            .update({ 
+              stripe_session_id: checkoutData.sessionId,
+              guest_email: email || undefined // Ensure guest email is stored
+            })
+            .eq('id', resultId);
 
-        localStorage.setItem('stripeSessionId', checkoutData.sessionId);
+          localStorage.setItem('stripeSessionId', checkoutData.sessionId);
+        } catch (updateError) {
+          console.error('Failed to update session ID:', updateError);
+          // Continue anyway - this isn't critical
+        }
       }
 
       window.location.href = checkoutData.url;

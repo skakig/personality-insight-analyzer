@@ -35,9 +35,31 @@ export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 20,
       delayMs 
     });
 
+    // Direct query to check if the purchase is already completed
+    const directQuery = supabase
+      .from('quiz_results')
+      .select('*')
+      .eq('id', resultId);
+    
+    const { data: directResult } = await directQuery.maybeSingle();
+
+    if (directResult && isPurchased(directResult)) {
+      console.log('Purchase already verified via direct check');
+      return directResult;
+    }
+
     // Initial attempts - these might succeed immediately
     
-    // 1. Try to update the result status if we have a session ID
+    // 1. Try to verify by tracking ID
+    if (trackingId) {
+      const trackingResult = await checkPurchaseTracking(trackingId, resultId);
+      if (trackingResult) {
+        console.log('Purchase verified via tracking record', trackingId);
+        return trackingResult;
+      }
+    }
+    
+    // 2. Try to update with session ID
     if (stripeSessionId) {
       const updated = await updateResultWithPurchase(resultId, stripeSessionId);
       if (updated) {
@@ -49,29 +71,10 @@ export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 20,
       }
     }
 
-    // 2. Try to check tracking status if we have a tracking ID
-    if (trackingId) {
-      const trackingResult = await checkPurchaseTracking(trackingId, resultId);
-      if (trackingResult) {
-        console.log('Purchase verified via tracking record', trackingId);
-        return trackingResult;
-      }
-    }
-
-    // 3. Try manually checking the Stripe session
-    if (stripeSessionId) {
-      const query = buildQuery(resultId, userId, guestAccessToken);
-      const manualCheckResult = await manuallyCheckStripeSession(stripeSessionId, resultId, query);
-      if (manualCheckResult) {
-        console.log('Purchase verified via manual stripe session check', stripeSessionId);
-        return manualCheckResult;
-      }
-    }
-
-    // Try a direct guest method if we have guest email
-    if (guestEmail && !userId) {
+    // 3. Try to verify by guest email for guests
+    if (!userId && guestEmail) {
       console.log('Attempting guest verification with email:', guestEmail);
-      const { data: guestResult, error: guestError } = await supabase
+      const { data: guestResult } = await supabase
         .from('quiz_results')
         .select('*')
         .eq('id', resultId)
@@ -84,52 +87,128 @@ export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 20,
       }
     }
 
-    // If initial attempts failed, start retry loop
+    // 4. Try manual Stripe session check
+    if (stripeSessionId) {
+      const query = buildQuery(resultId, userId, guestAccessToken);
+      const manualCheckResult = await manuallyCheckStripeSession(stripeSessionId, resultId, query);
+      if (manualCheckResult) {
+        console.log('Purchase verified via manual stripe session check', stripeSessionId);
+        return manualCheckResult;
+      }
+    }
+
+    // If initial attempts failed, start retry loop with different strategies
     for (let i = 0; i < maxRetries; i++) {
       console.log(`Verification attempt ${i + 1} of ${maxRetries}`);
       
       // Build query based on authentication state
-      const query = buildQuery(resultId, userId, guestAccessToken, guestEmail);
+      let query = supabase.from('quiz_results').select('*').eq('id', resultId);
       
-      try {
-        const { data: result, error } = await query.maybeSingle();
-
-        if (error) {
-          console.error('Error in verification query:', error);
-          // Continue retrying despite errors
-        } else if (result && isPurchased(result)) {
-          console.log('Purchase verified successfully on attempt', i + 1);
-          return result;
-        } else if (result && stripeSessionId && i > 1) {
-          // If we found a result but it's not marked as purchased yet, try to update it
-          console.log('Found result but not purchased. Attempting manual update...');
+      // Attempt 1: Try using user ID if available
+      if (userId) {
+        query = query.eq('user_id', userId);
+        
+        try {
+          const { data: result, error } = await query.maybeSingle();
+          if (!error && result && isPurchased(result)) {
+            console.log('Purchase verified via user ID on attempt', i + 1);
+            return result;
+          }
+        } catch (error) {
+          console.error('Error in user verification:', error);
+        }
+      }
+      
+      // Attempt 2: Try using guest access token
+      if (guestAccessToken) {
+        query = supabase.from('quiz_results').select('*')
+          .eq('id', resultId)
+          .eq('guest_access_token', guestAccessToken);
           
-          const updated = await updateResultWithPurchase(resultId, stripeSessionId);
-          if (updated) {
-            const { data: updatedResult } = await query.maybeSingle();
-            if (updatedResult && isPurchased(updatedResult)) {
-              console.log('Manual update successful!');
-              return updatedResult;
+        try {
+          const { data: result, error } = await query.maybeSingle();
+          if (!error && result && isPurchased(result)) {
+            console.log('Purchase verified via guest token on attempt', i + 1);
+            return result;
+          }
+        } catch (error) {
+          console.error('Error in guest token verification:', error);
+        }
+      }
+      
+      // Attempt 3: Try using guest email
+      if (guestEmail) {
+        query = supabase.from('quiz_results').select('*')
+          .eq('id', resultId)
+          .eq('guest_email', guestEmail);
+          
+        try {
+          const { data: result, error } = await query.maybeSingle();
+          if (!error && result && isPurchased(result)) {
+            console.log('Purchase verified via guest email on attempt', i + 1);
+            return result;
+          }
+        } catch (error) {
+          console.error('Error in guest email verification:', error);
+        }
+      }
+      
+      // Attempt 4: Try using stripe session id
+      if (stripeSessionId) {
+        query = supabase.from('quiz_results').select('*')
+          .eq('id', resultId)
+          .eq('stripe_session_id', stripeSessionId);
+          
+        try {
+          const { data: result, error } = await query.maybeSingle();
+          if (!error && result && isPurchased(result)) {
+            console.log('Purchase verified via stripe session on attempt', i + 1);
+            return result;
+          }
+          
+          // If no result, try to update it directly
+          if (!error && result && i > 2) {
+            const updated = await updateResultWithPurchase(resultId, stripeSessionId);
+            if (updated) {
+              const { data: updatedResult } = await query.maybeSingle();
+              if (updatedResult && isPurchased(updatedResult)) {
+                console.log('Purchase verified via manual update on attempt', i + 1);
+                return updatedResult;
+              }
             }
           }
+        } catch (error) {
+          console.error('Error in stripe session verification:', error);
         }
-        
-        // For guest users, try to query by guest email if we have it
-        if (!userId && guestEmail && i > 2) {
-          const { data: guestResult } = await supabase
-            .from('quiz_results')
-            .select('*')
-            .eq('id', resultId)
-            .eq('guest_email', guestEmail)
-            .maybeSingle();
-          
-          if (guestResult && isPurchased(guestResult)) {
-            console.log('Purchase verified via guest email after several attempts');
-            return guestResult;
+      }
+      
+      // Check purchase tracking again
+      if (trackingId) {
+        try {
+          const trackingResult = await checkPurchaseTracking(trackingId, resultId);
+          if (trackingResult) {
+            console.log('Purchase verified via tracking record on attempt', i + 1);
+            return trackingResult;
           }
+        } catch (error) {
+          console.error('Error checking purchase tracking:', error);
+        }
+      }
+      
+      // Direct attempt to check if quiz result is purchased
+      try {
+        const { data: directResult } = await supabase
+          .from('quiz_results')
+          .select('*')
+          .eq('id', resultId)
+          .maybeSingle();
+          
+        if (directResult && isPurchased(directResult)) {
+          console.log('Purchase verified via direct check on attempt', i + 1);
+          return directResult;
         }
       } catch (error) {
-        console.error('Error during verification attempt:', error);
+        console.error('Error in direct check:', error);
       }
       
       // Wait before the next attempt
