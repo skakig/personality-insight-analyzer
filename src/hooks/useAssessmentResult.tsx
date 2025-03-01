@@ -7,6 +7,7 @@ import { useFetchResult } from "./assessment/useFetchResult";
 import { useVerificationState } from "./assessment/useVerificationState";
 import { useVerifyPurchase } from "./assessment/useVerifyPurchase";
 import { ToastAction } from "@/components/ui/toast";
+import { storePurchaseData } from "@/utils/purchaseStateUtils";
 
 export const useAssessmentResult = (id?: string) => {
   const [searchParams] = useSearchParams();
@@ -38,6 +39,7 @@ export const useAssessmentResult = (id?: string) => {
   useEffect(() => {
     const loadAssessment = async () => {
       try {
+        // If no ID or ID is a placeholder, exit early
         if (!id || id === ':id?') {
           setLoading(false);
           return;
@@ -47,9 +49,22 @@ export const useAssessmentResult = (id?: string) => {
         const userId = session?.user?.id;
         const accessToken = searchParams.get('token') || localStorage.getItem('guestAccessToken');
         const isPostPurchase = searchParams.get('success') === 'true';
-        const stripeSessionId = localStorage.getItem('stripeSessionId') || searchParams.get('session_id');
+        const sessionId = searchParams.get('session_id');
+        const storedSessionId = localStorage.getItem('stripeSessionId');
+        const stripeSessionId = sessionId || storedSessionId;
         const trackingId = localStorage.getItem('purchaseTrackingId');
-        const storedResultId = localStorage.getItem('purchaseResultId') || id;
+        const storedResultId = localStorage.getItem('purchaseResultId');
+        
+        // If we have a session ID from the URL, make sure to store it
+        if (sessionId && !storedSessionId) {
+          localStorage.setItem('stripeSessionId', sessionId);
+        }
+        
+        // If we're returning from a successful purchase and have a result ID to verify
+        if (isPostPurchase && (id || storedResultId)) {
+          // Store the result ID and session ID
+          storePurchaseData(id || storedResultId || '', stripeSessionId || '');
+        }
 
         console.log('Assessment page loaded:', {
           resultId: id,
@@ -63,12 +78,6 @@ export const useAssessmentResult = (id?: string) => {
           verificationAttempted,
           timestamp: new Date().toISOString()
         });
-
-        // Store any session ID from URL into localStorage
-        if (searchParams.get('session_id') && !localStorage.getItem('stripeSessionId')) {
-          localStorage.setItem('stripeSessionId', searchParams.get('session_id')!);
-          console.log('Stored session ID from URL');
-        }
 
         // Check directly if the result is already purchased
         if (id) {
@@ -91,45 +100,64 @@ export const useAssessmentResult = (id?: string) => {
           }
         }
 
-        // Verify purchase if we just returned from Stripe or if we have tracking info
-        if (!verificationAttempted && (isPostPurchase || (stripeSessionId && (id === storedResultId)))) {
+        // Verify purchase if we just returned from Stripe or have necessary info
+        const shouldVerify = isPostPurchase || 
+                            (stripeSessionId && (id || storedResultId));
+        
+        if (!verificationAttempted && shouldVerify) {
           console.log('Initiating purchase verification flow');
           setVerificationAttempted(true);
           
-          // Try up to 2 times if the first attempt fails
-          let success = await verifyPurchase(id);
+          // Determine which ID to use for verification
+          const verificationId = id || storedResultId;
           
+          if (!verificationId) {
+            console.error('No result ID available for verification');
+            toast({
+              title: "Verification Error",
+              description: "Missing result ID. Please try accessing your report from the dashboard.",
+              variant: "destructive",
+            });
+            setLoading(false);
+            return;
+          }
+          
+          // Try to verify the purchase
+          let success = await verifyPurchase(verificationId);
+          
+          // If first attempt fails and we just came back from Stripe, try again
           if (!success && isPostPurchase) {
             console.log('First attempt failed, trying again after short delay');
             await new Promise(resolve => setTimeout(resolve, 1500));
-            success = await verifyPurchase(id);
+            success = await verifyPurchase(verificationId);
           }
           
-          if (!success && verificationAttempts > 0) {
-            toast({
-              title: "Purchase verification delayed",
-              description: "Your purchase may take a few moments to process. You can refresh the page or check your dashboard.",
-              variant: "default",
-              action: (
-                <ToastAction 
-                  altText="Refresh" 
-                  onClick={() => window.location.reload()}
-                >
-                  Refresh
-                </ToastAction>
-              )
-            });
-          }
-          
-          if (!success && verificationAttempts === 0) {
-            toast({
-              title: "Verification in progress",
-              description: "We're still processing your purchase. Please wait a moment...",
-            });
+          if (!success) {
+            // Show appropriate message based on verification attempts
+            if (verificationAttempts > 0) {
+              toast({
+                title: "Purchase verification delayed",
+                description: "Your purchase may take a few moments to process. You can refresh the page or check your dashboard.",
+                variant: "default",
+                action: (
+                  <ToastAction 
+                    altText="Refresh" 
+                    onClick={() => window.location.reload()}
+                  >
+                    Refresh
+                  </ToastAction>
+                )
+              });
+            } else {
+              toast({
+                title: "Verification in progress",
+                description: "We're still processing your purchase. Please wait a moment...",
+              });
+            }
             
             // Last resort direct update for post-purchase
-            try {
-              if (stripeSessionId && isPostPurchase) {
+            if (stripeSessionId && isPostPurchase && verificationId) {
+              try {
                 await supabase
                   .from('quiz_results')
                   .update({ 
@@ -139,13 +167,13 @@ export const useAssessmentResult = (id?: string) => {
                     purchase_completed_at: new Date().toISOString(),
                     access_method: 'purchase'
                   })
-                  .eq('id', id);
+                  .eq('id', verificationId);
                   
                 // Fetch the updated result once more
                 const { data: finalResult } = await supabase
                   .from('quiz_results')
                   .select('*')
-                  .eq('id', id)
+                  .eq('id', verificationId)
                   .maybeSingle();
                   
                 if (finalResult) {
@@ -153,14 +181,15 @@ export const useAssessmentResult = (id?: string) => {
                   setLoading(false);
                   stopVerification();
                 }
+              } catch (error) {
+                console.error('Final manual update failed:', error);
               }
-            } catch (error) {
-              console.error('Final manual update failed:', error);
             }
           }
         }
 
-        if (!result) {
+        // If we still don't have a result, fetch it
+        if (!result && id) {
           const fetchedResult = await fetchResultById(id, { userId, accessToken });
           
           if (fetchedResult && !userId && fetchedResult.guest_email) {

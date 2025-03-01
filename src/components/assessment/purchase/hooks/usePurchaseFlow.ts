@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { storePurchaseData } from "@/utils/purchaseStateUtils";
 
 export const usePurchaseFlow = (
   resultId: string, 
@@ -9,6 +10,16 @@ export const usePurchaseFlow = (
   onPurchaseComplete?: () => void
 ) => {
   const initiatePurchase = async (setInternalLoading: (loading: boolean) => void) => {
+    if (!resultId) {
+      console.error('Purchase initiation failed: Missing result ID');
+      toast({
+        title: "Error",
+        description: "Unable to process purchase due to missing information.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
       setInternalLoading(true);
       if (onPurchaseStart) onPurchaseStart();
@@ -136,7 +147,8 @@ export const usePurchaseFlow = (
             })
             .eq('id', resultId);
 
-          localStorage.setItem('stripeSessionId', checkoutData.sessionId);
+          // Store both result ID and session ID persistently
+          storePurchaseData(resultId, checkoutData.sessionId, userId);
         } catch (updateError) {
           console.error('Failed to update session ID:', updateError);
           // Continue anyway - this isn't critical

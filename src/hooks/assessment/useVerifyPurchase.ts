@@ -1,7 +1,6 @@
-
 import { toast } from "@/hooks/use-toast";
 import { verifyPurchaseWithRetry } from "@/utils/purchaseUtils";
-import { cleanupPurchaseState } from "@/utils/purchaseStateUtils";
+import { cleanupPurchaseState, storePurchaseData } from "@/utils/purchaseStateUtils";
 import { supabase } from "@/integrations/supabase/client";
 
 export const useVerifyPurchase = (
@@ -13,7 +12,18 @@ export const useVerifyPurchase = (
     incrementAttempts: () => void;
   }
 ) => {
-  const verifyPurchase = async (id: string) => {
+  const verifyPurchase = async (id?: string) => {
+    if (!id) {
+      console.error('Verification failed: Missing result ID');
+      stopVerification();
+      toast({
+        title: "Verification Error",
+        description: "Unable to verify purchase due to missing information.",
+        variant: "destructive",
+      });
+      return false;
+    }
+    
     startVerification();
     toast({
       title: "Verifying your purchase",
@@ -77,8 +87,8 @@ export const useVerifyPurchase = (
               title: "Purchase verified!",
               description: "Your detailed report is now available.",
             });
-            // Clean up purchase state partially
-            cleanupPurchaseState();
+            // Keep the result ID in case we need it later
+            storePurchaseData(id, sessionId || '');
             return true;
           }
         }
@@ -131,7 +141,7 @@ export const useVerifyPurchase = (
                 title: "Purchase verified!",
                 description: "Your detailed report is now available.",
               });
-              cleanupPurchaseState();
+              storePurchaseData(id, sessionId);
               return true;
             }
           }
@@ -154,8 +164,8 @@ export const useVerifyPurchase = (
         setLoading(false);
         stopVerification();
         
-        // Clear purchase-related localStorage partially
-        cleanupPurchaseState();
+        // Store the result ID correctly
+        storePurchaseData(id, sessionId || '');
         
         return true;
       } else {

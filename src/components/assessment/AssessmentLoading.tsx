@@ -15,6 +15,12 @@ export const AssessmentLoading = ({
   verificationAttempts, 
   onRefresh 
 }: AssessmentLoadingProps) => {
+  const handleGoToDashboard = () => {
+    // Store current verification state
+    localStorage.setItem('lastVerificationAttempts', verificationAttempts.toString());
+    window.location.href = '/dashboard';
+  };
+  
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="flex flex-col items-center space-y-4 max-w-md w-full">
@@ -70,7 +76,7 @@ export const AssessmentLoading = ({
               </Button>
               
               <Button 
-                onClick={() => window.location.href = '/dashboard'}
+                onClick={handleGoToDashboard}
                 variant="outline"
                 size="sm"
               >
