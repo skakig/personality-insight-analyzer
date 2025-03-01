@@ -34,6 +34,13 @@ export const PurchaseButton = ({
       const { data: { session } } = await supabase.auth.getSession();
       const userId = session?.user?.id;
 
+      console.log('Initiating purchase flow:', {
+        resultId,
+        userId: userId || 'guest',
+        timestamp: new Date().toISOString(),
+        hasEmail: !!email
+      });
+
       // Create purchase tracking record
       const accessToken = crypto.randomUUID();
       const { data: tracking, error: trackingError } = await supabase
@@ -48,13 +55,26 @@ export const PurchaseButton = ({
         .select()
         .single();
 
-      if (trackingError) throw trackingError;
+      if (trackingError) {
+        console.error('Purchase tracking error:', trackingError);
+        throw trackingError;
+      }
+
+      console.log('Created purchase tracking:', {
+        trackingId: tracking.id,
+        status: tracking.status
+      });
 
       // Store guest data only if not logged in
       if (!userId) {
         localStorage.setItem('guestQuizResultId', resultId);
         localStorage.setItem('guestAccessToken', accessToken);
+        localStorage.setItem('purchaseTrackingId', tracking.id);
         if (email) localStorage.setItem('guestEmail', email);
+      } else {
+        // Store tracking ID for logged-in users too (helps with session restoration)
+        localStorage.setItem('purchaseTrackingId', tracking.id);
+        localStorage.setItem('purchaseResultId', resultId);
       }
 
       // Create checkout session
@@ -76,8 +96,20 @@ export const PurchaseButton = ({
         }
       );
 
-      if (checkoutError) throw checkoutError;
-      if (!checkoutData?.url) throw new Error('No checkout URL received');
+      if (checkoutError) {
+        console.error('Checkout error:', checkoutError);
+        throw checkoutError;
+      }
+      
+      if (!checkoutData?.url) {
+        console.error('No checkout URL received');
+        throw new Error('No checkout URL received');
+      }
+
+      console.log('Redirecting to checkout:', {
+        sessionId: checkoutData.sessionId,
+        hasUrl: !!checkoutData.url
+      });
 
       // Store Stripe session ID
       if (checkoutData.sessionId) {

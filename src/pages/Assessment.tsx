@@ -29,8 +29,20 @@ const Assessment = () => {
         // Get current session and access token
         const { data: { session } } = await supabase.auth.getSession();
         const userId = session?.user?.id;
-        const accessToken = searchParams.get('token');
+        const accessToken = searchParams.get('token') || localStorage.getItem('guestAccessToken');
         const isPostPurchase = searchParams.get('success') === 'true';
+        const stripeSessionId = localStorage.getItem('stripeSessionId');
+        const trackingId = localStorage.getItem('purchaseTrackingId');
+
+        console.log('Assessment page loaded:', {
+          resultId: id,
+          userId: userId || 'guest',
+          hasAccessToken: !!accessToken,
+          isPostPurchase,
+          hasStripeSession: !!stripeSessionId,
+          hasTrackingId: !!trackingId,
+          timestamp: new Date().toISOString()
+        });
 
         if (isPostPurchase) {
           setVerifying(true);
@@ -38,6 +50,27 @@ const Assessment = () => {
             title: "Verifying your purchase",
             description: "Please wait while we prepare your report...",
           });
+
+          // Check if we should manually trigger webhook verification
+          if (stripeSessionId) {
+            console.log('Initiating purchase verification with session:', stripeSessionId);
+            
+            // If we have a tracking ID, check its status first
+            if (trackingId) {
+              const { data: tracking } = await supabase
+                .from('purchase_tracking')
+                .select('status')
+                .eq('id', trackingId)
+                .single();
+                
+              if (tracking?.status === 'completed') {
+                console.log('Purchase already verified via tracking record');
+                // Purchase already verified
+              } else {
+                console.log('Purchase tracking not verified, using retry mechanism');
+              }
+            }
+          }
 
           // Use the retry mechanism for post-purchase verification
           const verifiedResult = await verifyPurchaseWithRetry(id);
@@ -50,7 +83,16 @@ const Assessment = () => {
             });
             setLoading(false);
             setVerifying(false);
+            
+            // Clear purchase-related localStorage
+            localStorage.removeItem('stripeSessionId');
+            localStorage.removeItem('guestAccessToken');
+            localStorage.removeItem('purchaseTrackingId');
+            localStorage.removeItem('purchaseResultId');
+            
             return;
+          } else {
+            console.log('Purchase verification failed after retries');
           }
         }
 
@@ -70,7 +112,10 @@ const Assessment = () => {
 
         const { data, error: resultError } = await query.maybeSingle();
 
-        if (resultError) throw resultError;
+        if (resultError) {
+          console.error('Result fetch error:', resultError);
+          throw resultError;
+        }
 
         if (!data) {
           if (verifying) {
@@ -89,6 +134,12 @@ const Assessment = () => {
           setLoading(false);
           return;
         }
+
+        console.log('Assessment data loaded successfully:', {
+          resultId: data.id,
+          isPurchased: data.is_purchased,
+          isDetailed: data.is_detailed
+        });
 
         setResult(data);
 

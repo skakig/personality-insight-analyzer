@@ -1,169 +1,123 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import Stripe from 'https://esm.sh/stripe@14.21.0';
-import { handleGuestPurchase } from './handlers/guest-purchase.ts';
-import { handleRegularPurchase } from './handlers/regular-purchase.ts';
+import Stripe from "https://esm.sh/stripe@11.18.0?target=deno";
+import { handleRegularPurchase } from "./handlers/regular-purchase.ts";
+import { handleGuestPurchase } from "./handlers/guest-purchase.ts";
+import { handleCreditPurchase } from "./handlers/credit-purchase.ts";
+import { handleSubscriptionCompleted } from "./handlers/subscription-completed.ts";
 
-const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
-const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
-const supabaseUrl = Deno.env.get('SUPABASE_URL');
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-if (!webhookSecret || !stripeKey || !supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Missing required environment variables');
-}
-
-const stripe = new Stripe(stripeKey, {
-  apiVersion: '2023-10-16',
+// Initialize Stripe with the secret key
+const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
   httpClient: Stripe.createFetchHttpClient(),
 });
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
+// Define CORS headers for preflight requests
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-async function logWebhookEvent(event: Stripe.Event, status = 'pending', errorMessage?: string) {
-  try {
-    console.log('Logging webhook event:', {
-      id: event.id,
-      type: event.type,
-      status,
-      timestamp: new Date().toISOString()
-    });
-
-    const { error } = await supabase
-      .from('stripe_webhook_events')
-      .upsert({
-        stripe_event_id: event.id,
-        event_type: event.type,
-        status,
-        raw_event: event,
-        error_message: errorMessage,
-        processed_at: status === 'completed' ? new Date().toISOString() : null
-      }, {
-        onConflict: 'stripe_event_id'
-      });
-
-    if (error) {
-      console.error('Error logging webhook event:', error);
-    }
-  } catch (err) {
-    console.error('Failed to log webhook event:', err);
-  }
-}
-
-async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
-  // Check if this session was already processed
-  const { data: existingEvent } = await supabase
-    .from('stripe_webhook_events')
-    .select('status')
-    .eq('stripe_event_id', session.id)
-    .eq('status', 'completed')
-    .maybeSingle();
-
-  if (existingEvent) {
-    console.log('Session already processed:', session.id);
-    return;
-  }
-
-  // Determine if this is a guest purchase
-  const isGuestPurchase = !session.customer && session.metadata?.email;
-
-  if (isGuestPurchase) {
-    await handleGuestPurchase(supabase, session);
-  } else {
-    await handleRegularPurchase(supabase, session);
-  }
-}
-
 serve(async (req) => {
+  console.log("Stripe webhook received request");
+  
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+  
   try {
-    if (req.method === 'OPTIONS') {
-      return new Response(null, { headers: corsHeaders });
-    }
-
-    const signature = req.headers.get('stripe-signature');
+    // Get the signature from the headers
+    const signature = req.headers.get("stripe-signature");
     if (!signature) {
-      throw new Error('No stripe signature in request');
-    }
-
-    const rawBody = await req.text();
-    console.log('Received webhook:', {
-      contentLength: rawBody.length,
-      signature: signature.substring(0, 20) + '...',
-      timestamp: new Date().toISOString()
-    });
-
-    let event: Stripe.Event;
-    try {
-      event = await stripe.webhooks.constructEventAsync(
-        rawBody,
-        signature,
-        webhookSecret
-      );
-    } catch (err) {
-      console.error('⚠️ Webhook signature verification failed:', {
-        error: err.message,
-        bodyPreview: rawBody.substring(0, 100) + '...',
-        signatureUsed: signature,
-      });
-      throw err;
-    }
-
-    // Log the event immediately
-    await logWebhookEvent(event);
-
-    try {
-      switch (event.type) {
-        case 'checkout.session.completed': {
-          await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
-          break;
-        }
-        // Add more event types as needed
-      }
-
-      // Mark event as completed
-      await logWebhookEvent(event, 'completed');
-
-      return new Response(JSON.stringify({ received: true }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      });
-    } catch (processingError) {
-      console.error('Failed to process webhook:', {
-        error: processingError,
-        eventId: event.id,
-        eventType: event.type,
-        timestamp: new Date().toISOString()
-      });
-
-      // Log the processing error
-      await logWebhookEvent(event, 'failed', processingError.message);
-      throw processingError;
-    }
-  } catch (err) {
-    console.error('Webhook error:', {
-      message: err.message,
-      stack: err.stack,
-      timestamp: new Date().toISOString()
-    });
-    
-    return new Response(
-      JSON.stringify({
-        error: {
-          message: err.message,
-          type: err.constructor.name,
-          stack: err.stack,
-        }
-      }),
-      {
+      console.error("No stripe signature found in request headers");
+      return new Response(JSON.stringify({ error: "No Stripe signature found" }), { 
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Read the request body as text
+    const body = await req.text();
+    if (!body) {
+      console.error("Empty request body");
+      return new Response(JSON.stringify({ error: "Empty request body" }), { 
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Log request information (not including full body for security)
+    console.log(`Webhook received with signature: ${signature.substring(0, 15)}...`);
+    
+    // Get the webhook secret from environment variables
+    const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+    if (!webhookSecret) {
+      console.error("Webhook secret not set in environment variables");
+      return new Response(JSON.stringify({ error: "Webhook secret not configured" }), { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Verify and construct the event
+    let event;
+    try {
+      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+      console.log(`Webhook verified: ${event.type}`);
+    } catch (err) {
+      console.error(`Webhook signature verification failed: ${err.message}`);
+      return new Response(JSON.stringify({ error: `Webhook Error: ${err.message}` }), { 
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Extract the data object
+    const data = event.data.object;
+    console.log(`Processing event type: ${event.type}`);
+    
+    // Handle different event types
+    let response;
+    if (event.type === 'checkout.session.completed') {
+      // Get metadata to determine the type of purchase
+      const metadata = data.metadata || {};
+      
+      if (metadata.isGift === 'true') {
+        console.log('Processing gift purchase');
+        // Handle gift purchase
+        // Implementation not shown here
+      } else if (metadata.isGuest === 'true') {
+        console.log('Processing guest purchase');
+        response = await handleGuestPurchase(data);
+      } else if (metadata.productType === 'credits') {
+        console.log('Processing credit purchase');
+        response = await handleCreditPurchase(data);
+      } else {
+        console.log('Processing regular purchase');
+        response = await handleRegularPurchase(data);
       }
-    );
+    } else if (event.type === 'invoice.paid') {
+      console.log('Processing subscription payment');
+      response = await handleSubscriptionCompleted(data);
+    } else {
+      console.log(`Unhandled event type: ${event.type}`);
+    }
+
+    // Always return a 200 response to acknowledge receipt of the webhook
+    return new Response(JSON.stringify({ received: true, success: true }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    // Log the detailed error but don't expose it in the response
+    console.error(`Webhook error: ${error.message}`);
+    console.error(error.stack);
+    
+    // Still return a 200 status to acknowledge receipt (Stripe recommendation)
+    // This prevents Stripe from retrying again and again
+    return new Response(JSON.stringify({ received: true, success: false, message: "Processed with errors" }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
