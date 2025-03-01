@@ -1,3 +1,4 @@
+
 import { toast } from "@/hooks/use-toast";
 import { cleanupPurchaseState } from "@/utils/purchaseStateUtils";
 import { supabase } from "@/integrations/supabase/client";
