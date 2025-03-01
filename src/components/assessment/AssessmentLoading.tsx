@@ -26,7 +26,7 @@ export const AssessmentLoading = ({
               Verifying your purchase...
             </p>
             <p className="text-sm text-gray-600">
-              Please wait while we prepare your detailed report.
+              Please wait while we prepare your detailed report. This may take a few moments.
             </p>
           </div>
         )}
@@ -37,8 +37,16 @@ export const AssessmentLoading = ({
               Still processing your purchase...
             </p>
             <p className="text-sm text-gray-600">
-              This is taking a little longer than expected. Please wait a moment.
+              This is taking a little longer than expected. We're verifying your payment with Stripe.
             </p>
+            <Button 
+              onClick={onRefresh}
+              variant="outline"
+              size="sm"
+              className="mt-4"
+            >
+              Refresh Page
+            </Button>
           </div>
         )}
         
@@ -48,11 +56,11 @@ export const AssessmentLoading = ({
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Verification Delayed</AlertTitle>
               <AlertDescription>
-                We're having trouble verifying your purchase. You can try refreshing the page or check your purchase history in your dashboard.
+                We're having trouble verifying your purchase. Your report is likely ready, but verification is taking longer than expected.
               </AlertDescription>
             </Alert>
             
-            <div className="flex space-x-4 mt-4">
+            <div className="flex flex-col space-y-3 mt-4 w-full">
               <Button 
                 onClick={onRefresh}
                 variant="default"
@@ -68,6 +76,11 @@ export const AssessmentLoading = ({
               >
                 Go to Dashboard
               </Button>
+              
+              <p className="text-xs text-gray-500 text-center mt-2">
+                Don't worry - your purchase has been processed, and your report is 
+                available on your dashboard even if verification is delayed.
+              </p>
             </div>
           </>
         )}
