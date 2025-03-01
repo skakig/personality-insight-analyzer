@@ -1,53 +1,56 @@
 
 /**
- * Utility functions for storing and retrieving purchase data
- */
-
-/**
- * Stores purchase-related data across browser sessions
+ * Stores purchase data in localStorage
  */
 export const storePurchaseData = (resultId: string, sessionId: string, userId?: string) => {
   if (resultId) {
-    console.log('Storing purchase data:', { resultId, sessionId, hasUserId: !!userId });
     localStorage.setItem('purchaseResultId', resultId);
-    
-    if (sessionId) {
-      localStorage.setItem('stripeSessionId', sessionId);
-    }
-    
-    // If this is a logged-in user's purchase, store that information as well
-    if (userId) {
-      localStorage.setItem('purchaseUserId', userId);
-    }
+    console.log('Stored purchase result ID:', resultId);
+  }
+  
+  if (sessionId) {
+    localStorage.setItem('stripeSessionId', sessionId);
+    console.log('Stored stripe session ID:', sessionId);
+  }
+  
+  // Store timestamp to help debugging
+  localStorage.setItem('purchaseTimestamp', new Date().toISOString());
+  
+  // Store logged-in status
+  localStorage.setItem('purchaseLoggedInState', userId ? 'logged_in' : 'guest');
+  
+  // Save user ID if available
+  if (userId) {
+    localStorage.setItem('purchaseUserId', userId);
   }
 };
 
 /**
- * Cleans up purchase-related data from browser storage
+ * Cleans up purchase state from localStorage
  */
 export const cleanupPurchaseState = () => {
-  const keysToRemove = [
-    'purchaseResultId',
-    'stripeSessionId',
-    'purchaseTrackingId',
-    'guestAccessToken',
-    'guestEmail',
-    'purchaseUserId'
-  ];
+  localStorage.removeItem('purchaseResultId');
+  localStorage.removeItem('stripeSessionId');
+  localStorage.removeItem('purchaseTrackingId');
+  localStorage.removeItem('purchaseTimestamp');
+  localStorage.removeItem('purchaseVerificationFailed');
+  localStorage.removeItem('failedVerificationId');
   
-  keysToRemove.forEach(key => localStorage.removeItem(key));
+  // Don't remove guest tokens/emails as they might be needed for other purposes
 };
 
 /**
- * Gets all purchase-related data from localStorage
+ * Retrieves all purchase data from localStorage
  */
 export const getPurchaseData = () => {
   return {
     resultId: localStorage.getItem('purchaseResultId'),
     sessionId: localStorage.getItem('stripeSessionId'),
     trackingId: localStorage.getItem('purchaseTrackingId'),
-    guestAccessToken: localStorage.getItem('guestAccessToken'),
-    guestEmail: localStorage.getItem('guestEmail'),
-    userId: localStorage.getItem('purchaseUserId')
+    timestamp: localStorage.getItem('purchaseTimestamp'),
+    loggedInState: localStorage.getItem('purchaseLoggedInState'),
+    userId: localStorage.getItem('purchaseUserId'),
+    verificationFailed: localStorage.getItem('purchaseVerificationFailed') === 'true',
+    failedVerificationId: localStorage.getItem('failedVerificationId')
   };
 };

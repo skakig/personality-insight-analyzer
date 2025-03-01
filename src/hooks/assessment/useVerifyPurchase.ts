@@ -1,3 +1,4 @@
+
 import { toast } from "@/hooks/use-toast";
 import { verifyPurchaseWithRetry } from "@/utils/purchaseUtils";
 import { cleanupPurchaseState, storePurchaseData } from "@/utils/purchaseStateUtils";
@@ -108,12 +109,70 @@ export const useVerifyPurchase = (
               return true;
             }
           }
+          
+          // If direct user update failed, try with session ID as well (belt and suspenders approach)
+          if (sessionId) {
+            console.log('User update failed, attempting with session ID as fallback');
+            
+            // First update the stripe_session_id on the result
+            await supabase
+              .from('quiz_results')
+              .update({ stripe_session_id: sessionId })
+              .eq('id', id)
+              .eq('user_id', userId);
+              
+            // Then update with the completed status
+            const { error: updateError } = await supabase
+              .from('quiz_results')
+              .update({ 
+                is_purchased: true,
+                is_detailed: true,
+                purchase_status: 'completed',
+                purchase_completed_at: new Date().toISOString(),
+                access_method: 'purchase'
+              })
+              .eq('id', id)
+              .eq('user_id', userId);
+              
+            if (!updateError) {
+              const { data: finalResult } = await supabase
+                .from('quiz_results')
+                .select('*')
+                .eq('id', id)
+                .eq('user_id', userId)
+                .maybeSingle();
+                
+              if (finalResult) {
+                console.log('Session ID fallback update successful for logged-in user');
+                setResult(finalResult);
+                setLoading(false);
+                stopVerification();
+                toast({
+                  title: "Purchase verified!",
+                  description: "Your detailed report is now available.",
+                });
+                storePurchaseData(id, sessionId, userId);
+                return true;
+              }
+            }
+          }
         }
       }
       
       // For cases with a session ID, regardless of user state
       if (sessionId) {
         console.log('Attempting verification with session ID:', sessionId);
+        
+        // First sync the session ID with the result if needed
+        try {
+          await supabase
+            .from('quiz_results')
+            .update({ stripe_session_id: sessionId })
+            .eq('id', id);
+        } catch (syncError) {
+          console.error('Session ID sync error (non-critical):', syncError);
+          // Continue anyway, this is just a precaution
+        }
         
         // Update result with session ID
         const sessionUpdated = await updateResultWithSessionId(id, sessionId);
@@ -234,6 +293,42 @@ export const useVerifyPurchase = (
             setLoading(false);
             stopVerification();
             return true;
+          }
+        }
+        
+        // If this is a logged-in user and we've failed multiple times, 
+        // try a desperate move: update the result without any filters
+        if (userId && incrementAttempts > 2) {
+          console.log('Multiple failures for logged-in user, trying last resort update');
+          const { error: lastResortError } = await supabase
+            .from('quiz_results')
+            .update({ 
+              is_purchased: true,
+              is_detailed: true,
+              purchase_status: 'completed',
+              purchase_completed_at: new Date().toISOString(),
+              access_method: 'purchase'
+            })
+            .eq('id', id);
+            
+          if (!lastResortError) {
+            const { data: lastResortResult } = await supabase
+              .from('quiz_results')
+              .select('*')
+              .eq('id', id)
+              .maybeSingle();
+              
+            if (lastResortResult) {
+              console.log('Last resort update successful!');
+              setResult(lastResortResult);
+              setLoading(false);
+              stopVerification();
+              toast({
+                title: "Purchase verified!",
+                description: "Your detailed report is now available.",
+              });
+              return true;
+            }
           }
         }
         

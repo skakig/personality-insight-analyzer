@@ -39,6 +39,7 @@ export const useAssessmentResult = (id?: string) => {
   const { handleVerificationFailure, attemptDirectUpdate } = usePostPurchaseHandler();
 
   const [verificationAttempted, setVerificationAttempted] = useState(false);
+  const [maxVerificationRetries] = useState(5); // Maximum retry attempts before forcing dashboard redirect
 
   useEffect(() => {
     const loadAssessment = async () => {
@@ -121,6 +122,44 @@ export const useAssessmentResult = (id?: string) => {
             return;
           }
           
+          // Maximum retries check - if we've exceeded the limit, try one last direct update
+          // and then redirect to prevent infinite loading
+          if (verificationAttempts >= maxVerificationRetries) {
+            console.log('Maximum verification retries exceeded, attempting final direct update');
+            const finalResult = await attemptDirectUpdate({
+              stripeSessionId: stripeSessionId || '',
+              isPostPurchase,
+              verificationId,
+              userId
+            });
+            
+            if (finalResult) {
+              console.log('Final direct update succeeded!');
+              setResult(finalResult);
+              setLoading(false);
+              stopVerification();
+              return;
+            } else {
+              console.log('Final direct update failed, redirecting to dashboard');
+              // Store a flag in localStorage to show a notification on dashboard
+              localStorage.setItem('purchaseVerificationFailed', 'true');
+              localStorage.setItem('failedVerificationId', verificationId);
+              
+              toast({
+                title: "Verification taking too long",
+                description: "Redirecting you to the dashboard where you can access your reports.",
+                variant: "default",
+              });
+              
+              // Short delay before redirecting
+              setTimeout(() => {
+                window.location.href = '/dashboard';
+              }, 2000);
+              
+              return;
+            }
+          }
+          
           // First attempt at verifying purchase
           let success = await verifyPurchase(verificationId);
           
@@ -137,7 +176,7 @@ export const useAssessmentResult = (id?: string) => {
             
             console.log('Attempting direct database update as fallback');
             const finalResult = await attemptDirectUpdate({
-              stripeSessionId,
+              stripeSessionId: stripeSessionId || '',
               isPostPurchase,
               verificationId,
               userId
