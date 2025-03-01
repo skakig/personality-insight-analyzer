@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { toast } from "@/hooks/use-toast";
 
 export const Navigation = ({ session }: { session?: any }) => {
   const navigate = useNavigate();
@@ -11,16 +12,44 @@ export const Navigation = ({ session }: { session?: any }) => {
 
   const handleSignOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      // Always navigate home after sign out attempt
-      navigate("/");
+      console.log('Attempting to sign out...');
       
-      if (error) {
-        console.error('Signout error:', error);
+      // First check if we have a valid session before attempting to sign out
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      
+      if (currentSession) {
+        const { error } = await supabase.auth.signOut();
+        
+        if (error) {
+          console.error('Signout error:', error);
+          toast({
+            title: "Sign out failed",
+            description: "There was an issue signing you out. Please try again.",
+            variant: "destructive",
+          });
+        } else {
+          console.log('Sign out successful');
+          toast({
+            title: "Signed out",
+            description: "You have been signed out successfully.",
+          });
+        }
+      } else {
+        console.log('No active session found, redirecting without signout');
+        // Clear any local session data
+        localStorage.removeItem('supabase.auth.token');
       }
+      
+      // Always navigate home regardless of sign out success/failure
+      navigate("/");
     } catch (error) {
       console.error('Signout error:', error);
-      // Even if there's an error, navigate home as the session is likely invalid
+      toast({
+        title: "Sign out failed",
+        description: "There was an issue signing you out. Please try again.",
+        variant: "destructive",
+      });
+      // Even if there's an error, navigate home as the session might be invalid
       navigate("/");
     }
   };
