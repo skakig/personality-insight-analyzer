@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,7 +5,6 @@ import { toast } from "@/hooks/use-toast";
 import { useFetchResult } from "./assessment/useFetchResult";
 import { useVerificationState } from "./assessment/useVerificationState";
 import { useVerifyPurchase } from "./assessment/useVerifyPurchase";
-import { ToastAction } from "@/components/ui/toast";
 import { storePurchaseData } from "@/utils/purchaseStateUtils";
 import { usePreVerificationChecks } from "./assessment/usePreVerificationChecks";
 import { usePostPurchaseHandler } from "./assessment/usePostPurchaseHandler";

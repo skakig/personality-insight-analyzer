@@ -1,6 +1,8 @@
 
+import React from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 
 /**
  * Performs pre-verification checks to see if a result is already purchased
