@@ -47,3 +47,21 @@ export const storePurchaseData = (resultId: string, sessionId: string, userId?: 
     timestamp: new Date().toISOString()
   });
 };
+
+// Add a utility to check if we have all necessary purchase data
+export const hasPurchaseData = () => {
+  const resultId = localStorage.getItem('purchaseResultId');
+  const sessionId = localStorage.getItem('stripeSessionId');
+  
+  return !!(resultId && sessionId);
+};
+
+// Add a utility to get stored purchase data
+export const getPurchaseData = () => {
+  return {
+    resultId: localStorage.getItem('purchaseResultId'),
+    sessionId: localStorage.getItem('stripeSessionId'),
+    guestEmail: localStorage.getItem('guestEmail'),
+    accessToken: localStorage.getItem('guestAccessToken')
+  };
+};

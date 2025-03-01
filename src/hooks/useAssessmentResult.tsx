@@ -8,6 +8,9 @@ import { useVerificationState } from "./assessment/useVerificationState";
 import { useVerifyPurchase } from "./assessment/useVerifyPurchase";
 import { ToastAction } from "@/components/ui/toast";
 import { storePurchaseData } from "@/utils/purchaseStateUtils";
+import { usePreVerificationChecks } from "./assessment/usePreVerificationChecks";
+import { usePostPurchaseHandler } from "./assessment/usePostPurchaseHandler";
+import { logAssessmentInfo } from "@/utils/assessmentLogging";
 
 export const useAssessmentResult = (id?: string) => {
   const [searchParams] = useSearchParams();
@@ -32,6 +35,9 @@ export const useAssessmentResult = (id?: string) => {
     setResult, 
     { startVerification, stopVerification, incrementAttempts }
   );
+
+  const { checkDirectAccess, showCreateAccountToast } = usePreVerificationChecks();
+  const { handleVerificationFailure, attemptDirectUpdate } = usePostPurchaseHandler();
 
   // Track if we've already attempted verification on this page load
   const [verificationAttempted, setVerificationAttempted] = useState(false);
@@ -66,38 +72,25 @@ export const useAssessmentResult = (id?: string) => {
           storePurchaseData(id || storedResultId || '', stripeSessionId || '');
         }
 
-        console.log('Assessment page loaded:', {
+        // Log information for debugging
+        logAssessmentInfo({
           resultId: id,
-          userId: userId ? 'logged_in' : 'guest',
+          userId,
           hasAccessToken: !!accessToken,
           isPostPurchase,
           hasStripeSession: !!stripeSessionId,
           hasTrackingId: !!trackingId,
           storedResultId,
           verificationAttempts,
-          verificationAttempted,
-          timestamp: new Date().toISOString()
+          verificationAttempted
         });
 
-        // Check directly if the result is already purchased
-        if (id) {
-          let query = supabase
-            .from('quiz_results')
-            .select('*')
-            .eq('id', id);
-          
-          if (userId) {
-            query = query.eq('user_id', userId);
-          }
-          
-          const { data: directResult } = await query.maybeSingle();
-          
-          if (directResult && (directResult.is_purchased || directResult.is_detailed)) {
-            console.log('Result already purchased, skipping verification');
-            setResult(directResult);
-            setLoading(false);
-            return;
-          }
+        // Check if direct access is possible (already purchased)
+        const directResult = await checkDirectAccess(id, userId);
+        if (directResult) {
+          setResult(directResult);
+          setLoading(false);
+          return;
         }
 
         // Verify purchase if we just returned from Stripe or have necessary info
@@ -133,57 +126,20 @@ export const useAssessmentResult = (id?: string) => {
           }
           
           if (!success) {
-            // Show appropriate message based on verification attempts
-            if (verificationAttempts > 0) {
-              toast({
-                title: "Purchase verification delayed",
-                description: "Your purchase may take a few moments to process. You can refresh the page or check your dashboard.",
-                variant: "default",
-                action: (
-                  <ToastAction 
-                    altText="Refresh" 
-                    onClick={() => window.location.reload()}
-                  >
-                    Refresh
-                  </ToastAction>
-                )
-              });
-            } else {
-              toast({
-                title: "Verification in progress",
-                description: "We're still processing your purchase. Please wait a moment...",
-              });
-            }
+            // Handle verification failure
+            handleVerificationFailure(verificationAttempts);
             
             // Last resort direct update for post-purchase
-            if (stripeSessionId && isPostPurchase && verificationId) {
-              try {
-                await supabase
-                  .from('quiz_results')
-                  .update({ 
-                    is_purchased: true,
-                    is_detailed: true,
-                    purchase_status: 'completed',
-                    purchase_completed_at: new Date().toISOString(),
-                    access_method: 'purchase'
-                  })
-                  .eq('id', verificationId);
-                  
-                // Fetch the updated result once more
-                const { data: finalResult } = await supabase
-                  .from('quiz_results')
-                  .select('*')
-                  .eq('id', verificationId)
-                  .maybeSingle();
-                  
-                if (finalResult) {
-                  setResult(finalResult);
-                  setLoading(false);
-                  stopVerification();
-                }
-              } catch (error) {
-                console.error('Final manual update failed:', error);
-              }
+            const finalResult = await attemptDirectUpdate({
+              stripeSessionId,
+              isPostPurchase,
+              verificationId
+            });
+            
+            if (finalResult) {
+              setResult(finalResult);
+              setLoading(false);
+              stopVerification();
             }
           }
         }
@@ -193,21 +149,7 @@ export const useAssessmentResult = (id?: string) => {
           const fetchedResult = await fetchResultById(id, { userId, accessToken });
           
           if (fetchedResult && !userId && fetchedResult.guest_email) {
-            toast({
-              title: "Create an Account",
-              description: "Create an account to keep permanent access to your report",
-              action: (
-                <ToastAction 
-                  altText="Sign Up" 
-                  onClick={() => {
-                    window.location.href = `/auth?email=${encodeURIComponent(fetchedResult.guest_email)}&action=signup`;
-                  }}
-                >
-                  Sign Up
-                </ToastAction>
-              ),
-              duration: 10000,
-            });
+            showCreateAccountToast(fetchedResult.guest_email);
           }
         }
       } catch (error: any) {

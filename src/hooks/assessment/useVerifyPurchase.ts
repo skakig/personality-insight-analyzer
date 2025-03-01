@@ -2,6 +2,8 @@ import { toast } from "@/hooks/use-toast";
 import { verifyPurchaseWithRetry } from "@/utils/purchaseUtils";
 import { cleanupPurchaseState, storePurchaseData } from "@/utils/purchaseStateUtils";
 import { supabase } from "@/integrations/supabase/client";
+import { useDirectDatabaseUpdates } from "./useDirectDatabaseUpdates";
+import { useFetchUpdatedResult } from "./useFetchUpdatedResult";
 
 export const useVerifyPurchase = (
   setLoading: (value: boolean) => void,
@@ -12,6 +14,18 @@ export const useVerifyPurchase = (
     incrementAttempts: () => void;
   }
 ) => {
+  const { 
+    updateResultForUser, 
+    updateResultWithSessionId, 
+    tryFallbackUpdates 
+  } = useDirectDatabaseUpdates();
+  
+  const { 
+    fetchUserResult, 
+    fetchResultBySessionId, 
+    fetchResultById 
+  } = useFetchUpdatedResult();
+
   const verifyPurchase = async (id?: string) => {
     if (!id) {
       console.error('Verification failed: Missing result ID');
@@ -49,34 +63,16 @@ export const useVerifyPurchase = (
       const { data: { session } } = await supabase.auth.getSession();
       const userId = session?.user?.id;
       
+      // For logged-in users returning from successful purchase
       if (userId && successParam === 'true') {
         console.log('Logged-in user detected, attempting direct verification for user:', userId);
         
-        // Direct DB update for logged-in users returning from successful purchase
-        const { error: updateError } = await supabase
-          .from('quiz_results')
-          .update({ 
-            is_purchased: true,
-            is_detailed: true,
-            purchase_status: 'completed',
-            purchase_completed_at: new Date().toISOString(),
-            access_method: 'purchase'
-          })
-          .eq('id', id)
-          .eq('user_id', userId);
+        // Update the database for logged-in user
+        const updated = await updateResultForUser(id, userId);
         
-        if (updateError) {
-          console.error('Direct update for logged-in user failed:', updateError);
-        } else {
-          console.log('Direct DB update successful for logged-in user');
-          
+        if (updated) {
           // Fetch the updated result
-          const { data: userResult } = await supabase
-            .from('quiz_results')
-            .select('*')
-            .eq('id', id)
-            .eq('user_id', userId)
-            .maybeSingle();
+          const userResult = await fetchUserResult(id, userId);
             
           if (userResult) {
             console.log('Successfully fetched updated result for logged-in user');
@@ -98,61 +94,31 @@ export const useVerifyPurchase = (
       if (sessionId) {
         console.log('Attempting verification with session ID:', sessionId);
         
-        try {
-          // Update result with session ID directly
-          const { error: sessionUpdateError } = await supabase
-            .from('quiz_results')
-            .update({ 
-              is_purchased: true,
-              is_detailed: true,
-              purchase_status: 'completed',
-              purchase_completed_at: new Date().toISOString(),
-              access_method: 'purchase'
-            })
-            .eq('id', id)
-            .eq('stripe_session_id', sessionId);
+        // Update result with session ID
+        const sessionUpdated = await updateResultWithSessionId(id, sessionId);
           
-          if (!sessionUpdateError) {
-            console.log('Direct session update successful');
-            
-            // Also update purchase tracking
-            await supabase
-              .from('purchase_tracking')
-              .update({
-                status: 'completed',
-                completed_at: new Date().toISOString()
-              })
-              .eq('stripe_session_id', sessionId);
+        if (sessionUpdated) {
+          // Fetch the updated result
+          const sessionResult = await fetchResultBySessionId(id, sessionId);
               
-            // Fetch the updated result
-            const { data: sessionResult } = await supabase
-              .from('quiz_results')
-              .select('*')
-              .eq('id', id)
-              .eq('stripe_session_id', sessionId)
-              .maybeSingle();
-              
-            if (sessionResult) {
-              console.log('Successfully fetched updated result via session ID');
-              setResult(sessionResult);
-              setLoading(false);
-              stopVerification();
-              toast({
-                title: "Purchase verified!",
-                description: "Your detailed report is now available.",
-              });
-              storePurchaseData(id, sessionId);
-              return true;
-            }
+          if (sessionResult) {
+            console.log('Successfully fetched updated result via session ID');
+            setResult(sessionResult);
+            setLoading(false);
+            stopVerification();
+            toast({
+              title: "Purchase verified!",
+              description: "Your detailed report is now available.",
+            });
+            storePurchaseData(id, sessionId);
+            return true;
           }
-        } catch (sessionError) {
-          console.error('Session-based update failed:', sessionError);
         }
       }
       
       // Use the retry mechanism for standard verification
       console.log('Attempting standard purchase verification with retries');
-      const verifiedResult = await verifyPurchaseWithRetry(id, 8, 1000); // Increased retries with reasonable delay
+      const verifiedResult = await verifyPurchaseWithRetry(id, 8, 1000);
       
       if (verifiedResult) {
         console.log('Purchase verified successfully through standard verification!');
@@ -175,107 +141,27 @@ export const useVerifyPurchase = (
         // Try direct updates based on available information
         const guestEmail = localStorage.getItem('guestEmail');
         
-        // Build an array of possible update queries to try
-        const updateAttempts = [];
-        
-        // 1. User ID based update for logged-in users
-        if (userId) {
-          updateAttempts.push({
-            name: 'user-id-update',
-            query: supabase
-              .from('quiz_results')
-              .update({ 
-                is_purchased: true,
-                is_detailed: true,
-                purchase_status: 'completed',
-                purchase_completed_at: new Date().toISOString(),
-                access_method: 'purchase'
-              })
-              .eq('id', id)
-              .eq('user_id', userId)
-          });
-        }
-        
-        // 2. Session ID based update
-        if (sessionId) {
-          updateAttempts.push({
-            name: 'session-id-update',
-            query: supabase
-              .from('quiz_results')
-              .update({ 
-                is_purchased: true,
-                is_detailed: true,
-                purchase_status: 'completed',
-                purchase_completed_at: new Date().toISOString(),
-                access_method: 'purchase'
-              })
-              .eq('id', id)
-              .eq('stripe_session_id', sessionId)
-          });
-        }
-        
-        // 3. Guest email based update
-        if (guestEmail) {
-          updateAttempts.push({
-            name: 'guest-email-update',
-            query: supabase
-              .from('quiz_results')
-              .update({ 
-                is_purchased: true,
-                is_detailed: true,
-                purchase_status: 'completed',
-                purchase_completed_at: new Date().toISOString(),
-                access_method: 'purchase'
-              })
-              .eq('id', id)
-              .eq('guest_email', guestEmail)
-          });
-        }
-        
-        // 4. Direct ID update as last resort
-        updateAttempts.push({
-          name: 'direct-id-update',
-          query: supabase
-            .from('quiz_results')
-            .update({ 
-              is_purchased: true,
-              is_detailed: true,
-              purchase_status: 'completed',
-              purchase_completed_at: new Date().toISOString(),
-              access_method: 'purchase'
-            })
-            .eq('id', id)
+        // Try fallback update methods
+        const updated = await tryFallbackUpdates({
+          id,
+          userId,
+          sessionId,
+          guestEmail
         });
         
-        // Try each update strategy
-        for (const attempt of updateAttempts) {
-          try {
-            console.log(`Attempting ${attempt.name} verification strategy`);
-            const { error } = await attempt.query;
-            
-            if (!error) {
-              console.log(`Update successful with ${attempt.name} strategy!`);
+        if (updated) {
+          // Try to fetch the updated result
+          const finalResult = await fetchResultById(id);
               
-              // Try to fetch the updated result
-              const { data: finalResult } = await supabase
-                .from('quiz_results')
-                .select('*')
-                .eq('id', id)
-                .maybeSingle();
-                
-              if (finalResult) {
-                setResult(finalResult);
-                toast({
-                  title: "Purchase verified!",
-                  description: "Your detailed report is now available.",
-                });
-                setLoading(false);
-                stopVerification();
-                return true;
-              }
-            }
-          } catch (attemptError) {
-            console.error(`Error with ${attempt.name} verification:`, attemptError);
+          if (finalResult) {
+            setResult(finalResult);
+            toast({
+              title: "Purchase verified!",
+              description: "Your detailed report is now available.",
+            });
+            setLoading(false);
+            stopVerification();
+            return true;
           }
         }
         
