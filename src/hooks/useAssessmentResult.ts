@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,6 +5,7 @@ import { toast } from "@/hooks/use-toast";
 import { useFetchResult } from "./assessment/useFetchResult";
 import { useVerificationState } from "./assessment/useVerificationState";
 import { useVerifyPurchase } from "./assessment/useVerifyPurchase";
+import React from "react";
 
 export const useAssessmentResult = (id?: string) => {
   const [searchParams] = useSearchParams();
@@ -39,7 +39,6 @@ export const useAssessmentResult = (id?: string) => {
           return;
         }
 
-        // Get current session and access token
         const { data: { session } } = await supabase.auth.getSession();
         const userId = session?.user?.id;
         const accessToken = searchParams.get('token') || localStorage.getItem('guestAccessToken');
@@ -59,11 +58,9 @@ export const useAssessmentResult = (id?: string) => {
           timestamp: new Date().toISOString()
         });
 
-        // Check if this is post-purchase verification
         if (isPostPurchase || (stripeSessionId && id === storedResultId)) {
           const success = await verifyPurchase(id);
           
-          // If verification failed and this is not the first attempt
           if (!success && verificationAttempts > 0) {
             toast({
               title: "Purchase verification delayed",
@@ -72,14 +69,12 @@ export const useAssessmentResult = (id?: string) => {
             });
           }
           
-          // Try a manual update as a last resort on first failed verification
           if (!success && verificationAttempts === 0) {
             toast({
               title: "Verification in progress",
               description: "We're still processing your purchase. Please wait a moment...",
             });
             
-            // Try a manual update as a last resort
             try {
               if (stripeSessionId) {
                 await supabase
@@ -99,23 +94,23 @@ export const useAssessmentResult = (id?: string) => {
           }
         }
 
-        // Standard result fetch if verification wasn't successful
         if (!result) {
           const fetchedResult = await fetchResultById(id, { userId, accessToken });
           
-          // Show account creation prompt for guests with custom URL
           if (fetchedResult && !userId && fetchedResult.guest_email) {
+            const signUpButton = React.createElement(
+              'a',
+              {
+                href: `/auth?email=${encodeURIComponent(fetchedResult.guest_email)}&action=signup`,
+                className: "bg-primary text-white px-4 py-2 rounded-md hover:bg-primary/90"
+              },
+              'Sign Up'
+            );
+            
             toast({
               title: "Create an Account",
               description: "Create an account to keep permanent access to your report",
-              action: (
-                <a 
-                  href={`/auth?email=${encodeURIComponent(fetchedResult.guest_email)}&action=signup`}
-                  className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary/90"
-                >
-                  Sign Up
-                </a>
-              ),
+              action: signUpButton,
               duration: 10000,
             });
           }
