@@ -6,6 +6,7 @@ import { PricingFooter } from "./pricing/PricingFooter";
 import { CheckoutButton } from "./pricing/CheckoutButton";
 import { useCheckoutFlow } from "./pricing/hooks/useCheckoutFlow";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 interface PricingSectionProps {
   session: any;
@@ -32,8 +33,45 @@ export const PricingSection = ({ session, quizResultId }: PricingSectionProps) =
           hasSession: !!session,
           hasCurrentSession: !!currentSession,
           hasQuizResultId: !!quizResultId,
-          userId: currentSession?.user?.id || session?.user?.id || 'guest'
+          userId: currentSession?.user?.id || session?.user?.id || 'guest',
+          timestamp: new Date().toISOString()
         });
+        
+        // Check if this is a return from Stripe with success=true
+        const urlParams = new URLSearchParams(window.location.search);
+        const success = urlParams.get('success') === 'true';
+        
+        if (success && quizResultId) {
+          toast({
+            title: "Purchase Successful!",
+            description: "Your detailed report is now available.",
+          });
+          
+          // Handle successful purchase return
+          console.log('Detected successful return from Stripe checkout');
+          
+          // Let's update the purchase status directly
+          try {
+            const sessionId = localStorage.getItem('stripeSessionId');
+            
+            if (sessionId) {
+              await supabase
+                .from('quiz_results')
+                .update({ 
+                  is_purchased: true,
+                  is_detailed: true,
+                  purchase_status: 'completed',
+                  purchase_completed_at: new Date().toISOString(),
+                  access_method: 'purchase'
+                })
+                .eq('id', quizResultId);
+              
+              console.log('Successfully updated purchase status');
+            }
+          } catch (updateError) {
+            console.error('Error updating purchase status:', updateError);
+          }
+        }
       } catch (error) {
         console.error('Error checking authentication state:', error);
       }

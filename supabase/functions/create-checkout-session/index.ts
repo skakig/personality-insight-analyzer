@@ -1,58 +1,51 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
-import Stripe from 'https://esm.sh/stripe@14.21.0'
-
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-  apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetchHttpClient(),
-})
-
-const supabaseAdmin = createClient(
-  Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-)
+import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.24.0';
+import Stripe from 'https://esm.sh/stripe@12.1.1?target=deno';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { resultId, email, priceAmount, metadata } = await req.json();
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
-    // If this is a guest purchase, create a record
-    if (email && !metadata.userId) {
-      const { data: guestPurchase, error: insertError } = await supabaseAdmin
-        .from('guest_purchases')
-        .insert({
-          email,
-          result_id: resultId,
-          purchase_type: 'assessment',
-          metadata: {
-            ...metadata,
-            resultId,
-            email
-          }
-        })
-        .select()
-        .single();
+    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
+      apiVersion: '2022-11-15',
+    });
 
-      if (insertError) {
-        console.error('Error creating guest purchase:', insertError);
-        throw new Error('Failed to create guest purchase record');
-      }
+    const { resultId, email, priceAmount, userId, mode = 'payment', metadata = {} } = await req.json();
 
-      // Update metadata with guest purchase ID
-      metadata.guestPurchaseId = guestPurchase.id;
-    }
+    console.log('Checkout request received:', {
+      resultId,
+      email,
+      priceAmount,
+      userId,
+      mode,
+      metadata,
+    });
 
-    // Create Stripe checkout session
+    // Determine what success URL to use
+    let successUrl = metadata.returnUrl 
+      ? `${req.headers.get('origin')}${metadata.returnUrl}`
+      : `${req.headers.get('origin')}/assessment/${resultId}?success=true`;
+    
+    // Append sessionId parameter to pass through to success page
+    successUrl += (successUrl.includes('?') ? '&' : '?') + 'session_id={CHECKOUT_SESSION_ID}';
+    
+    const cancelUrl = `${req.headers.get('origin')}/assessment/${resultId}?canceled=true`;
+
+    // Create a checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -60,56 +53,118 @@ serve(async (req) => {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: 'Full Assessment Report',
-              description: 'Unlock your detailed personality assessment report',
+              name: 'Detailed Moral Hierarchy Assessment',
+              description: 'Complete detailed analysis of your moral development level',
+              images: [
+                `${req.headers.get('origin')}/og-image.png`,
+              ],
             },
             unit_amount: priceAmount,
           },
           quantity: 1,
         },
       ],
-      mode: 'payment',
-      success_url: `${req.headers.get('origin')}/assessment/${resultId}?success=true`,
-      cancel_url: `${req.headers.get('origin')}/assessment/${resultId}?canceled=true`,
-      customer_email: email || undefined,
+      mode,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      customer_email: email,
       metadata: {
         resultId,
+        userId,
+        isGuest: !userId ? 'true' : 'false',
+        email,
+        accessToken: metadata.accessToken || null,
         ...metadata,
       },
     });
 
-    // Update guest purchase with Stripe session ID if applicable
-    if (metadata.guestPurchaseId) {
-      await supabaseAdmin
-        .from('guest_purchases')
-        .update({ stripe_session_id: session.id })
-        .eq('id', metadata.guestPurchaseId);
+    console.log('Stripe session created:', {
+      sessionId: session.id,
+      resultId,
+      userId: userId || 'guest',
+    });
+
+    // If we have a quiz result ID, let's update the database to track this purchase
+    if (resultId) {
+      try {
+        // Check if there's an existing tracking record
+        const { data: existingTracking } = await supabaseClient
+          .from('purchase_tracking')
+          .select('id')
+          .eq('quiz_result_id', resultId)
+          .maybeSingle();
+
+        if (existingTracking) {
+          // Update existing tracking
+          await supabaseClient
+            .from('purchase_tracking')
+            .update({
+              stripe_session_id: session.id,
+              status: 'pending',
+              user_id: userId || null,
+              guest_email: !userId ? email : null,
+            })
+            .eq('id', existingTracking.id);
+        } else {
+          // Create a new tracking record
+          await supabaseClient
+            .from('purchase_tracking')
+            .insert({
+              quiz_result_id: resultId,
+              stripe_session_id: session.id,
+              user_id: userId || null,
+              guest_email: !userId ? email : null,
+              status: 'pending',
+              metadata: metadata || {},
+            });
+        }
+
+        // Update the quiz result with the session ID
+        await supabaseClient
+          .from('quiz_results')
+          .update({
+            stripe_session_id: session.id,
+            purchase_initiated_at: new Date().toISOString(),
+            purchase_status: 'pending',
+            guest_email: !userId ? email : undefined,
+          })
+          .eq('id', resultId);
+
+        console.log('Database updated with purchase tracking information');
+      } catch (dbError) {
+        console.error('Error updating database:', dbError);
+        // Continue with checkout even if tracking fails
+      }
     }
 
-    // Also update the quiz result to track the pending purchase
-    await supabaseAdmin
-      .from('quiz_results')
-      .update({ 
-        stripe_session_id: session.id,
-        access_method: 'purchase'
-      })
-      .eq('id', resultId);
-
     return new Response(
-      JSON.stringify({ url: session.url }),
+      JSON.stringify({
+        url: session.url,
+        sessionId: session.id,
+        status: 'success',
+      }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
         status: 200,
-      },
+      }
     );
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Checkout session error:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({
+        error: error.message,
+        status: 'error',
+      }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      },
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
+        status: 400,
+      }
     );
   }
 });
