@@ -100,22 +100,13 @@ export const useAssessmentResult = (id?: string) => {
           const fetchedResult = await fetchResultById(id, { userId, accessToken });
           
           if (fetchedResult && !userId && fetchedResult.guest_email) {
-            // Create a button element using ToastAction and assign it to a variable
-            const actionElement = React.createElement(
-              ToastAction,
-              {
-                altText: "Sign Up",
-                onClick: () => {
-                  window.location.href = `/auth?email=${encodeURIComponent(fetchedResult.guest_email)}&action=signup`;
-                }
-              },
-              "Sign Up"
-            );
-
+            // Create a simplified toast without passing a React element directly
             toast({
               title: "Create an Account",
               description: "Create an account to keep permanent access to your report",
-              action: actionElement,
+              action: <ToastAction altText="Sign Up" onClick={() => {
+                window.location.href = `/auth?email=${encodeURIComponent(fetchedResult.guest_email)}&action=signup`;
+              }}>Sign Up</ToastAction>,
               duration: 10000,
             });
           }
