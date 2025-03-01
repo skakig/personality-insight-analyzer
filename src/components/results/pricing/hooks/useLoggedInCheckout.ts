@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { storePurchaseData } from "@/utils/purchaseStateUtils";
 
 export const useLoggedInCheckout = (quizResultId: string | null, userId: string) => {
   const [loading, setLoading] = useState(false);
@@ -98,8 +99,8 @@ export const useLoggedInCheckout = (quizResultId: string | null, userId: string)
           })
           .eq('id', quizResultId);
 
-        // Store session ID in localStorage
-        localStorage.setItem('stripeSessionId', data.sessionId);
+        // Store session data in localStorage using the utility function
+        storePurchaseData(quizResultId, data.sessionId, userId);
       }
 
       // Add a small delay to ensure data is saved before redirecting

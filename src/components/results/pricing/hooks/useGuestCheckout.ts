@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { storePurchaseData } from "@/utils/purchaseStateUtils";
 
 export const useGuestCheckout = (quizResultId: string | null) => {
   const [loading, setLoading] = useState(false);
@@ -62,7 +63,6 @@ export const useGuestCheckout = (quizResultId: string | null) => {
 
       // Save guest email for later verification
       localStorage.setItem('guestEmail', email);
-      localStorage.setItem('purchaseResultId', quizResultId || '');
       localStorage.setItem('guestAccessToken', guestAccessToken);
       
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
@@ -84,9 +84,9 @@ export const useGuestCheckout = (quizResultId: string | null) => {
       if (error) throw error;
       if (!data?.url) throw new Error('No checkout URL received');
 
-      // Store the Stripe session ID if available
+      // Store session data using the utility function
       if (data.sessionId) {
-        localStorage.setItem('stripeSessionId', data.sessionId);
+        storePurchaseData(quizResultId, data.sessionId);
         
         // Update the quiz result with the session ID
         await supabase
