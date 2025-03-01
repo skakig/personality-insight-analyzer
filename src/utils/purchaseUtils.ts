@@ -4,5 +4,5 @@
  */
 
 export { isPurchased, hasAnyPurchasedReport } from './purchaseStatus';
-export { verifyPurchaseWithRetry } from './purchaseRetry';
+export { verifyPurchaseWithRetry } from './purchase/index';
 export { checkPurchaseTracking, updateResultWithPurchase, manuallyCheckStripeSession } from './purchaseVerification';
