@@ -1,4 +1,3 @@
-
 import { toast } from "@/hooks/use-toast";
 import { cleanupPurchaseState } from "@/utils/purchaseStateUtils";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,9 +32,10 @@ export const useVerifyPurchase = (
   } = useDatabaseUpdateStrategies();
   
   const { 
-    fetchByUserId, 
-    fetchBySessionId, 
-    fetchById 
+    fetchResult,
+    fetchByUserId,
+    fetchBySessionId,
+    fetchById
   } = useResultFetchingStrategies();
 
   /**
