@@ -4,6 +4,7 @@ import { EmailDialog } from "./pricing/EmailDialog";
 import { PricingFooter } from "./pricing/PricingFooter";
 import { CheckoutButton } from "./pricing/CheckoutButton";
 import { useCheckoutFlow } from "./pricing/hooks/useCheckoutFlow";
+import { useEffect } from "react";
 
 interface PricingSectionProps {
   session: any;
@@ -20,6 +21,15 @@ export const PricingSection = ({ session, quizResultId }: PricingSectionProps) =
     handleGetDetailedResults,
     handleGuestSubmit
   } = useCheckoutFlow(session, quizResultId);
+
+  // Log key information when component mounts
+  useEffect(() => {
+    console.log('PricingSection mounted:', {
+      hasSession: !!session,
+      hasQuizResultId: !!quizResultId,
+      userId: session?.user?.id || 'guest'
+    });
+  }, [session, quizResultId]);
 
   return (
     <div className="text-center pt-6">

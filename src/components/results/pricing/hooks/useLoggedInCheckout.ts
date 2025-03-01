@@ -17,6 +17,17 @@ export const useLoggedInCheckout = (quizResultId: string | null, userId: string)
       return;
     }
 
+    // Check if userId is provided
+    if (!userId) {
+      console.error('No user ID provided for logged-in checkout');
+      toast({
+        title: "Authentication Error",
+        description: "Please ensure you're logged in and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -25,6 +36,19 @@ export const useLoggedInCheckout = (quizResultId: string | null, userId: string)
         resultId: quizResultId,
         timestamp: new Date().toISOString()
       });
+
+      // Double-check authentication before proceeding
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        console.error('No active session found for user:', userId);
+        toast({
+          title: "Session Error",
+          description: "Your session may have expired. Please log in again.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
 
       // Create purchase tracking record
       const { data: tracking, error: trackingError } = await supabase
@@ -46,22 +70,30 @@ export const useLoggedInCheckout = (quizResultId: string | null, userId: string)
       console.log('Created purchase tracking record:', tracking.id);
 
       // Update quiz result with pending status
-      await supabase
+      const { error: updateError } = await supabase
         .from('quiz_results')
         .update({ 
           purchase_initiated_at: new Date().toISOString(),
-          purchase_status: 'pending'
+          purchase_status: 'pending',
+          user_id: userId  // Ensure user ID is associated with the result
         })
         .eq('id', quizResultId);
+        
+      if (updateError) {
+        console.error('Error updating quiz result:', updateError);
+        // Continue anyway as this isn't critical
+      }
 
       // Store information for verification after return
       localStorage.setItem('purchaseTrackingId', tracking.id);
       localStorage.setItem('purchaseResultId', quizResultId);
+      localStorage.setItem('purchaseUserId', userId);
       
       // Create Stripe checkout session
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { 
           resultId: quizResultId,
+          userId: userId,
           priceAmount: 1499,
           mode: 'payment',
           metadata: {
@@ -85,7 +117,8 @@ export const useLoggedInCheckout = (quizResultId: string | null, userId: string)
 
       console.log('Logged-in checkout session created:', {
         sessionId: data.sessionId,
-        hasUrl: !!data.url
+        hasUrl: !!data.url,
+        redirectingTo: data.url
       });
 
       // Store the Stripe session ID for verification
@@ -102,7 +135,8 @@ export const useLoggedInCheckout = (quizResultId: string | null, userId: string)
         await supabase
           .from('quiz_results')
           .update({ 
-            stripe_session_id: data.sessionId
+            stripe_session_id: data.sessionId,
+            user_id: userId  // Ensure user ID is associated again
           })
           .eq('id', quizResultId);
 
@@ -113,7 +147,7 @@ export const useLoggedInCheckout = (quizResultId: string | null, userId: string)
       // Add a small delay to ensure data is saved before redirecting
       setTimeout(() => {
         window.location.href = data.url;
-      }, 100);
+      }, 200);
       
       return true;
     } catch (error: any) {
