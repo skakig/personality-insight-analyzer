@@ -32,7 +32,12 @@ export const useAssessmentResult = (id?: string) => {
   const { verifyPurchase } = useVerifyPurchase(
     setLoading, 
     setResult, 
-    { startVerification, stopVerification, incrementAttempts }
+    { 
+      startVerification, 
+      stopVerification, 
+      incrementAttempts,
+      verificationAttempts 
+    }
   );
 
   const { checkDirectAccess, showCreateAccountToast } = usePreVerificationChecks();
