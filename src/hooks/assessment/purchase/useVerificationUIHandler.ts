@@ -1,6 +1,5 @@
 
 import { toast } from "@/hooks/use-toast";
-import { ToastAction } from "@/components/ui/toast";
 import { type ToastActionElement } from "@/components/ui/toast";
 
 /**
@@ -13,17 +12,14 @@ export const useVerificationUIHandler = () => {
   const handleVerificationFailure = (verificationAttempts: number) => {
     // Show appropriate message based on verification attempts
     if (verificationAttempts > 0) {
-      const action: ToastActionElement = (
-        <ToastAction altText="Refresh the page" onClick={() => window.location.reload()}>
-          Refresh
-        </ToastAction>
-      );
-      
       toast({
         title: "Purchase verification delayed",
         description: "Your purchase may take a few moments to process. You can refresh the page or check your dashboard.",
         variant: "default",
-        action
+        action: {
+          label: "Refresh",
+          onClick: () => window.location.reload()
+        }
       });
     } else {
       toast({
