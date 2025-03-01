@@ -60,8 +60,21 @@ export const useAssessmentResult = (id?: string) => {
         const urlSuccess = searchParams.get('success') === 'true';
         const urlSessionId = searchParams.get('session_id');
         
+        // Log key data for debugging
+        console.log('Assessment loading data:', {
+          id,
+          userId: userId || 'guest',
+          hasAccessToken: !!accessToken,
+          isPostPurchase,
+          urlSuccess,
+          urlSessionId,
+          stripeSessionId,
+          storedResultId,
+          timestamp: new Date().toISOString()
+        });
+        
         // Prioritize verification for users returning from Stripe checkout
-        if (urlSuccess && (urlSessionId || stripeSessionId)) {
+        if ((urlSuccess || isPostPurchase) && (urlSessionId || stripeSessionId)) {
           console.log('User returning from Stripe checkout - prioritizing verification');
           setVerificationAttempted(true);
           
@@ -86,6 +99,28 @@ export const useAssessmentResult = (id?: string) => {
           setResult(directResult);
           setLoading(false);
           return;
+        }
+
+        // If we're returning from a purchase but don't have success=true,
+        // try to verify based on stored data
+        const isStripeReturn = (window.location.href.includes('/assessment/') && 
+                             !window.location.href.includes('?')) && 
+                             (stripeSessionId || localStorage.getItem('stripeSessionId'));
+        
+        if (isStripeReturn && userId) {
+          console.log('Detected possible return from Stripe without success param, attempting verification');
+          const verificationResult = await executeVerificationFlow(id, {
+            userId,
+            stripeSessionId: stripeSessionId || localStorage.getItem('stripeSessionId') || undefined,
+            isPostPurchase: true,
+            storedResultId,
+            maxRetries: 1 // Just try once in this case
+          });
+          
+          if (verificationResult) {
+            setVerificationSuccess(true);
+            return;
+          }
         }
 
         // Determine if we should verify a purchase

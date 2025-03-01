@@ -1,3 +1,4 @@
+
 import { Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VerificationStatusIndicator } from "./VerificationStatusIndicator";
@@ -21,6 +22,7 @@ export const AssessmentLoading = ({
           <VerificationStatusIndicator
             verifying={verifying}
             verificationAttempts={verificationAttempts}
+            onRefresh={onRefresh}
           />
         </div>
         

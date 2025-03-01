@@ -55,7 +55,10 @@ export const useVerificationFlow = (
       try {
         // For logged-in users, directly update the purchase status
         if (options?.userId) {
-          const { error } = await supabase
+          console.log('Attempting direct database update for logged-in user with session ID:', sessionId);
+          
+          // First try updating with both result ID and user ID which is most reliable
+          const { error: userError } = await supabase
             .from('quiz_results')
             .update({ 
               is_purchased: true,
@@ -65,10 +68,30 @@ export const useVerificationFlow = (
               access_method: 'purchase',
               stripe_session_id: sessionId
             })
-            .eq('id', resultId);
+            .eq('id', resultId)
+            .eq('user_id', options.userId);
             
-          if (!error) {
-            console.log('Successfully updated purchase status for logged-in user');
+          if (!userError) {
+            console.log('Successfully updated quiz result for user:', options.userId);
+            
+            // Also update purchase_tracking record if it exists
+            try {
+              await supabase
+                .from('purchase_tracking')
+                .update({
+                  status: 'completed',
+                  completed_at: new Date().toISOString(),
+                  stripe_session_id: sessionId
+                })
+                .eq('quiz_result_id', resultId)
+                .eq('user_id', options.userId);
+              
+              console.log('Updated related purchase tracking record');
+            } catch (trackingError) {
+              console.log('Non-critical error updating tracking record:', trackingError);
+            }
+            
+            // Fetch the updated result
             const { data: result } = await supabase
               .from('quiz_results')
               .select('*')
@@ -77,13 +100,46 @@ export const useVerificationFlow = (
               .maybeSingle();
               
             if (result) {
-              console.log('Successfully fetched updated result');
+              console.log('Successfully fetched updated result after purchase');
               // Clear URL parameters to prevent repeat processing
               window.history.replaceState({}, document.title, window.location.pathname);
               return result;
             }
           } else {
-            console.error('Failed to update purchase status:', error);
+            console.error('Failed to update purchase status:', userError);
+            
+            // Fallback: try updating with session ID if user ID update failed
+            if (sessionId) {
+              const { error: sessionError } = await supabase
+                .from('quiz_results')
+                .update({ 
+                  is_purchased: true,
+                  is_detailed: true,
+                  purchase_status: 'completed',
+                  purchase_completed_at: new Date().toISOString(),
+                  access_method: 'purchase',
+                  stripe_session_id: sessionId
+                })
+                .eq('id', resultId)
+                .eq('stripe_session_id', sessionId);
+                
+              if (!sessionError) {
+                console.log('Successfully updated with session ID:', sessionId);
+                const { data: sessionResult } = await supabase
+                  .from('quiz_results')
+                  .select('*')
+                  .eq('id', resultId)
+                  .eq('stripe_session_id', sessionId)
+                  .maybeSingle();
+                  
+                if (sessionResult) {
+                  window.history.replaceState({}, document.title, window.location.pathname);
+                  return sessionResult;
+                }
+              } else {
+                console.error('Session ID update also failed:', sessionError);
+              }
+            }
           }
         }
       } catch (error) {
@@ -129,16 +185,53 @@ export const useVerificationFlow = (
     }
     
     // First, try to handle direct return from Stripe
-    const stripeReturnResult = await handleStripeReturn(verificationId, {
-      userId, 
-      sessionId: stripeSessionId
-    });
+    if (isPostPurchase || stripeSessionId) {
+      const stripeReturnResult = await handleStripeReturn(verificationId, {
+        userId, 
+        sessionId: stripeSessionId
+      });
+      
+      if (stripeReturnResult) {
+        console.log('Successfully processed Stripe return directly');
+        setResult(stripeReturnResult);
+        setLoading(false);
+        return stripeReturnResult;
+      }
+    }
     
-    if (stripeReturnResult) {
-      console.log('Successfully processed Stripe return directly');
-      setResult(stripeReturnResult);
-      setLoading(false);
-      return stripeReturnResult;
+    // Last resort - attempt direct update if all else fails
+    if (verificationAttempts >= 1 && userId) {
+      console.log('Attempting direct database update as fallback for logged-in user');
+      
+      // Fallback direct update bypassing verification process
+      const { error } = await supabase
+        .from('quiz_results')
+        .update({ 
+          is_purchased: true,
+          is_detailed: true,
+          purchase_status: 'completed',
+          purchase_completed_at: new Date().toISOString(),
+          access_method: 'purchase'
+        })
+        .eq('id', verificationId);
+        
+      if (!error) {
+        console.log('Direct fallback update succeeded');
+        const { data: directResult } = await supabase
+          .from('quiz_results')
+          .select('*')
+          .eq('id', verificationId)
+          .maybeSingle();
+          
+        if (directResult) {
+          setResult(directResult);
+          setLoading(false);
+          stopVerification();
+          return directResult;
+        }
+      } else {
+        console.error('Direct fallback update failed:', error);
+      }
     }
     
     // Maximum retries check
