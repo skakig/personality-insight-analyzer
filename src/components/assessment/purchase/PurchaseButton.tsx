@@ -27,6 +27,7 @@ export const PurchaseButton = ({
   const loading = externalLoading || internalLoading;
 
   const handleInitiatePurchase = () => {
+    console.log('Purchase button clicked for result:', resultId);
     initiatePurchase(setInternalLoading);
   };
 

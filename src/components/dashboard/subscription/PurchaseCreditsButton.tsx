@@ -11,6 +11,8 @@ export const PurchaseCreditsButton = () => {
   const handlePurchaseCredits = async () => {
     try {
       setLoading(true);
+      console.log('Initiating credits purchase...');
+      
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { 
           mode: 'payment',
@@ -19,11 +21,20 @@ export const PurchaseCreditsButton = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Credits purchase error:', error);
+        throw error;
+      }
       
       if (data?.url) {
-        window.location.href = data.url;
+        console.log('Redirecting to credits checkout URL');
+        
+        // Add a small delay to ensure any state updates are processed
+        setTimeout(() => {
+          window.location.href = data.url;
+        }, 100);
       } else {
+        console.error('No checkout URL received for credits purchase');
         throw new Error('No checkout URL received');
       }
     } catch (error: any) {

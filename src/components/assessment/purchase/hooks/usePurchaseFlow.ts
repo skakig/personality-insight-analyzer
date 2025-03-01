@@ -100,6 +100,7 @@ export const usePurchaseFlow = (
             resultId,
             email: email || session?.user?.email,
             userId,
+            priceAmount: 1499,
             metadata: {
               resultId,
               email: email || session?.user?.email,
@@ -155,7 +156,10 @@ export const usePurchaseFlow = (
         }
       }
 
-      window.location.href = checkoutData.url;
+      // Add a small delay to ensure data is saved before redirecting
+      setTimeout(() => {
+        window.location.href = checkoutData.url;
+      }, 100);
     } catch (error: any) {
       console.error('Purchase error:', error);
       toast({

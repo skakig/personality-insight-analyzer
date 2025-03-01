@@ -114,7 +114,10 @@ export const PricingSection = ({ session, quizResultId }: PricingSectionProps) =
           localStorage.setItem('stripeSessionId', data.sessionId);
         }
 
-        window.location.href = data.url;
+        // Add a small delay to ensure data is saved before redirecting
+        setTimeout(() => {
+          window.location.href = data.url;
+        }, 100);
       } else {
         setIsEmailDialogOpen(true);
         setLoading(false);
@@ -152,7 +155,7 @@ export const PricingSection = ({ session, quizResultId }: PricingSectionProps) =
     setLoading(true);
 
     try {
-      const guestAccessToken = localStorage.getItem('guestAccessToken');
+      const guestAccessToken = localStorage.getItem('guestAccessToken') || crypto.randomUUID();
       
       // Create purchase tracking record for guest
       const { data: tracking, error: trackingError } = await supabase
@@ -187,6 +190,7 @@ export const PricingSection = ({ session, quizResultId }: PricingSectionProps) =
       // Save guest email for later verification
       localStorage.setItem('guestEmail', email);
       localStorage.setItem('purchaseResultId', quizResultId || '');
+      localStorage.setItem('guestAccessToken', guestAccessToken);
       
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { 
@@ -220,7 +224,10 @@ export const PricingSection = ({ session, quizResultId }: PricingSectionProps) =
           .eq('id', quizResultId);
       }
 
-      window.location.href = data.url;
+      // Add a small delay to ensure data is saved before redirecting
+      setTimeout(() => {
+        window.location.href = data.url;
+      }, 100);
     } catch (error: any) {
       console.error('Error:', error);
       toast({
@@ -243,7 +250,7 @@ export const PricingSection = ({ session, quizResultId }: PricingSectionProps) =
         className="text-lg px-8 py-6 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white hover:opacity-90 transition-opacity"
         disabled={loading}
       >
-        Get Your Full Report Now
+        {loading ? 'Processing...' : 'Get Your Full Report Now'}
       </Button>
       
       <PricingFooter />
