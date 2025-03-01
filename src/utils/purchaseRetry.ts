@@ -4,6 +4,11 @@ import { isPurchased } from "./purchaseStatus";
 import { checkPurchaseTracking, updateResultWithPurchase, manuallyCheckStripeSession } from "./purchaseVerification";
 
 /**
+ * Sleep utility function for retry mechanism
+ */
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
  * Verifies a purchase with retry mechanism
  * Attempts multiple times to verify if a purchase was completed
  */
@@ -18,7 +23,7 @@ export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 15,
     const guestAccessToken = localStorage.getItem('guestAccessToken');
     const stripeSessionId = localStorage.getItem('stripeSessionId');
     
-    console.log('Starting purchase verification with retry:', { 
+    console.log('Starting purchase verification:', { 
       resultId, 
       userId: userId || 'guest',
       hasTrackingId: !!trackingId,
@@ -28,13 +33,20 @@ export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 15,
       delayMs 
     });
 
-    // First try to update the result status if we have a session ID
-    // This helps with cases where the webhook hasn't processed yet
+    // Initial attempts - these might succeed immediately
+    
+    // 1. Try to update the result status if we have a session ID
     if (stripeSessionId) {
-      await updateResultWithPurchase(resultId, stripeSessionId);
+      const updated = await updateResultWithPurchase(resultId, stripeSessionId);
+      if (updated) {
+        const result = await fetchResult(resultId, userId, guestAccessToken);
+        if (result && isPurchased(result)) {
+          return result;
+        }
+      }
     }
 
-    // Try to check tracking status first if we have a tracking ID
+    // 2. Try to check tracking status if we have a tracking ID
     if (trackingId) {
       const trackingResult = await checkPurchaseTracking(trackingId, resultId);
       if (trackingResult) {
@@ -42,87 +54,89 @@ export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 15,
       }
     }
 
-    // Perform direct verification attempts
+    // 3. Try manually checking the Stripe session
+    if (stripeSessionId) {
+      const query = buildQuery(resultId, userId, guestAccessToken);
+      const manualCheckResult = await manuallyCheckStripeSession(stripeSessionId, resultId, query);
+      if (manualCheckResult) {
+        return manualCheckResult;
+      }
+    }
+
+    // If initial attempts failed, start retry loop
     for (let i = 0; i < maxRetries; i++) {
       console.log(`Verification attempt ${i + 1} of ${maxRetries}`);
       
+      // Build query based on authentication state
+      const query = buildQuery(resultId, userId, guestAccessToken);
+      
       try {
-        // Query with user_id if logged in
-        let query = supabase
-          .from('quiz_results')
-          .select('*')
-          .eq('id', resultId);
-        
-        if (userId) {
-          query = query.eq('user_id', userId);
-        } else if (guestAccessToken) {
-          query = query.eq('guest_access_token', guestAccessToken);
-        }
-
         const { data: result, error } = await query.maybeSingle();
 
         if (error) {
           console.error('Error in verification query:', error);
-          throw error;
-        }
-        
-        // If it's purchased, return immediately
-        if (result && isPurchased(result)) {
+          // Continue retrying despite errors
+        } else if (result && isPurchased(result)) {
           console.log('Purchase verified successfully on attempt', i + 1);
           return result;
-        }
-
-        // If we found a result but it's not marked as purchased yet, let's try to update it
-        // This helps in cases where the webhook was processed but the result wasn't updated
-        if (result && stripeSessionId && i > 2) {
-          console.log('Found result but not purchased. Attempting manual update with session ID:', stripeSessionId);
+        } else if (result && stripeSessionId && i > 2) {
+          // If we found a result but it's not marked as purchased yet, try to update it
+          console.log('Found result but not purchased. Attempting manual update...');
           
-          try {
-            await supabase
-              .from('quiz_results')
-              .update({ 
-                is_purchased: true,
-                purchase_status: 'completed',
-                purchase_completed_at: new Date().toISOString(),
-                access_method: 'purchase'
-              })
-              .eq('id', resultId)
-              .eq('stripe_session_id', stripeSessionId);
-              
-            // Fetch the updated result
+          const updated = await updateResultWithPurchase(resultId, stripeSessionId);
+          if (updated) {
             const { data: updatedResult } = await query.maybeSingle();
             if (updatedResult && isPurchased(updatedResult)) {
               console.log('Manual update successful!');
               return updatedResult;
             }
-          } catch (updateError) {
-            console.error('Manual update failed:', updateError);
-            // Continue with retry process
           }
         }
-
-        console.log(`Attempt ${i + 1} failed, result not purchased yet`);
-
-        // If this is the first attempt and we have a Stripe session ID, try to manually verify
-        if (i === 0 && stripeSessionId) {
-          const manualCheckResult = await manuallyCheckStripeSession(stripeSessionId, resultId, query);
-          if (manualCheckResult) {
-            return manualCheckResult;
-          }
-        }
-
-        // If not found or not purchased, wait before retrying
-        await new Promise(resolve => setTimeout(resolve, delayMs));
       } catch (error) {
-        console.error('Error verifying purchase:', error);
-        // Continue retrying despite errors
-        await new Promise(resolve => setTimeout(resolve, delayMs));
+        console.error('Error during verification attempt:', error);
       }
+      
+      // Wait before the next attempt
+      await sleep(delayMs);
     }
     
     console.log('Purchase verification failed after maximum retries');
+    return null;
   } catch (error) {
-    console.error('Session error:', error);
+    console.error('Purchase verification error:', error);
+    return null;
   }
-  return null;
+};
+
+/**
+ * Helper function to build the query based on authentication state
+ */
+const buildQuery = (resultId: string, userId?: string, guestAccessToken?: string | null) => {
+  let query = supabase
+    .from('quiz_results')
+    .select('*')
+    .eq('id', resultId);
+  
+  if (userId) {
+    query = query.eq('user_id', userId);
+  } else if (guestAccessToken) {
+    query = query.eq('guest_access_token', guestAccessToken);
+  }
+  
+  return query;
+};
+
+/**
+ * Helper function to fetch a result by ID
+ */
+const fetchResult = async (resultId: string, userId?: string, guestAccessToken?: string | null) => {
+  const query = buildQuery(resultId, userId, guestAccessToken);
+  const { data: result, error } = await query.maybeSingle();
+  
+  if (error) {
+    console.error('Error fetching result:', error);
+    return null;
+  }
+  
+  return result;
 };
