@@ -12,7 +12,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
  * Verifies a purchase with retry mechanism
  * Attempts multiple times to verify if a purchase was completed
  */
-export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 15, delayMs = 2000) => {
+export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 20, delayMs = 1500) => {
   try {
     // First check if user is logged in
     const { data: { session } } = await supabase.auth.getSession();
@@ -22,6 +22,7 @@ export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 15,
     const trackingId = localStorage.getItem('purchaseTrackingId');
     const guestAccessToken = localStorage.getItem('guestAccessToken');
     const stripeSessionId = localStorage.getItem('stripeSessionId');
+    const guestEmail = localStorage.getItem('guestEmail');
     
     console.log('Starting purchase verification:', { 
       resultId, 
@@ -29,6 +30,7 @@ export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 15,
       hasTrackingId: !!trackingId,
       hasGuestToken: !!guestAccessToken,
       hasStripeSession: !!stripeSessionId,
+      hasGuestEmail: !!guestEmail,
       maxRetries, 
       delayMs 
     });
@@ -41,6 +43,7 @@ export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 15,
       if (updated) {
         const result = await fetchResult(resultId, userId, guestAccessToken);
         if (result && isPurchased(result)) {
+          console.log('Purchase verified via direct update with stripe session', stripeSessionId);
           return result;
         }
       }
@@ -50,6 +53,7 @@ export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 15,
     if (trackingId) {
       const trackingResult = await checkPurchaseTracking(trackingId, resultId);
       if (trackingResult) {
+        console.log('Purchase verified via tracking record', trackingId);
         return trackingResult;
       }
     }
@@ -59,7 +63,24 @@ export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 15,
       const query = buildQuery(resultId, userId, guestAccessToken);
       const manualCheckResult = await manuallyCheckStripeSession(stripeSessionId, resultId, query);
       if (manualCheckResult) {
+        console.log('Purchase verified via manual stripe session check', stripeSessionId);
         return manualCheckResult;
+      }
+    }
+
+    // Try a direct guest method if we have guest email
+    if (guestEmail && !userId) {
+      console.log('Attempting guest verification with email:', guestEmail);
+      const { data: guestResult, error: guestError } = await supabase
+        .from('quiz_results')
+        .select('*')
+        .eq('id', resultId)
+        .eq('guest_email', guestEmail)
+        .maybeSingle();
+      
+      if (guestResult && isPurchased(guestResult)) {
+        console.log('Purchase verified via guest email match');
+        return guestResult;
       }
     }
 
@@ -68,7 +89,7 @@ export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 15,
       console.log(`Verification attempt ${i + 1} of ${maxRetries}`);
       
       // Build query based on authentication state
-      const query = buildQuery(resultId, userId, guestAccessToken);
+      const query = buildQuery(resultId, userId, guestAccessToken, guestEmail);
       
       try {
         const { data: result, error } = await query.maybeSingle();
@@ -79,7 +100,7 @@ export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 15,
         } else if (result && isPurchased(result)) {
           console.log('Purchase verified successfully on attempt', i + 1);
           return result;
-        } else if (result && stripeSessionId && i > 2) {
+        } else if (result && stripeSessionId && i > 1) {
           // If we found a result but it's not marked as purchased yet, try to update it
           console.log('Found result but not purchased. Attempting manual update...');
           
@@ -90,6 +111,21 @@ export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 15,
               console.log('Manual update successful!');
               return updatedResult;
             }
+          }
+        }
+        
+        // For guest users, try to query by guest email if we have it
+        if (!userId && guestEmail && i > 2) {
+          const { data: guestResult } = await supabase
+            .from('quiz_results')
+            .select('*')
+            .eq('id', resultId)
+            .eq('guest_email', guestEmail)
+            .maybeSingle();
+          
+          if (guestResult && isPurchased(guestResult)) {
+            console.log('Purchase verified via guest email after several attempts');
+            return guestResult;
           }
         }
       } catch (error) {
@@ -111,7 +147,7 @@ export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 15,
 /**
  * Helper function to build the query based on authentication state
  */
-const buildQuery = (resultId: string, userId?: string, guestAccessToken?: string | null) => {
+const buildQuery = (resultId: string, userId?: string, guestAccessToken?: string | null, guestEmail?: string | null) => {
   let query = supabase
     .from('quiz_results')
     .select('*')
@@ -121,6 +157,8 @@ const buildQuery = (resultId: string, userId?: string, guestAccessToken?: string
     query = query.eq('user_id', userId);
   } else if (guestAccessToken) {
     query = query.eq('guest_access_token', guestAccessToken);
+  } else if (guestEmail) {
+    query = query.eq('guest_email', guestEmail);
   }
   
   return query;

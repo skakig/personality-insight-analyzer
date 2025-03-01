@@ -57,6 +57,14 @@ export const usePurchaseFlow = (
         localStorage.setItem('guestQuizResultId', resultId);
         localStorage.setItem('guestAccessToken', accessToken);
         if (email) localStorage.setItem('guestEmail', email);
+        
+        // Also update the quiz result with guest email if available
+        if (email) {
+          await supabase
+            .from('quiz_results')
+            .update({ guest_email: email })
+            .eq('id', resultId);
+        }
       } 
 
       // Update quiz result with purchase initiated status
@@ -108,7 +116,10 @@ export const usePurchaseFlow = (
         // Update quiz result with stripe session
         await supabase
           .from('quiz_results')
-          .update({ stripe_session_id: checkoutData.sessionId })
+          .update({ 
+            stripe_session_id: checkoutData.sessionId,
+            guest_email: email || undefined // Ensure guest email is stored
+          })
           .eq('id', resultId);
 
         localStorage.setItem('stripeSessionId', checkoutData.sessionId);

@@ -6,7 +6,6 @@ import { toast } from "@/hooks/use-toast";
 import { useFetchResult } from "./assessment/useFetchResult";
 import { useVerificationState } from "./assessment/useVerificationState";
 import { useVerifyPurchase } from "./assessment/useVerifyPurchase";
-import React from "react";
 import { ToastAction } from "@/components/ui/toast";
 
 export const useAssessmentResult = (id?: string) => {
@@ -68,6 +67,14 @@ export const useAssessmentResult = (id?: string) => {
               title: "Purchase verification delayed",
               description: "Your purchase may take a few moments to process. You can refresh the page or check again shortly.",
               variant: "destructive",
+              action: (
+                <ToastAction 
+                  altText="Refresh" 
+                  onClick={() => window.location.reload()}
+                >
+                  Refresh
+                </ToastAction>
+              )
             });
           }
           
@@ -100,7 +107,6 @@ export const useAssessmentResult = (id?: string) => {
           const fetchedResult = await fetchResultById(id, { userId, accessToken });
           
           if (fetchedResult && !userId && fetchedResult.guest_email) {
-            // Create toast with action button using a React element for signup link
             toast({
               title: "Create an Account",
               description: "Create an account to keep permanent access to your report",

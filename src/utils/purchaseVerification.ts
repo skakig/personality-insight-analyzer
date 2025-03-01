@@ -9,7 +9,7 @@ export const checkPurchaseTracking = async (trackingId: string, resultId: string
   try {
     const { data: tracking, error } = await supabase
       .from('purchase_tracking')
-      .select('status, completed_at')
+      .select('status, completed_at, guest_email, stripe_session_id')
       .eq('id', trackingId)
       .maybeSingle();
     
@@ -20,6 +20,11 @@ export const checkPurchaseTracking = async (trackingId: string, resultId: string
       
     if (tracking?.status === 'completed') {
       console.log('Purchase verified via tracking record');
+      
+      // If tracking has guest email, store it
+      if (tracking.guest_email) {
+        localStorage.setItem('guestEmail', tracking.guest_email);
+      }
       
       // If tracking is complete, fetch the result
       const { data: result, error: resultError } = await supabase
@@ -36,6 +41,22 @@ export const checkPurchaseTracking = async (trackingId: string, resultId: string
       if (result && isPurchased(result)) {
         return result;
       }
+      
+      // If result exists but isn't marked as purchased, try to update it
+      if (result && tracking.stripe_session_id) {
+        const updated = await updateResultWithPurchase(resultId, tracking.stripe_session_id);
+        if (updated) {
+          const { data: updatedResult } = await supabase
+            .from('quiz_results')
+            .select('*')
+            .eq('id', resultId)
+            .maybeSingle();
+            
+          if (updatedResult && isPurchased(updatedResult)) {
+            return updatedResult;
+          }
+        }
+      }
     }
   } catch (error) {
     console.error('Error checking purchase tracking:', error);
@@ -50,6 +71,22 @@ export const checkPurchaseTracking = async (trackingId: string, resultId: string
 export const updateResultWithPurchase = async (resultId: string, stripeSessionId: string) => {
   try {
     console.log('Updating result with stripe session ID:', stripeSessionId);
+    
+    const { data: result, error: fetchError } = await supabase
+      .from('quiz_results')
+      .select('guest_email, user_id')
+      .eq('id', resultId)
+      .maybeSingle();
+    
+    if (fetchError) {
+      console.error('Error fetching result before update:', fetchError);
+      return false;
+    }
+    
+    // If result has guest email, store it for later use
+    if (result?.guest_email) {
+      localStorage.setItem('guestEmail', result.guest_email);
+    }
     
     const { error } = await supabase
       .from('quiz_results')
@@ -97,6 +134,11 @@ export const manuallyCheckStripeSession = async (stripeSessionId: string, result
     if (trackingData) {
       console.log('Found completed tracking record:', trackingData);
       
+      // If tracking has guest email, store it
+      if (trackingData.guest_email) {
+        localStorage.setItem('guestEmail', trackingData.guest_email);
+      }
+      
       // Update the result directly
       const { error: updateError } = await supabase
         .from('quiz_results')
@@ -123,6 +165,22 @@ export const manuallyCheckStripeSession = async (stripeSessionId: string, result
       
       if (updatedResult && isPurchased(updatedResult)) {
         console.log('Manual update successful via tracking record!');
+        return updatedResult;
+      }
+    }
+    
+    // If no tracking record was found, try to update directly
+    const updated = await updateResultWithPurchase(resultId, stripeSessionId);
+    if (updated) {
+      const { data: updatedResult, error: resultError } = await queryBuilder.maybeSingle();
+      
+      if (resultError) {
+        console.error('Failed to fetch updated result:', resultError);
+        return null;
+      }
+      
+      if (updatedResult && isPurchased(updatedResult)) {
+        console.log('Manual direct update successful!');
         return updatedResult;
       }
     }
