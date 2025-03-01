@@ -1,42 +1,46 @@
 
 /**
- * Store purchase data in localStorage
+ * Stores purchase data in localStorage for later verification
  */
-export const storePurchaseData = (resultId: string, sessionId: string, userId?: string) => {
-  // Store for verification after redirect
-  localStorage.setItem('checkoutResultId', resultId);
-  localStorage.setItem('stripeSessionId', sessionId);
+export const storePurchaseData = (resultId: string | null, sessionId: string, userId?: string) => {
+  if (!resultId || !sessionId) {
+    console.error('Cannot store purchase data: missing resultId or sessionId');
+    return;
+  }
   
-  // Store user ID if available
+  console.log('Storing purchase data:', { resultId, sessionId, userId });
+  
+  // Store the core data needed for verification
+  localStorage.setItem('stripeSessionId', sessionId);
+  localStorage.setItem('checkoutResultId', resultId);
+  
+  // Store user ID if available (for logged in users)
   if (userId) {
     localStorage.setItem('checkoutUserId', userId);
   }
   
-  // Store timestamp
-  localStorage.setItem('checkoutTimestamp', Date.now().toString());
+  // Also store timestamps
+  localStorage.setItem('purchaseInitiatedAt', new Date().toISOString());
 };
 
 /**
- * Retrieve purchase data from localStorage
+ * Clears purchase data from localStorage after it's no longer needed
  */
-export const getPurchaseState = () => {
-  return {
-    resultId: localStorage.getItem('checkoutResultId'),
-    sessionId: localStorage.getItem('stripeSessionId'),
-    userId: localStorage.getItem('checkoutUserId'),
-    guestEmail: localStorage.getItem('guestEmail'),
-    guestAccessToken: localStorage.getItem('guestAccessToken'),
-    timestamp: localStorage.getItem('checkoutTimestamp')
-  };
-};
-
-/**
- * Clean up purchase state data from localStorage
- */
-export const cleanupPurchaseState = () => {
-  localStorage.removeItem('checkoutResultId');
+export const clearPurchaseData = () => {
   localStorage.removeItem('stripeSessionId');
+  localStorage.removeItem('checkoutResultId');
   localStorage.removeItem('checkoutUserId');
-  localStorage.removeItem('checkoutTimestamp');
-  // Don't remove guestEmail or guestAccessToken since they may be needed later
+  localStorage.removeItem('purchaseInitiatedAt');
+};
+
+/**
+ * Retrieves purchase data from localStorage
+ */
+export const getPurchaseData = () => {
+  return {
+    sessionId: localStorage.getItem('stripeSessionId'),
+    resultId: localStorage.getItem('checkoutResultId'),
+    userId: localStorage.getItem('checkoutUserId'),
+    initiatedAt: localStorage.getItem('purchaseInitiatedAt')
+  };
 };

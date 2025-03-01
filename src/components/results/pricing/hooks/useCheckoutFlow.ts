@@ -137,6 +137,23 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null) => {
         })
         .eq('id', quizResultId);
       
+      // Create purchase tracking record first to ensure we can recover the result ID
+      const { data: trackingData, error: trackingError } = await supabase
+        .from('purchase_tracking')
+        .insert({
+          quiz_result_id: quizResultId,
+          guest_email: guestEmail,
+          status: 'pending',
+          stripe_session_id: null, // Will be updated after checkout creation
+        })
+        .select()
+        .single();
+        
+      if (trackingError) {
+        console.error('Error creating purchase tracking:', trackingError);
+        // Continue anyway - not critical for the main flow
+      }
+      
       // Create checkout session
       const { data, error } = await supabase.functions.invoke(
         'create-checkout-session',
@@ -149,6 +166,7 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null) => {
               resultId: quizResultId,
               email: guestEmail,
               accessToken,
+              trackingId: trackingData?.id, // Include tracking ID if available
               returnUrl: `/assessment/${quizResultId}?success=true`
             }
           }
@@ -172,6 +190,14 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null) => {
         localStorage.setItem('guestAccessToken', accessToken);
         
         // Update tracking information
+        if (trackingData?.id) {
+          await supabase
+            .from('purchase_tracking')
+            .update({ stripe_session_id: data.sessionId })
+            .eq('id', trackingData.id);
+        }
+        
+        // Update quiz result with session ID
         await supabase
           .from('quiz_results')
           .update({ 
