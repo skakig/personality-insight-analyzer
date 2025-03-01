@@ -17,13 +17,13 @@ export const useVerificationUIHandler = () => {
         title: "Purchase verification delayed",
         description: "Your purchase may take a few moments to process. You can refresh the page or check your dashboard.",
         variant: "default",
-        action: React.createElement(
-          ToastAction,
-          {
-            altText: "Refresh the page",
-            onClick: () => window.location.reload()
-          },
-          "Refresh"
+        action: (
+          <ToastAction 
+            altText="Refresh the page"
+            onClick={() => window.location.reload()}
+          >
+            Refresh
+          </ToastAction>
         )
       });
     } else {
