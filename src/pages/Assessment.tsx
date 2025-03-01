@@ -9,12 +9,19 @@ import { useState, useEffect } from "react";
 
 const Assessment = () => {
   const { id } = useParams();
-  const { result, loading, verifying, verificationAttempts, refreshPage } = useAssessmentResult(id);
+  const { 
+    result, 
+    loading, 
+    verifying, 
+    verificationAttempts, 
+    verificationSuccess,
+    refreshPage 
+  } = useAssessmentResult(id);
   const [showVerificationSuccess, setShowVerificationSuccess] = useState(false);
   
   // Show success indicator briefly when verification completes
   useEffect(() => {
-    if (result && verifying === false && verificationAttempts > 0) {
+    if (result && (verificationSuccess || (verifying === false && verificationAttempts > 0))) {
       setShowVerificationSuccess(true);
       const timer = setTimeout(() => {
         setShowVerificationSuccess(false);
@@ -22,7 +29,7 @@ const Assessment = () => {
       
       return () => clearTimeout(timer);
     }
-  }, [result, verifying, verificationAttempts]);
+  }, [result, verifying, verificationAttempts, verificationSuccess]);
 
   if (loading || verifying) {
     return (

@@ -5,6 +5,7 @@ import { useVerificationState } from "./useVerificationState";
 import { useVerifyPurchase } from "./useVerifyPurchase";
 import { usePreVerificationChecks } from "./usePreVerificationChecks";
 import { usePostPurchaseHandler } from "./usePostPurchaseHandler";
+import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Handles the verification flow for purchases
@@ -34,6 +35,64 @@ export const useVerificationFlow = (
 
   const { checkDirectAccess, showCreateAccountToast } = usePreVerificationChecks();
   const { handleVerificationFailure, attemptDirectUpdate } = usePostPurchaseHandler();
+
+  /**
+   * Check if the user is returning from a successful Stripe checkout
+   * and try to immediately validate the purchase
+   */
+  const handleStripeReturn = async (resultId: string, options?: { userId?: string, sessionId?: string }) => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const success = urlParams.get('success') === 'true';
+    const sessionId = urlParams.get('session_id') || options?.sessionId;
+    
+    if (success && sessionId) {
+      console.log('Detected return from Stripe checkout:', {
+        resultId,
+        sessionId,
+        userId: options?.userId || 'guest'
+      });
+      
+      try {
+        // For logged-in users, directly update the purchase status
+        if (options?.userId) {
+          const { error } = await supabase
+            .from('quiz_results')
+            .update({ 
+              is_purchased: true,
+              is_detailed: true,
+              purchase_status: 'completed',
+              purchase_completed_at: new Date().toISOString(),
+              access_method: 'purchase',
+              stripe_session_id: sessionId
+            })
+            .eq('id', resultId);
+            
+          if (!error) {
+            console.log('Successfully updated purchase status for logged-in user');
+            const { data: result } = await supabase
+              .from('quiz_results')
+              .select('*')
+              .eq('id', resultId)
+              .eq('user_id', options.userId)
+              .maybeSingle();
+              
+            if (result) {
+              console.log('Successfully fetched updated result');
+              // Clear URL parameters to prevent repeat processing
+              window.history.replaceState({}, document.title, window.location.pathname);
+              return result;
+            }
+          } else {
+            console.error('Failed to update purchase status:', error);
+          }
+        }
+      } catch (error) {
+        console.error('Error handling Stripe return:', error);
+      }
+    }
+    
+    return null;
+  };
 
   /**
    * Execute the verification flow for a purchase
@@ -67,6 +126,19 @@ export const useVerificationFlow = (
       });
       setLoading(false);
       return null;
+    }
+    
+    // First, try to handle direct return from Stripe
+    const stripeReturnResult = await handleStripeReturn(verificationId, {
+      userId, 
+      sessionId: stripeSessionId
+    });
+    
+    if (stripeReturnResult) {
+      console.log('Successfully processed Stripe return directly');
+      setResult(stripeReturnResult);
+      setLoading(false);
+      return stripeReturnResult;
     }
     
     // Maximum retries check
@@ -106,7 +178,7 @@ export const useVerificationFlow = (
       }
     }
     
-    // First attempt at verifying purchase
+    // Standard verification attempt
     let success = await verifyPurchase(verificationId);
     
     // If first attempt fails and this is directly after purchase, try again

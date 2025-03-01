@@ -1,5 +1,5 @@
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { useFetchResult } from "./assessment/useFetchResult";
@@ -8,6 +8,7 @@ import { useVerificationFlow } from "./assessment/useVerificationFlow";
 
 export const useAssessmentResult = (id?: string) => {
   const [searchParams] = useSearchParams();
+  const [verificationSuccess, setVerificationSuccess] = useState(false);
   const { 
     result, 
     loading, 
@@ -54,6 +55,29 @@ export const useAssessmentResult = (id?: string) => {
           stripeSessionId,
           storedResultId 
         } = data;
+        
+        // Check for success parameter in URL which indicates return from Stripe
+        const urlSuccess = searchParams.get('success') === 'true';
+        const urlSessionId = searchParams.get('session_id');
+        
+        // Prioritize verification for users returning from Stripe checkout
+        if (urlSuccess && (urlSessionId || stripeSessionId)) {
+          console.log('User returning from Stripe checkout - prioritizing verification');
+          setVerificationAttempted(true);
+          
+          const verificationResult = await executeVerificationFlow(id, {
+            userId,
+            stripeSessionId: urlSessionId || stripeSessionId,
+            isPostPurchase: true,
+            storedResultId,
+            maxRetries: maxVerificationRetries
+          });
+          
+          if (verificationResult) {
+            setVerificationSuccess(true);
+            return;
+          }
+        }
 
         // First, try to access the result directly through user ID or other means
         const directResult = await checkDirectAccess(id, userId);
@@ -106,6 +130,7 @@ export const useAssessmentResult = (id?: string) => {
     loading,
     verifying,
     verificationAttempts,
+    verificationSuccess,
     refreshPage
   };
 };

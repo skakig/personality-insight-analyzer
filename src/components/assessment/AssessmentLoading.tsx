@@ -1,8 +1,5 @@
-
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
 import { VerificationStatusIndicator } from "./VerificationStatusIndicator";
 
 interface AssessmentLoadingProps {
@@ -11,62 +8,44 @@ interface AssessmentLoadingProps {
   onRefresh: () => void;
 }
 
+// Update the AssessmentLoading component to include the verification status indicator
 export const AssessmentLoading = ({ 
   verifying, 
   verificationAttempts, 
   onRefresh 
 }: AssessmentLoadingProps) => {
-  const handleGoToDashboard = () => {
-    // Store current verification state
-    localStorage.setItem('lastVerificationAttempts', verificationAttempts.toString());
-    window.location.href = '/dashboard';
-  };
-  
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="flex flex-col items-center space-y-4 max-w-md w-full">
-        <VerificationStatusIndicator
-          verifying={verifying}
-          verificationAttempts={verificationAttempts}
-        />
+    <div className="min-h-screen bg-gray-50 py-12">
+      <div className="container max-w-4xl mx-auto px-4">
+        <div className="mb-8">
+          <VerificationStatusIndicator
+            verifying={verifying}
+            verificationAttempts={verificationAttempts}
+          />
+        </div>
         
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        
-        {!verifying && (
-          <div className="text-center">
-            <p className="text-lg font-medium text-gray-900 mb-1">
-              Loading your assessment...
-            </p>
-            <p className="text-sm text-gray-600">
-              Please wait while we prepare your report.
-            </p>
+        <div className="bg-white rounded-lg shadow-md p-8 text-center">
+          <div className="mb-6 flex justify-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
           </div>
-        )}
-        
-        {verifying && verificationAttempts >= 3 && (
-          <div className="flex flex-col space-y-3 mt-4 w-full">
-            <Button 
-              onClick={onRefresh}
-              variant="default"
-              size="sm"
-            >
-              Refresh Page
-            </Button>
-            
-            <Button 
-              onClick={handleGoToDashboard}
-              variant="outline"
-              size="sm"
-            >
-              Go to Dashboard
-            </Button>
-            
-            <p className="text-xs text-gray-500 text-center mt-2">
-              Don't worry - your purchase has been processed, and your report is 
-              available on your dashboard even if verification is delayed.
-            </p>
-          </div>
-        )}
+          <h2 className="text-xl font-semibold mb-3">
+            {verifying ? "Verifying Your Purchase" : "Loading Your Report"}
+          </h2>
+          <p className="text-gray-600 mb-6">
+            {verifying
+              ? "We're confirming your purchase. This may take a moment..."
+              : "Your assessment is being prepared. Please wait..."}
+          </p>
+          
+          {verificationAttempts > 2 && (
+            <div className="mt-6">
+              <Button onClick={onRefresh} variant="outline" className="mx-auto">
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Refresh Page
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
