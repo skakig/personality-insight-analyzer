@@ -12,7 +12,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
  * Verifies a purchase with retry mechanism
  * Attempts multiple times to verify if a purchase was completed
  */
-export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 20, delayMs = 1500) => {
+export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 5, delayMs = 1000) => {
   try {
     // First check if user is logged in
     const { data: { session } } = await supabase.auth.getSession();
@@ -23,6 +23,15 @@ export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 20,
     const guestAccessToken = localStorage.getItem('guestAccessToken');
     const stripeSessionId = localStorage.getItem('stripeSessionId');
     const guestEmail = localStorage.getItem('guestEmail');
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlSuccess = urlParams.get('success') === 'true';
+    const urlSessionId = urlParams.get('session_id');
+    
+    // If we have a session ID in the URL but not in localStorage, store it
+    if (urlSessionId && !stripeSessionId) {
+      localStorage.setItem('stripeSessionId', urlSessionId);
+      console.log('Stored session ID from URL parameters');
+    }
     
     console.log('Starting purchase verification:', { 
       resultId, 
@@ -31,9 +40,51 @@ export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 20,
       hasGuestToken: !!guestAccessToken,
       hasStripeSession: !!stripeSessionId,
       hasGuestEmail: !!guestEmail,
+      urlSuccess,
+      urlSessionId,
       maxRetries, 
       delayMs 
     });
+
+    // Quick verification attempt for users just returning from Stripe checkout
+    if (urlSuccess && (urlSessionId || stripeSessionId)) {
+      console.log('Detected return from successful checkout, attempting fast verification');
+      const sessionIdToUse = urlSessionId || stripeSessionId;
+      
+      try {
+        const query = buildQuery(resultId, userId);
+        
+        // For logged-in users, we can update directly with the user ID
+        if (userId) {
+          console.log('Attempting direct update for logged-in user');
+          await supabase
+            .from('quiz_results')
+            .update({ 
+              is_purchased: true,
+              is_detailed: true,
+              purchase_status: 'completed',
+              purchase_completed_at: new Date().toISOString(),
+              access_method: 'purchase'
+            })
+            .eq('id', resultId)
+            .eq('user_id', userId);
+        }
+        
+        // Also try updating by session ID
+        if (sessionIdToUse) {
+          console.log('Attempting update by session ID');
+          await updateResultWithPurchase(resultId, sessionIdToUse);
+        }
+        
+        const { data: result } = await query.maybeSingle();
+        if (result && isPurchased(result)) {
+          console.log('Fast purchase verification successful!');
+          return result;
+        }
+      } catch (fastError) {
+        console.error('Fast verification attempt failed:', fastError);
+      }
+    }
 
     // Direct query to check if the purchase is already completed
     const directQuery = supabase
@@ -41,7 +92,12 @@ export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 20,
       .select('*')
       .eq('id', resultId);
     
-    const { data: directResult } = await directQuery.maybeSingle();
+    // Add user filter if logged in
+    const userFilter = userId ? 
+      directQuery.eq('user_id', userId) : 
+      directQuery;
+    
+    const { data: directResult } = await userFilter.maybeSingle();
 
     if (directResult && isPurchased(directResult)) {
       console.log('Purchase already verified via direct check');
@@ -101,33 +157,64 @@ export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 20,
     for (let i = 0; i < maxRetries; i++) {
       console.log(`Verification attempt ${i + 1} of ${maxRetries}`);
       
-      // Build query based on authentication state
-      let query = supabase.from('quiz_results').select('*').eq('id', resultId);
-      
-      // Attempt 1: Try using user ID if available
+      // For logged-in users, try a direct user ID check first (most reliable)
       if (userId) {
-        query = query.eq('user_id', userId);
-        
         try {
-          const { data: result, error } = await query.maybeSingle();
-          if (!error && result && isPurchased(result)) {
+          const { data: userResult } = await supabase
+            .from('quiz_results')
+            .select('*')
+            .eq('id', resultId)
+            .eq('user_id', userId)
+            .maybeSingle();
+            
+          if (userResult && isPurchased(userResult)) {
             console.log('Purchase verified via user ID on attempt', i + 1);
-            return result;
+            return userResult;
           }
-        } catch (error) {
-          console.error('Error in user verification:', error);
+          
+          // If user ID check failed but we have a session ID, try force updating
+          if (stripeSessionId && i > 1) {
+            console.log('Attempting forced update for logged-in user with session ID');
+            await supabase
+              .from('quiz_results')
+              .update({ 
+                is_purchased: true,
+                is_detailed: true,
+                purchase_status: 'completed',
+                purchase_completed_at: new Date().toISOString(),
+                access_method: 'purchase'
+              })
+              .eq('id', resultId)
+              .eq('user_id', userId);
+              
+            const { data: updatedResult } = await supabase
+              .from('quiz_results')
+              .select('*')
+              .eq('id', resultId)
+              .eq('user_id', userId)
+              .maybeSingle();
+              
+            if (updatedResult && isPurchased(updatedResult)) {
+              console.log('Forced update successful!');
+              return updatedResult;
+            }
+          }
+        } catch (userError) {
+          console.error('Error in user verification:', userError);
         }
       }
       
-      // Attempt 2: Try using guest access token
+      // Try using guest access token
       if (guestAccessToken) {
-        query = supabase.from('quiz_results').select('*')
-          .eq('id', resultId)
-          .eq('guest_access_token', guestAccessToken);
-          
         try {
-          const { data: result, error } = await query.maybeSingle();
-          if (!error && result && isPurchased(result)) {
+          const { data: result } = await supabase
+            .from('quiz_results')
+            .select('*')
+            .eq('id', resultId)
+            .eq('guest_access_token', guestAccessToken)
+            .maybeSingle();
+          
+          if (result && isPurchased(result)) {
             console.log('Purchase verified via guest token on attempt', i + 1);
             return result;
           }
@@ -136,15 +223,17 @@ export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 20,
         }
       }
       
-      // Attempt 3: Try using guest email
+      // Try using guest email
       if (guestEmail) {
-        query = supabase.from('quiz_results').select('*')
-          .eq('id', resultId)
-          .eq('guest_email', guestEmail);
-          
         try {
-          const { data: result, error } = await query.maybeSingle();
-          if (!error && result && isPurchased(result)) {
+          const { data: result } = await supabase
+            .from('quiz_results')
+            .select('*')
+            .eq('id', resultId)
+            .eq('guest_email', guestEmail)
+            .maybeSingle();
+          
+          if (result && isPurchased(result)) {
             console.log('Purchase verified via guest email on attempt', i + 1);
             return result;
           }
@@ -153,24 +242,32 @@ export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 20,
         }
       }
       
-      // Attempt 4: Try using stripe session id
+      // Try using stripe session id
       if (stripeSessionId) {
-        query = supabase.from('quiz_results').select('*')
-          .eq('id', resultId)
-          .eq('stripe_session_id', stripeSessionId);
-          
         try {
-          const { data: result, error } = await query.maybeSingle();
-          if (!error && result && isPurchased(result)) {
+          const { data: result } = await supabase
+            .from('quiz_results')
+            .select('*')
+            .eq('id', resultId)
+            .eq('stripe_session_id', stripeSessionId)
+            .maybeSingle();
+          
+          if (result && isPurchased(result)) {
             console.log('Purchase verified via stripe session on attempt', i + 1);
             return result;
           }
           
           // If no result, try to update it directly
-          if (!error && result && i > 2) {
+          if (i > 2) {
             const updated = await updateResultWithPurchase(resultId, stripeSessionId);
             if (updated) {
-              const { data: updatedResult } = await query.maybeSingle();
+              const { data: updatedResult } = await supabase
+                .from('quiz_results')
+                .select('*')
+                .eq('id', resultId)
+                .eq('stripe_session_id', stripeSessionId)
+                .maybeSingle();
+              
               if (updatedResult && isPurchased(updatedResult)) {
                 console.log('Purchase verified via manual update on attempt', i + 1);
                 return updatedResult;
@@ -195,24 +292,25 @@ export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 20,
         }
       }
       
-      // Direct attempt to check if quiz result is purchased
-      try {
-        const { data: directResult } = await supabase
-          .from('quiz_results')
-          .select('*')
-          .eq('id', resultId)
-          .maybeSingle();
-          
-        if (directResult && isPurchased(directResult)) {
-          console.log('Purchase verified via direct check on attempt', i + 1);
-          return directResult;
-        }
-      } catch (error) {
-        console.error('Error in direct check:', error);
-      }
-      
       // Wait before the next attempt
       await sleep(delayMs);
+    }
+    
+    // Last resort: direct check without any filters
+    try {
+      console.log('Attempting final direct check without filters');
+      const { data: finalResult } = await supabase
+        .from('quiz_results')
+        .select('*')
+        .eq('id', resultId)
+        .maybeSingle();
+      
+      if (finalResult && isPurchased(finalResult)) {
+        console.log('Purchase verified via final direct check');
+        return finalResult;
+      }
+    } catch (finalError) {
+      console.error('Final direct check failed:', finalError);
     }
     
     console.log('Purchase verification failed after maximum retries');

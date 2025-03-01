@@ -1,5 +1,5 @@
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -32,6 +32,9 @@ export const useAssessmentResult = (id?: string) => {
     { startVerification, stopVerification, incrementAttempts }
   );
 
+  // Track if we've already attempted verification on this page load
+  const [verificationAttempted, setVerificationAttempted] = useState(false);
+
   useEffect(() => {
     const loadAssessment = async () => {
       try {
@@ -44,22 +47,33 @@ export const useAssessmentResult = (id?: string) => {
         const userId = session?.user?.id;
         const accessToken = searchParams.get('token') || localStorage.getItem('guestAccessToken');
         const isPostPurchase = searchParams.get('success') === 'true';
-        const stripeSessionId = localStorage.getItem('stripeSessionId');
+        const stripeSessionId = localStorage.getItem('stripeSessionId') || searchParams.get('session_id');
         const trackingId = localStorage.getItem('purchaseTrackingId');
-        const storedResultId = localStorage.getItem('purchaseResultId');
+        const storedResultId = localStorage.getItem('purchaseResultId') || id;
 
         console.log('Assessment page loaded:', {
           resultId: id,
-          userId: userId || 'guest',
+          userId: userId ? 'logged_in' : 'guest',
           hasAccessToken: !!accessToken,
           isPostPurchase,
           hasStripeSession: !!stripeSessionId,
           hasTrackingId: !!trackingId,
           storedResultId,
+          verificationAttempts,
+          verificationAttempted,
           timestamp: new Date().toISOString()
         });
 
-        if (isPostPurchase || (stripeSessionId && id === storedResultId)) {
+        // Store any session ID from URL into localStorage
+        if (searchParams.get('session_id') && !localStorage.getItem('stripeSessionId')) {
+          localStorage.setItem('stripeSessionId', searchParams.get('session_id')!);
+          console.log('Stored session ID from URL');
+        }
+
+        // Verify purchase if we just returned from Stripe or if we have tracking info
+        if (!verificationAttempted && (isPostPurchase || (stripeSessionId && id === storedResultId))) {
+          console.log('Initiating purchase verification flow');
+          setVerificationAttempted(true);
           const success = await verifyPurchase(id);
           
           if (!success && verificationAttempts > 0) {
