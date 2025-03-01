@@ -25,12 +25,20 @@ export const storePurchaseData = (resultId: string | null, sessionId: string, us
 
 /**
  * Clears purchase data from localStorage after it's no longer needed
+ * This is the renamed function from clearPurchaseData to cleanupPurchaseState
  */
-export const clearPurchaseData = () => {
+export const cleanupPurchaseState = () => {
   localStorage.removeItem('stripeSessionId');
   localStorage.removeItem('checkoutResultId');
   localStorage.removeItem('checkoutUserId');
   localStorage.removeItem('purchaseInitiatedAt');
+};
+
+/**
+ * Original clear function to maintain backward compatibility
+ */
+export const clearPurchaseData = () => {
+  cleanupPurchaseState();
 };
 
 /**
@@ -44,3 +52,8 @@ export const getPurchaseData = () => {
     initiatedAt: localStorage.getItem('purchaseInitiatedAt')
   };
 };
+
+/**
+ * Alias for getPurchaseData to fix import error
+ */
+export const getPurchaseState = getPurchaseData;

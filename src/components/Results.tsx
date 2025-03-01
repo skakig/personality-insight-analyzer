@@ -11,21 +11,22 @@ import { useEffect, useState } from "react";
 interface ResultsProps {
   personalityType: string;
   session: any;
+  quizResultId: string | null; // Added quizResultId prop to fix the type error
 }
 
-export const Results = ({ personalityType, session }: ResultsProps) => {
+export const Results = ({ personalityType, session, quizResultId }: ResultsProps) => {
   const navigate = useNavigate();
-  const [quizResultId, setQuizResultId] = useState<string | null>(null);
+  const [localQuizResultId, setLocalQuizResultId] = useState<string | null>(quizResultId);
 
   useEffect(() => {
     // Get quiz result ID from localStorage for guest users
-    if (!session?.user) {
+    if (!session?.user && !localQuizResultId) {
       const storedResultId = localStorage.getItem('guestQuizResultId');
       if (storedResultId) {
-        setQuizResultId(storedResultId);
+        setLocalQuizResultId(storedResultId);
       }
     }
-  }, [session]);
+  }, [session, localQuizResultId]);
 
   const keyCharacteristics = [
     "Strong survival instincts",
@@ -63,7 +64,7 @@ export const Results = ({ personalityType, session }: ResultsProps) => {
             </div>
             <PricingSection 
               session={session} 
-              quizResultId={quizResultId}
+              quizResultId={localQuizResultId || quizResultId}
             />
           </CardContent>
         </Card>

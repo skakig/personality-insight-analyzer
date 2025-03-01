@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { QuizQuestion, QuizState } from "@/types/quiz";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,7 +19,6 @@ export const useQuiz = (session: any) => {
     quizResultId: null,
   });
 
-  // Fetch questions when component mounts
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
@@ -54,7 +52,6 @@ export const useQuiz = (session: any) => {
     fetchQuestions();
   }, []);
 
-  // Start the quiz
   const handleStart = useCallback(() => {
     setState(prev => ({
       ...prev,
@@ -65,7 +62,6 @@ export const useQuiz = (session: any) => {
     }));
   }, []);
 
-  // Handle answer selection
   const handleAnswer = useCallback(async (questionId: string, value: number) => {
     setState(prev => {
       const newAnswers = { ...prev.answers, [questionId]: value };
@@ -74,10 +70,8 @@ export const useQuiz = (session: any) => {
       const progress = (nextIndex / prev.questions.length) * 100;
       
       if (!nextQuestion) {
-        // Calculate personality type and finish quiz
-        const personalityType = calculatePersonalityType(newAnswers, prev.questions);
+        const personalityType = calculatePersonalityType(newAnswers);
         
-        // Save results to database
         saveResultsToDatabase(newAnswers, personalityType, session?.user?.id);
         
         return {
@@ -99,10 +93,8 @@ export const useQuiz = (session: any) => {
     });
   }, [session]);
 
-  // Save results to database
   const saveResultsToDatabase = async (answers: Record<string, number>, personalityType: string, userId?: string) => {
     try {
-      // Create a new record in quiz_results
       const { data, error } = await supabase
         .from('quiz_results')
         .insert({
@@ -121,7 +113,6 @@ export const useQuiz = (session: any) => {
       
       console.log('Quiz results saved successfully:', data.id);
       
-      // Update state with the result ID
       setState(prev => ({
         ...prev,
         quizResultId: data.id
