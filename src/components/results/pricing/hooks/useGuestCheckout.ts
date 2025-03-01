@@ -29,6 +29,7 @@ export const useGuestCheckout = (quizResultId: string | null) => {
     setLoading(true);
 
     try {
+      console.log('Starting guest checkout process for result:', quizResultId);
       const guestAccessToken = localStorage.getItem('guestAccessToken') || crypto.randomUUID();
       
       // Create purchase tracking record for guest
@@ -46,6 +47,7 @@ export const useGuestCheckout = (quizResultId: string | null) => {
       if (trackingError) {
         console.error('Error creating guest purchase tracking:', trackingError);
       } else {
+        console.log('Created purchase tracking record:', tracking.id);
         localStorage.setItem('purchaseTrackingId', tracking.id);
       }
       
@@ -84,6 +86,11 @@ export const useGuestCheckout = (quizResultId: string | null) => {
       if (error) throw error;
       if (!data?.url) throw new Error('No checkout URL received');
 
+      console.log('Guest checkout session created:', {
+        sessionId: data.sessionId,
+        hasUrl: !!data.url
+      });
+
       // Store session data using the utility function
       if (data.sessionId) {
         storePurchaseData(quizResultId, data.sessionId);
@@ -95,6 +102,14 @@ export const useGuestCheckout = (quizResultId: string | null) => {
             stripe_session_id: data.sessionId 
           })
           .eq('id', quizResultId);
+
+        // Also update the purchase tracking record
+        await supabase
+          .from('purchase_tracking')
+          .update({
+            stripe_session_id: data.sessionId
+          })
+          .eq('id', tracking.id);
       }
 
       // Add a small delay to ensure data is saved before redirecting

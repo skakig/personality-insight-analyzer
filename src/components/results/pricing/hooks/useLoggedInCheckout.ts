@@ -43,6 +43,8 @@ export const useLoggedInCheckout = (quizResultId: string | null, userId: string)
         throw new Error('Failed to prepare checkout. Please try again.');
       }
 
+      console.log('Created purchase tracking record:', tracking.id);
+
       // Update quiz result with pending status
       await supabase
         .from('quiz_results')
@@ -80,6 +82,11 @@ export const useLoggedInCheckout = (quizResultId: string | null, userId: string)
         console.error('No checkout URL received');
         throw new Error('No checkout URL received');
       }
+
+      console.log('Logged-in checkout session created:', {
+        sessionId: data.sessionId,
+        hasUrl: !!data.url
+      });
 
       // Store the Stripe session ID for verification
       if (data.sessionId) {
