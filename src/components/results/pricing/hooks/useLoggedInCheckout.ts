@@ -20,12 +20,17 @@ export const useLoggedInCheckout = (quizResultId: string | null, userId: string)
     // Check if userId is provided
     if (!userId) {
       console.error('No user ID provided for logged-in checkout');
-      toast({
-        title: "Authentication Error",
-        description: "Please ensure you're logged in and try again.",
-        variant: "destructive",
-      });
-      return;
+      
+      // Double-check authentication status
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        toast({
+          title: "Authentication Error",
+          description: "Please log in to continue with your purchase.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     setLoading(true);
@@ -39,8 +44,10 @@ export const useLoggedInCheckout = (quizResultId: string | null, userId: string)
 
       // Double-check authentication before proceeding
       const { data: { session } } = await supabase.auth.getSession();
+      const currentUserId = session?.user?.id;
+      
       if (!session?.user) {
-        console.error('No active session found for user:', userId);
+        console.error('No active session found');
         toast({
           title: "Session Error",
           description: "Your session may have expired. Please log in again.",
@@ -55,7 +62,7 @@ export const useLoggedInCheckout = (quizResultId: string | null, userId: string)
         .from('purchase_tracking')
         .insert({
           quiz_result_id: quizResultId,
-          user_id: userId,
+          user_id: currentUserId || userId,
           status: 'pending',
           stripe_session_id: null
         })
@@ -75,7 +82,7 @@ export const useLoggedInCheckout = (quizResultId: string | null, userId: string)
         .update({ 
           purchase_initiated_at: new Date().toISOString(),
           purchase_status: 'pending',
-          user_id: userId  // Ensure user ID is associated with the result
+          user_id: currentUserId || userId  // Ensure user ID is associated with the result
         })
         .eq('id', quizResultId);
         
@@ -87,17 +94,17 @@ export const useLoggedInCheckout = (quizResultId: string | null, userId: string)
       // Store information for verification after return
       localStorage.setItem('purchaseTrackingId', tracking.id);
       localStorage.setItem('purchaseResultId', quizResultId);
-      localStorage.setItem('purchaseUserId', userId);
+      localStorage.setItem('purchaseUserId', currentUserId || userId);
       
       // Create Stripe checkout session
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { 
           resultId: quizResultId,
-          userId: userId,
+          userId: currentUserId || userId,
           priceAmount: 1499,
           mode: 'payment',
           metadata: {
-            userId,
+            userId: currentUserId || userId,
             resultId: quizResultId,
             trackingId: tracking.id,
             returnUrl: `/assessment/${quizResultId}?success=true`
@@ -136,12 +143,12 @@ export const useLoggedInCheckout = (quizResultId: string | null, userId: string)
           .from('quiz_results')
           .update({ 
             stripe_session_id: data.sessionId,
-            user_id: userId  // Ensure user ID is associated again
+            user_id: currentUserId || userId  // Ensure user ID is associated again
           })
           .eq('id', quizResultId);
 
         // Store session data in localStorage using the utility function
-        storePurchaseData(quizResultId, data.sessionId, userId);
+        storePurchaseData(quizResultId, data.sessionId, currentUserId || userId);
       }
 
       // Add a small delay to ensure data is saved before redirecting

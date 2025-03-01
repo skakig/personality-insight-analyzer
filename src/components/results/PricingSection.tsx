@@ -1,10 +1,11 @@
 
+import { useEffect } from "react";
 import { PriceDisplay } from "./pricing/PriceDisplay";
 import { EmailDialog } from "./pricing/EmailDialog";
 import { PricingFooter } from "./pricing/PricingFooter";
 import { CheckoutButton } from "./pricing/CheckoutButton";
 import { useCheckoutFlow } from "./pricing/hooks/useCheckoutFlow";
-import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PricingSectionProps {
   session: any;
@@ -22,13 +23,23 @@ export const PricingSection = ({ session, quizResultId }: PricingSectionProps) =
     handleGuestSubmit
   } = useCheckoutFlow(session, quizResultId);
 
-  // Log key information when component mounts
+  // Verify authentication state when component mounts
   useEffect(() => {
-    console.log('PricingSection mounted:', {
-      hasSession: !!session,
-      hasQuizResultId: !!quizResultId,
-      userId: session?.user?.id || 'guest'
-    });
+    const verifyAuthState = async () => {
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        console.log('PricingSection authentication check:', {
+          hasSession: !!session,
+          hasCurrentSession: !!currentSession,
+          hasQuizResultId: !!quizResultId,
+          userId: currentSession?.user?.id || session?.user?.id || 'guest'
+        });
+      } catch (error) {
+        console.error('Error checking authentication state:', error);
+      }
+    };
+    
+    verifyAuthState();
   }, [session, quizResultId]);
 
   return (

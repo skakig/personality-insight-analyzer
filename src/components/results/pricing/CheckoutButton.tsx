@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, CreditCard } from "lucide-react";
 
 interface CheckoutButtonProps {
   onClick: () => void;
@@ -8,18 +8,11 @@ interface CheckoutButtonProps {
 }
 
 export const CheckoutButton = ({ onClick, loading }: CheckoutButtonProps) => {
-  const handleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    console.log('Checkout button clicked, triggering onClick handler');
-    onClick();
-  };
-
   return (
     <Button
-      className="w-full bg-gradient-to-r from-violet-500 to-pink-500 hover:from-violet-600 hover:to-pink-600 text-white font-semibold py-3 px-6 rounded-full shadow-lg transform transition duration-300 ease-in-out hover:scale-105 my-4"
-      onClick={handleClick}
+      onClick={onClick}
       disabled={loading}
-      size="lg"
+      className="w-full mt-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-2 px-6 rounded-full shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50 transition-all"
     >
       {loading ? (
         <>
@@ -27,8 +20,11 @@ export const CheckoutButton = ({ onClick, loading }: CheckoutButtonProps) => {
           Processing...
         </>
       ) : (
-        "Get Your Full Report Now"
+        <>
+          <CreditCard className="mr-2 h-5 w-5" />
+          Get Your Full Report Now
+        </>
       )}
     </Button>
   );
-};
+}

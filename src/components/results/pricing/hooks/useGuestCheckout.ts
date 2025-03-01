@@ -26,11 +26,20 @@ export const useGuestCheckout = (quizResultId: string | null) => {
       return false;
     }
 
+    if (!quizResultId) {
+      toast({
+        title: "Error",
+        description: "No assessment result found. Please try taking the assessment again.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
     setLoading(true);
 
     try {
       console.log('Starting guest checkout process for result:', quizResultId);
-      const guestAccessToken = localStorage.getItem('guestAccessToken') || crypto.randomUUID();
+      const guestAccessToken = crypto.randomUUID();
       
       // Create purchase tracking record for guest
       const { data: tracking, error: trackingError } = await supabase
@@ -39,17 +48,18 @@ export const useGuestCheckout = (quizResultId: string | null) => {
           quiz_result_id: quizResultId,
           guest_email: email,
           status: 'pending',
-          access_token: guestAccessToken || null
+          access_token: guestAccessToken
         })
         .select()
         .single();
 
       if (trackingError) {
         console.error('Error creating guest purchase tracking:', trackingError);
-      } else {
-        console.log('Created purchase tracking record:', tracking.id);
-        localStorage.setItem('purchaseTrackingId', tracking.id);
+        throw new Error('Failed to prepare checkout. Please try again.');
       }
+      
+      console.log('Created purchase tracking record:', tracking.id);
+      localStorage.setItem('purchaseTrackingId', tracking.id);
       
       // Update quiz result with guest information
       await supabase
@@ -66,6 +76,7 @@ export const useGuestCheckout = (quizResultId: string | null) => {
       // Save guest email for later verification
       localStorage.setItem('guestEmail', email);
       localStorage.setItem('guestAccessToken', guestAccessToken);
+      localStorage.setItem('guestQuizResultId', quizResultId);
       
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { 
@@ -83,8 +94,15 @@ export const useGuestCheckout = (quizResultId: string | null) => {
         }
       });
 
-      if (error) throw error;
-      if (!data?.url) throw new Error('No checkout URL received');
+      if (error) {
+        console.error('Guest checkout error:', error);
+        throw error;
+      }
+      
+      if (!data?.url) {
+        console.error('No checkout URL received for guest checkout');
+        throw new Error('No checkout URL received');
+      }
 
       console.log('Guest checkout session created:', {
         sessionId: data.sessionId,
@@ -115,14 +133,14 @@ export const useGuestCheckout = (quizResultId: string | null) => {
       // Add a small delay to ensure data is saved before redirecting
       setTimeout(() => {
         window.location.href = data.url;
-      }, 100);
+      }, 200);
       
       return true;
     } catch (error: any) {
-      console.error('Error:', error);
+      console.error('Guest checkout error:', error);
       toast({
         title: "Error",
-        description: "Failed to initiate checkout. Please try again.",
+        description: error.message || "Failed to initiate checkout. Please try again.",
         variant: "destructive",
       });
       setLoading(false);
