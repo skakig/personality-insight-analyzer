@@ -41,7 +41,7 @@ export const PurchaseButton = ({
         hasEmail: !!email
       });
 
-      // Create purchase tracking record
+      // Create purchase tracking record first
       const accessToken = crypto.randomUUID();
       const { data: tracking, error: trackingError } = await supabase
         .from('purchase_tracking')
@@ -65,17 +65,25 @@ export const PurchaseButton = ({
         status: tracking.status
       });
 
+      // Store tracking ID and result ID in localStorage (for both logged in users and guests)
+      localStorage.setItem('purchaseTrackingId', tracking.id);
+      localStorage.setItem('purchaseResultId', resultId);
+      
       // Store guest data only if not logged in
       if (!userId) {
         localStorage.setItem('guestQuizResultId', resultId);
         localStorage.setItem('guestAccessToken', accessToken);
-        localStorage.setItem('purchaseTrackingId', tracking.id);
         if (email) localStorage.setItem('guestEmail', email);
-      } else {
-        // Store tracking ID for logged-in users too (helps with session restoration)
-        localStorage.setItem('purchaseTrackingId', tracking.id);
-        localStorage.setItem('purchaseResultId', resultId);
-      }
+      } 
+
+      // Update quiz result with purchase initiated status
+      await supabase
+        .from('quiz_results')
+        .update({ 
+          purchase_initiated_at: new Date().toISOString(),
+          purchase_status: 'pending'
+        })
+        .eq('id', resultId);
 
       // Create checkout session
       const { data: checkoutData, error: checkoutError } = await supabase.functions.invoke(
@@ -90,7 +98,8 @@ export const PurchaseButton = ({
               email: email || session?.user?.email,
               userId,
               accessToken: !userId ? accessToken : undefined,
-              trackingId: tracking.id
+              trackingId: tracking.id,
+              returnUrl: `/assessment/${resultId}?success=true`
             }
           }
         }
@@ -116,11 +125,7 @@ export const PurchaseButton = ({
         // Update quiz result with stripe session
         await supabase
           .from('quiz_results')
-          .update({ 
-            stripe_session_id: checkoutData.sessionId,
-            purchase_initiated_at: new Date().toISOString(),
-            purchase_status: 'pending'
-          })
+          .update({ stripe_session_id: checkoutData.sessionId })
           .eq('id', resultId);
 
         localStorage.setItem('stripeSessionId', checkoutData.sessionId);

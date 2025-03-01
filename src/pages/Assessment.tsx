@@ -3,8 +3,9 @@ import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { DetailedReport } from "@/components/results/DetailedReport";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 import { verifyPurchaseWithRetry } from "@/utils/purchaseUtils";
+import { Loader2 } from "lucide-react";
 
 const Assessment = () => {
   const { id } = useParams();
@@ -12,6 +13,7 @@ const Assessment = () => {
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
+  const [verificationAttempts, setVerificationAttempts] = useState(0);
 
   useEffect(() => {
     const fetchResult = async () => {
@@ -33,6 +35,7 @@ const Assessment = () => {
         const isPostPurchase = searchParams.get('success') === 'true';
         const stripeSessionId = localStorage.getItem('stripeSessionId');
         const trackingId = localStorage.getItem('purchaseTrackingId');
+        const storedResultId = localStorage.getItem('purchaseResultId');
 
         console.log('Assessment page loaded:', {
           resultId: id,
@@ -41,36 +44,17 @@ const Assessment = () => {
           isPostPurchase,
           hasStripeSession: !!stripeSessionId,
           hasTrackingId: !!trackingId,
+          storedResultId,
           timestamp: new Date().toISOString()
         });
 
-        if (isPostPurchase) {
+        // Check if this is post-purchase verification
+        if (isPostPurchase || (stripeSessionId && id === storedResultId)) {
           setVerifying(true);
           toast({
             title: "Verifying your purchase",
             description: "Please wait while we prepare your report...",
           });
-
-          // Check if we should manually trigger webhook verification
-          if (stripeSessionId) {
-            console.log('Initiating purchase verification with session:', stripeSessionId);
-            
-            // If we have a tracking ID, check its status first
-            if (trackingId) {
-              const { data: tracking } = await supabase
-                .from('purchase_tracking')
-                .select('status')
-                .eq('id', trackingId)
-                .single();
-                
-              if (tracking?.status === 'completed') {
-                console.log('Purchase already verified via tracking record');
-                // Purchase already verified
-              } else {
-                console.log('Purchase tracking not verified, using retry mechanism');
-              }
-            }
-          }
 
           // Use the retry mechanism for post-purchase verification
           const verifiedResult = await verifyPurchaseWithRetry(id);
@@ -93,6 +77,39 @@ const Assessment = () => {
             return;
           } else {
             console.log('Purchase verification failed after retries');
+            setVerificationAttempts(prev => prev + 1);
+            
+            // If this is the first failed attempt, try one more time
+            if (verificationAttempts === 0) {
+              toast({
+                title: "Verification in progress",
+                description: "We're still processing your purchase. Please wait a moment...",
+              });
+              
+              // Try a manual update as a last resort
+              try {
+                if (stripeSessionId) {
+                  await supabase
+                    .from('quiz_results')
+                    .update({ 
+                      is_purchased: true,
+                      purchase_status: 'completed',
+                      purchase_completed_at: new Date().toISOString(),
+                      access_method: 'purchase'
+                    })
+                    .eq('id', id)
+                    .eq('stripe_session_id', stripeSessionId);
+                }
+              } catch (error) {
+                console.error('Final manual update failed:', error);
+              }
+            } else {
+              toast({
+                title: "Purchase verification delayed",
+                description: "Your purchase may take a few moments to process. You can refresh the page or check again shortly.",
+                variant: "destructive",
+              });
+            }
           }
         }
 
@@ -132,16 +149,21 @@ const Assessment = () => {
             });
           }
           setLoading(false);
+          setVerifying(false);
           return;
         }
 
         console.log('Assessment data loaded successfully:', {
           resultId: data.id,
           isPurchased: data.is_purchased,
-          isDetailed: data.is_detailed
+          isDetailed: data.is_detailed,
+          accessMethod: data.access_method,
+          status: data.purchase_status
         });
 
         setResult(data);
+        setLoading(false);
+        setVerifying(false);
 
         // Show account creation prompt for guests with custom URL
         if (!userId && data.guest_email) {
@@ -167,24 +189,35 @@ const Assessment = () => {
           description: error.message || "Failed to load assessment result",
           variant: "destructive",
         });
-      } finally {
         setLoading(false);
         setVerifying(false);
       }
     };
 
     fetchResult();
-  }, [id, searchParams]);
+  }, [id, searchParams, verificationAttempts]);
 
   if (loading || verifying) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
           {verifying && (
             <p className="text-sm text-gray-600">
-              Verifying your purchase...
+              {verificationAttempts === 0 
+                ? "Verifying your purchase..." 
+                : "Still processing your purchase..."}
             </p>
+          )}
+          {verificationAttempts > 0 && (
+            <Button 
+              onClick={() => window.location.reload()}
+              variant="outline"
+              size="sm"
+              className="mt-4"
+            >
+              Refresh Page
+            </Button>
           )}
         </div>
       </div>
@@ -214,3 +247,6 @@ const Assessment = () => {
 };
 
 export { Assessment };
+
+// Ensure Button is imported
+import { Button } from "@/components/ui/button";
