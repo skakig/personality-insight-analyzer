@@ -103,15 +103,15 @@ export const useAssessmentResult = (id?: string) => {
             toast({
               title: "Create an Account",
               description: "Create an account to keep permanent access to your report",
-              action: (
-                <ToastAction 
-                  altText="Sign Up" 
-                  onClick={() => {
+              action: React.createElement(
+                ToastAction,
+                {
+                  altText: "Sign Up",
+                  onClick: () => {
                     window.location.href = `/auth?email=${encodeURIComponent(fetchedResult.guest_email)}&action=signup`;
-                  }}
-                >
-                  Sign Up
-                </ToastAction>
+                  }
+                },
+                "Sign Up"
               ),
               duration: 10000,
             });
