@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { storePurchaseData } from "@/utils/purchaseStateUtils";
@@ -34,6 +35,7 @@ export const useVerificationStrategies = (
     }
     
     // Update the database for logged-in user
+    console.log('Updating result for user ID:', userId);
     const { error: updateError } = await supabase
       .from('quiz_results')
       .update({ 
@@ -69,6 +71,8 @@ export const useVerificationStrategies = (
         storePurchaseData(id, sessionId || '', userId);
         return true;
       }
+    } else {
+      console.error('Error updating result for logged-in user:', updateError);
     }
     
     return false;
@@ -82,6 +86,7 @@ export const useVerificationStrategies = (
     
     // First sync the session ID with the result if needed
     try {
+      console.log('Syncing session ID with result:', { resultId: id, sessionId });
       await supabase
         .from('quiz_results')
         .update({ stripe_session_id: sessionId })
@@ -125,6 +130,46 @@ export const useVerificationStrategies = (
         storePurchaseData(id, sessionId, userId);
         return true;
       }
+    } else {
+      console.error('Error updating result with session ID:', updateError);
+    }
+    
+    // If the update with exact session ID match failed, try a direct update
+    // This handles cases where the session ID might have been stored slightly differently
+    const { error: directError } = await supabase
+      .from('quiz_results')
+      .update({ 
+        is_purchased: true,
+        is_detailed: true,
+        purchase_status: 'completed',
+        purchase_completed_at: new Date().toISOString(),
+        access_method: 'purchase',
+        stripe_session_id: sessionId
+      })
+      .eq('id', id);
+      
+    if (!directError) {
+      // Fetch the updated result
+      const { data: directResult } = await supabase
+        .from('quiz_results')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+            
+      if (directResult) {
+        console.log('Successfully fetched updated result via direct update with session ID');
+        setResult(directResult);
+        setLoading(false);
+        stopVerification();
+        toast({
+          title: "Purchase verified!",
+          description: "Your detailed report is now available.",
+        });
+        storePurchaseData(id, sessionId, userId);
+        return true;
+      }
+    } else {
+      console.error('Error with direct session ID update:', directError);
     }
     
     return false;
@@ -169,6 +214,8 @@ export const useVerificationStrategies = (
         }
         return true;
       }
+    } else {
+      console.error('Last resort update failed:', updateError);
     }
     
     return false;

@@ -68,6 +68,7 @@ export const useVerifyPurchase = (
       resultId: id,
       success: successParam,
       hasSessionId: !!sessionId,
+      sessionIdValue: sessionId, // Log the actual session ID for debugging
       timestamp: new Date().toISOString()
     });
 
@@ -76,22 +77,60 @@ export const useVerifyPurchase = (
       const { data: { session } } = await supabase.auth.getSession();
       const userId = session?.user?.id;
       
+      console.log('User context:', {
+        isLoggedIn: !!userId,
+        userId: userId || 'guest',
+        verificationAttempts
+      });
+      
       // For logged-in users returning from successful purchase
       if (userId) {
+        console.log('Logged-in user verification flow initiated');
+        
         // If returning from successful checkout with a user ID
         if (successParam === 'true') {
-          // Try verification with user ID
+          console.log('Success param detected, attempting direct user verification');
+          
+          // Try immediate database update for logged-in users returning from Stripe
+          const directUpdateSuccess = await updateResultForUser(id, userId);
+          if (directUpdateSuccess) {
+            console.log('Direct user update successful without session ID filters');
+            const userResult = await fetchUserResult(id, userId);
+            if (userResult) {
+              setResult(userResult);
+              setLoading(false);
+              stopVerification();
+              toast({
+                title: "Purchase verified!",
+                description: "Your detailed report is now available.",
+              });
+              if (sessionId) {
+                cleanupPurchaseState();
+              }
+              return true;
+            }
+          }
+          
+          // Try verification with user ID as fallback
           const userVerified = await verifyForLoggedInUser(id, userId, sessionId);
-          if (userVerified) return true;
+          if (userVerified) {
+            console.log('User verification successful');
+            return true;
+          }
           
           // If direct user update failed and we have a session ID, try with that
           if (sessionId) {
+            console.log('Attempting session ID verification:', sessionId);
             const sessionVerified = await verifyWithSessionId(id, sessionId, userId);
-            if (sessionVerified) return true;
+            if (sessionVerified) {
+              console.log('Session verification successful');
+              return true;
+            }
           }
         }
         
         // Try a direct update by user ID
+        console.log('Attempting direct user ID update without success param check');
         const directUpdateSuccess = await updateResultForUser(id, userId);
         if (directUpdateSuccess) {
           const userResult = await fetchUserResult(id, userId);
@@ -114,18 +153,43 @@ export const useVerifyPurchase = (
       
       // If we have a session ID, try verification with that
       if (sessionId) {
+        console.log('Attempting session-only verification with ID:', sessionId);
         const sessionVerified = await verifyWithSessionId(id, sessionId, userId);
-        if (sessionVerified) return true;
+        if (sessionVerified) {
+          console.log('Session-only verification successful');
+          return true;
+        }
+        
+        // Also try direct update with session ID
+        const sessionUpdateSuccess = await updateResultWithSessionId(id, sessionId);
+        if (sessionUpdateSuccess) {
+          console.log('Direct session update successful');
+          const sessionResult = await fetchResultBySessionId(id, sessionId);
+          if (sessionResult) {
+            setResult(sessionResult);
+            setLoading(false);
+            stopVerification();
+            toast({
+              title: "Purchase verified!",
+              description: "Your detailed report is now available.",
+            });
+            return true;
+          }
+        }
       }
       
       // Use the standard retry mechanism if initial strategies fail
       const standardVerified = await performStandardVerification(id, sessionId, userId);
-      if (standardVerified) return true;
+      if (standardVerified) {
+        console.log('Standard verification successful');
+        return true;
+      }
       
       // Try direct updates based on available information
       const guestEmail = localStorage.getItem('guestEmail');
       
       // Try fallback update methods
+      console.log('Attempting fallback updates');
       const fallbackSuccess = await tryFallbackUpdates({
         id,
         userId,
@@ -134,6 +198,7 @@ export const useVerifyPurchase = (
       });
       
       if (fallbackSuccess) {
+        console.log('Fallback update successful');
         const finalResult = await fetchResultById(id);
         if (finalResult) {
           setResult(finalResult);
@@ -149,11 +214,16 @@ export const useVerifyPurchase = (
       
       // Last resort: direct verification without filters
       if (userId && verificationAttempts > 2) {
+        console.log('Last resort verification attempt');
         const lastResortSuccess = await performFallbackVerification(id, userId, sessionId);
-        if (lastResortSuccess) return true;
+        if (lastResortSuccess) {
+          console.log('Last resort verification successful');
+          return true;
+        }
       }
       
       // If none of the attempts worked, increment attempts and continue
+      console.log('All verification methods failed, incrementing attempts');
       incrementAttempts();
       return false;
     } catch (error) {
