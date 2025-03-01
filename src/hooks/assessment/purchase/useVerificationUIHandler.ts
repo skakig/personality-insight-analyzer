@@ -13,17 +13,17 @@ export const useVerificationUIHandler = () => {
   const handleVerificationFailure = (verificationAttempts: number) => {
     // Show appropriate message based on verification attempts
     if (verificationAttempts > 0) {
-      const action = (
+      const action: ToastActionElement = (
         <ToastAction altText="Refresh the page" onClick={() => window.location.reload()}>
           Refresh
         </ToastAction>
-      ) as ToastActionElement;
+      );
       
       toast({
         title: "Purchase verification delayed",
         description: "Your purchase may take a few moments to process. You can refresh the page or check your dashboard.",
         variant: "default",
-        action: action
+        action
       });
     } else {
       toast({
