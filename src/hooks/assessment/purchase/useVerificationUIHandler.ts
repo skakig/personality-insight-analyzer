@@ -1,7 +1,7 @@
 
-import React from "react";
 import { toast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
+import { type ToastActionElement } from "@/components/ui/toast";
 
 /**
  * Handles UI-related functionality for verification processes
@@ -17,14 +17,14 @@ export const useVerificationUIHandler = () => {
         title: "Purchase verification delayed",
         description: "Your purchase may take a few moments to process. You can refresh the page or check your dashboard.",
         variant: "default",
-        action: React.createElement(
-          ToastAction,
-          {
-            altText: "Refresh the page",
-            onClick: () => window.location.reload()
-          },
-          "Refresh"
-        )
+        action: (
+          <ToastAction 
+            altText="Refresh the page"
+            onClick={() => window.location.reload()}
+          >
+            Refresh
+          </ToastAction>
+        ) as ToastActionElement
       });
     } else {
       toast({

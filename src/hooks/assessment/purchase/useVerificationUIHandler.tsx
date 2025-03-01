@@ -1,7 +1,7 @@
 
 import React from "react";
 import { toast } from "@/hooks/use-toast";
-import { ToastAction } from "@/components/ui/toast";
+import { ToastAction, type ToastActionElement } from "@/components/ui/toast";
 
 /**
  * Handles UI-related functionality for verification processes
@@ -24,7 +24,7 @@ export const useVerificationUIHandler = () => {
           >
             Refresh
           </ToastAction>
-        )
+        ) as ToastActionElement
       });
     } else {
       toast({
