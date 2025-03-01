@@ -19,7 +19,7 @@ export const useVerificationUIHandler = () => {
         action: {
           label: "Refresh",
           onClick: () => window.location.reload()
-        } as ToastActionElement
+        } as unknown as ToastActionElement
       });
     } else {
       toast({
