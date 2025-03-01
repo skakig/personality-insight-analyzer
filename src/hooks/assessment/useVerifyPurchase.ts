@@ -137,57 +137,44 @@ export const useVerifyPurchase = (
         }
       }
       
-      // Try to check if the user owns this result
+      // If user is logged in, try a direct update by user ID
       if (userId) {
-        console.log('Checking if user owns this result:', userId);
-        try {
-          const { data: userOwnedResult } = await supabase
+        console.log('Trying direct database update for logged-in user');
+        
+        const { error: updateError } = await supabase
+          .from('quiz_results')
+          .update({ 
+            is_purchased: true,
+            is_detailed: true,
+            purchase_status: 'completed',
+            purchase_completed_at: new Date().toISOString(),
+            access_method: 'purchase'
+          })
+          .eq('id', id)
+          .eq('user_id', userId);
+          
+        if (!updateError) {
+          const { data: updatedResult } = await supabase
             .from('quiz_results')
             .select('*')
             .eq('id', id)
             .eq('user_id', userId)
             .maybeSingle();
             
-          if (userOwnedResult) {
-            console.log('User owns this result, trying direct update');
-            
-            // Try direct update for user-owned result
-            const { error: updateError } = await supabase
-              .from('quiz_results')
-              .update({ 
-                is_purchased: true,
-                is_detailed: true,
-                purchase_status: 'completed',
-                purchase_completed_at: new Date().toISOString(),
-                access_method: 'purchase'
-              })
-              .eq('id', id)
-              .eq('user_id', userId);
-              
-            if (!updateError) {
-              const { data: updatedResult } = await supabase
-                .from('quiz_results')
-                .select('*')
-                .eq('id', id)
-                .eq('user_id', userId)
-                .maybeSingle();
-                
-              if (updatedResult) {
-                console.log('Successfully updated user-owned result');
-                setResult(updatedResult);
-                setLoading(false);
-                stopVerification();
-                toast({
-                  title: "Purchase verified!",
-                  description: "Your detailed report is now available.",
-                });
-                storePurchaseData(id, sessionId || '', userId);
-                return true;
-              }
+          if (updatedResult) {
+            console.log('User direct update successful');
+            setResult(updatedResult);
+            setLoading(false);
+            stopVerification();
+            toast({
+              title: "Purchase verified!",
+              description: "Your detailed report is now available.",
+            });
+            if (sessionId) {
+              storePurchaseData(id, sessionId, userId);
             }
+            return true;
           }
-        } catch (userCheckError) {
-          console.error('Error checking user ownership:', userCheckError);
         }
       }
       

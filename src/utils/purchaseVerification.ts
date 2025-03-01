@@ -7,6 +7,8 @@ import { isPurchased } from "./purchaseStatus";
  */
 export const checkPurchaseTracking = async (trackingId: string, resultId: string) => {
   try {
+    console.log('Checking purchase tracking:', { trackingId, resultId });
+    
     const { data: tracking, error } = await supabase
       .from('purchase_tracking')
       .select('status, completed_at, guest_email, stripe_session_id')
@@ -73,6 +75,11 @@ export const checkPurchaseTracking = async (trackingId: string, resultId: string
  */
 export const updateResultWithPurchase = async (resultId: string, stripeSessionId: string) => {
   try {
+    if (!resultId || !stripeSessionId) {
+      console.error('Missing parameters for purchase update:', { resultId, stripeSessionId });
+      return false;
+    }
+    
     console.log('Updating result with stripe session ID:', stripeSessionId);
     
     const { data: result, error: fetchError } = await supabase
@@ -97,7 +104,8 @@ export const updateResultWithPurchase = async (resultId: string, stripeSessionId
       localStorage.setItem('guestEmail', result.guest_email);
     }
     
-    const { error } = await supabase
+    // If we have user_id, include it in the update filter for more precision
+    let query = supabase
       .from('quiz_results')
       .update({ 
         is_purchased: true,
@@ -106,12 +114,33 @@ export const updateResultWithPurchase = async (resultId: string, stripeSessionId
         purchase_completed_at: new Date().toISOString(),
         access_method: 'purchase'
       })
-      .eq('id', resultId)
-      .eq('stripe_session_id', stripeSessionId);
+      .eq('id', resultId);
+      
+    // Add session ID filter
+    query = query.eq('stripe_session_id', stripeSessionId);
+    
+    // Execute update
+    const { error } = await query;
     
     if (error) {
       console.error('Error updating result with session ID:', error);
-      return false;
+      
+      // If failed with session ID, try with just the result ID
+      const { error: directError } = await supabase
+        .from('quiz_results')
+        .update({ 
+          is_purchased: true,
+          is_detailed: true,
+          purchase_status: 'completed',
+          purchase_completed_at: new Date().toISOString(),
+          access_method: 'purchase'
+        })
+        .eq('id', resultId);
+        
+      if (directError) {
+        console.error('Direct update also failed:', directError);
+        return false;
+      }
     }
     
     // Also update purchase tracking record if it exists
@@ -140,6 +169,35 @@ export const updateResultWithPurchase = async (resultId: string, stripeSessionId
  */
 export const manuallyVerifyWithSessionId = async (stripeSessionId: string, resultId: string) => {
   try {
+    if (!stripeSessionId || !resultId) {
+      console.error('Missing parameters for manual verification:', { stripeSessionId, resultId });
+      return null;
+    }
+    
+    console.log('Manually verifying with session ID:', { stripeSessionId, resultId });
+    
+    // First check if any tracking record exists with this session ID
+    const { data: trackingData, error: trackingError } = await supabase
+      .from('purchase_tracking')
+      .select('*')
+      .eq('stripe_session_id', stripeSessionId)
+      .maybeSingle();
+      
+    if (!trackingError && trackingData) {
+      console.log('Found tracking record with session ID:', trackingData);
+      
+      // Update tracking status if needed
+      if (trackingData.status !== 'completed') {
+        await supabase
+          .from('purchase_tracking')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString()
+          })
+          .eq('id', trackingData.id);
+      }
+    }
+    
     // Try to update the result
     const updated = await updateResultWithPurchase(resultId, stripeSessionId);
     
@@ -168,15 +226,30 @@ export const manuallyVerifyWithSessionId = async (stripeSessionId: string, resul
  */
 export const manuallyCheckStripeSession = async (stripeSessionId: string, resultId: string, queryBuilder: any) => {
   try {
+    if (!stripeSessionId || !resultId) {
+      console.error('Missing parameters for stripe session check:', { stripeSessionId, resultId });
+      return null;
+    }
+    
     console.log('Manually checking Stripe session:', stripeSessionId);
     
+    // Check if the user is logged in
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    
     // First check if the result already has this session ID and is purchased
-    const { data: existingResult } = await supabase
+    let resultQuery = supabase
       .from('quiz_results')
       .select('*')
       .eq('id', resultId)
-      .eq('stripe_session_id', stripeSessionId)
-      .maybeSingle();
+      .eq('stripe_session_id', stripeSessionId);
+      
+    // If user is logged in, add user filter
+    if (userId) {
+      resultQuery = resultQuery.eq('user_id', userId);
+    }
+    
+    const { data: existingResult } = await resultQuery.maybeSingle();
       
     if (existingResult && isPurchased(existingResult)) {
       console.log('Purchase already verified via session ID match');
@@ -211,8 +284,8 @@ export const manuallyCheckStripeSession = async (stripeSessionId: string, result
           .eq('id', trackingData.id);
       }
       
-      // Update the result directly
-      const { error: updateError } = await supabase
+      // Create update query
+      let updateQuery = supabase
         .from('quiz_results')
         .update({ 
           is_purchased: true,
@@ -222,32 +295,54 @@ export const manuallyCheckStripeSession = async (stripeSessionId: string, result
           access_method: 'purchase'
         })
         .eq('id', resultId);
+        
+      // Add user filter for logged-in users
+      if (userId) {
+        updateQuery = updateQuery.eq('user_id', userId);
+      }
+      
+      const { error: updateError } = await updateQuery;
       
       if (updateError) {
         console.error('Failed to update result:', updateError);
-      } else {
-        // Fetch the updated result
-        const { data: updatedResult, error: resultError } = await queryBuilder.maybeSingle();
         
-        if (resultError) {
-          console.error('Failed to fetch updated result:', resultError);
-        } else if (updatedResult && isPurchased(updatedResult)) {
-          console.log('Manual update successful via tracking record!');
-          return updatedResult;
+        // Try without user filter as fallback
+        const { error: fallbackError } = await supabase
+          .from('quiz_results')
+          .update({ 
+            is_purchased: true,
+            is_detailed: true,
+            purchase_status: 'completed',
+            purchase_completed_at: new Date().toISOString(),
+            access_method: 'purchase'
+          })
+          .eq('id', resultId);
+          
+        if (fallbackError) {
+          console.error('Fallback update also failed:', fallbackError);
         }
       }
-    }
-    
-    // If no tracking record was found, try to update directly
-    const updated = await updateResultWithPurchase(resultId, stripeSessionId);
-    if (updated) {
+      
+      // Fetch the updated result
       const { data: updatedResult, error: resultError } = await queryBuilder.maybeSingle();
       
       if (resultError) {
         console.error('Failed to fetch updated result:', resultError);
       } else if (updatedResult && isPurchased(updatedResult)) {
-        console.log('Manual direct update successful!');
+        console.log('Manual update successful via tracking record!');
         return updatedResult;
+      }
+    }
+    
+    // If no tracking record was found, try direct update
+    const directUpdate = await updateResultWithPurchase(resultId, stripeSessionId);
+    
+    if (directUpdate) {
+      const { data: directResult } = await queryBuilder.maybeSingle();
+      
+      if (directResult && isPurchased(directResult)) {
+        console.log('Direct update successful!');
+        return directResult;
       }
     }
     

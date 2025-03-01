@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -57,12 +58,20 @@ export const useAssessmentResult = (id?: string) => {
         const trackingId = localStorage.getItem('purchaseTrackingId');
         const storedResultId = localStorage.getItem('purchaseResultId');
         
+        // Store the session ID from the URL if available
         if (sessionId && !storedSessionId) {
           localStorage.setItem('stripeSessionId', sessionId);
+          console.log('Stored new session ID from URL', sessionId);
         }
         
+        // If this is a post-purchase redirect, save all relevant data
         if (isPostPurchase && (id || storedResultId)) {
           storePurchaseData(id || storedResultId || '', stripeSessionId || '', userId);
+          console.log('Stored purchase data after redirect', {
+            resultId: id || storedResultId,
+            sessionId: stripeSessionId,
+            userId
+          });
         }
 
         logAssessmentInfo({
@@ -77,13 +86,16 @@ export const useAssessmentResult = (id?: string) => {
           verificationAttempted
         });
 
+        // First, try to access the result directly through user ID or other means
         const directResult = await checkDirectAccess(id, userId);
         if (directResult) {
+          console.log('Direct access granted, skipping verification');
           setResult(directResult);
           setLoading(false);
           return;
         }
 
+        // Determine if we should verify a purchase
         const shouldVerify = isPostPurchase || 
                             (stripeSessionId && (id || storedResultId));
         
@@ -109,17 +121,21 @@ export const useAssessmentResult = (id?: string) => {
             return;
           }
           
+          // First attempt at verifying purchase
           let success = await verifyPurchase(verificationId);
           
+          // If first attempt fails and this is directly after purchase, try again
           if (!success && isPostPurchase) {
             console.log('First attempt failed, trying again after short delay');
             await new Promise(resolve => setTimeout(resolve, 1500));
             success = await verifyPurchase(verificationId);
           }
           
+          // If verification failed, use fallback methods
           if (!success) {
             handleVerificationFailure(verificationAttempts);
             
+            console.log('Attempting direct database update as fallback');
             const finalResult = await attemptDirectUpdate({
               stripeSessionId,
               isPostPurchase,
@@ -128,14 +144,18 @@ export const useAssessmentResult = (id?: string) => {
             });
             
             if (finalResult) {
+              console.log('Direct database update successful!');
               setResult(finalResult);
               setLoading(false);
               stopVerification();
+              return;
             }
           }
         }
 
+        // If we still don't have a result, try to fetch it directly
         if (!result && id) {
+          console.log('Fetching result directly by ID');
           const fetchedResult = await fetchResultById(id, { userId, accessToken });
           
           if (fetchedResult && !userId && fetchedResult.guest_email) {
