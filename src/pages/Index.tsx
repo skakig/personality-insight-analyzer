@@ -20,7 +20,8 @@ const Index = ({ session }: IndexProps) => {
     progress,
     personalityType,
     loading,
-    error
+    error,
+    quizResultId
   } = useQuiz(session);
 
   useEffect(() => {
@@ -29,9 +30,10 @@ const Index = ({ session }: IndexProps) => {
       hasCurrentQuestion: !!currentQuestion,
       progress,
       loading,
-      error
+      error,
+      quizResultId: quizResultId || null
     });
-  }, [currentStep, currentQuestion, progress, loading, error]);
+  }, [currentStep, currentQuestion, progress, loading, error, quizResultId]);
 
   if (loading) {
     return (
@@ -71,6 +73,7 @@ const Index = ({ session }: IndexProps) => {
         <Results
           personalityType={personalityType}
           session={session}
+          quizResultId={quizResultId}
         />
       )}
     </div>

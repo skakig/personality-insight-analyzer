@@ -1,9 +1,8 @@
 
 import { useState, useEffect } from "react";
-import { useLoggedInCheckout } from "./useLoggedInCheckout";
-import { useGuestCheckout } from "./useGuestCheckout";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { storePurchaseData } from "@/utils/purchaseStateUtils";
 
 export const useCheckoutFlow = (session: any, quizResultId: string | null) => {
   const [email, setEmail] = useState("");
@@ -55,17 +54,19 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null) => {
       );
       
       if (error) {
-        throw error;
+        console.error('Function error:', error);
+        throw new Error(error.message || 'Error creating checkout session');
       }
       
       if (!data?.url) {
+        console.error('No checkout URL received:', data);
         throw new Error('No checkout URL received');
       }
       
       // Store information for verification after return
       if (data.sessionId) {
-        localStorage.setItem('stripeSessionId', data.sessionId);
-        localStorage.setItem('checkoutResultId', quizResultId);
+        // Store purchase data
+        storePurchaseData(quizResultId, data.sessionId, userId);
         
         // Update result with session ID
         await supabase
@@ -79,6 +80,7 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null) => {
       }
       
       // Redirect to Stripe
+      console.log('Redirecting to Stripe checkout URL:', data.url);
       window.location.href = data.url;
       
     } catch (error: any) {
@@ -154,17 +156,19 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null) => {
       );
       
       if (error) {
-        throw error;
+        console.error('Function error:', error);
+        throw new Error(error.message || 'Error creating checkout session');
       }
       
       if (!data?.url) {
+        console.error('No checkout URL received:', data);
         throw new Error('No checkout URL received');
       }
       
       // Store information for verification after return
       if (data.sessionId) {
-        localStorage.setItem('stripeSessionId', data.sessionId);
-        localStorage.setItem('checkoutResultId', quizResultId);
+        // Store purchase data
+        storePurchaseData(quizResultId, data.sessionId);
         localStorage.setItem('guestAccessToken', accessToken);
         
         // Update tracking information
@@ -179,6 +183,7 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null) => {
       }
       
       // Redirect to Stripe
+      console.log('Redirecting to Stripe checkout URL:', data.url);
       window.location.href = data.url;
       return true;
       
