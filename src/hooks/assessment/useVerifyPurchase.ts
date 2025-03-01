@@ -64,28 +64,49 @@ export const useVerifyPurchase = (
       const userId = session?.user?.id;
       
       // For logged-in users returning from successful purchase
-      if (userId && successParam === 'true') {
-        console.log('Logged-in user detected, attempting direct verification for user:', userId);
+      if (userId) {
+        console.log('Logged-in user detected, attempting verification for user:', userId);
         
-        // Update the database for logged-in user
-        const updated = await updateResultForUser(id, userId);
+        // First, check if this result belongs to the user and is already purchased
+        const { data: userResult } = await supabase
+          .from('quiz_results')
+          .select('*')
+          .eq('id', id)
+          .eq('user_id', userId)
+          .maybeSingle();
         
-        if (updated) {
-          // Fetch the updated result
-          const userResult = await fetchUserResult(id, userId);
-            
-          if (userResult) {
-            console.log('Successfully fetched updated result for logged-in user');
-            setResult(userResult);
-            setLoading(false);
-            stopVerification();
-            toast({
-              title: "Purchase verified!",
-              description: "Your detailed report is now available.",
-            });
-            // Keep the result ID in case we need it later
-            storePurchaseData(id, sessionId || '');
-            return true;
+        if (userResult?.is_purchased || userResult?.is_detailed) {
+          console.log('Result already purchased for logged in user');
+          setResult(userResult);
+          setLoading(false);
+          stopVerification();
+          return true;
+        }
+        
+        // If not yet purchased but returning from successful checkout
+        if (successParam === 'true') {
+          console.log('Updating result directly for logged-in user after purchase');
+          
+          // Update the database for logged-in user
+          const updated = await updateResultForUser(id, userId);
+          
+          if (updated) {
+            // Fetch the updated result
+            const userResult = await fetchUserResult(id, userId);
+              
+            if (userResult) {
+              console.log('Successfully fetched updated result for logged-in user');
+              setResult(userResult);
+              setLoading(false);
+              stopVerification();
+              toast({
+                title: "Purchase verified!",
+                description: "Your detailed report is now available.",
+              });
+              // Keep the result ID in case we need it later
+              storePurchaseData(id, sessionId || '', userId);
+              return true;
+            }
           }
         }
       }
@@ -110,9 +131,63 @@ export const useVerifyPurchase = (
               title: "Purchase verified!",
               description: "Your detailed report is now available.",
             });
-            storePurchaseData(id, sessionId);
+            storePurchaseData(id, sessionId, userId);
             return true;
           }
+        }
+      }
+      
+      // Try to check if the user owns this result
+      if (userId) {
+        console.log('Checking if user owns this result:', userId);
+        try {
+          const { data: userOwnedResult } = await supabase
+            .from('quiz_results')
+            .select('*')
+            .eq('id', id)
+            .eq('user_id', userId)
+            .maybeSingle();
+            
+          if (userOwnedResult) {
+            console.log('User owns this result, trying direct update');
+            
+            // Try direct update for user-owned result
+            const { error: updateError } = await supabase
+              .from('quiz_results')
+              .update({ 
+                is_purchased: true,
+                is_detailed: true,
+                purchase_status: 'completed',
+                purchase_completed_at: new Date().toISOString(),
+                access_method: 'purchase'
+              })
+              .eq('id', id)
+              .eq('user_id', userId);
+              
+            if (!updateError) {
+              const { data: updatedResult } = await supabase
+                .from('quiz_results')
+                .select('*')
+                .eq('id', id)
+                .eq('user_id', userId)
+                .maybeSingle();
+                
+              if (updatedResult) {
+                console.log('Successfully updated user-owned result');
+                setResult(updatedResult);
+                setLoading(false);
+                stopVerification();
+                toast({
+                  title: "Purchase verified!",
+                  description: "Your detailed report is now available.",
+                });
+                storePurchaseData(id, sessionId || '', userId);
+                return true;
+              }
+            }
+          }
+        } catch (userCheckError) {
+          console.error('Error checking user ownership:', userCheckError);
         }
       }
       
@@ -131,7 +206,7 @@ export const useVerifyPurchase = (
         stopVerification();
         
         // Store the result ID correctly
-        storePurchaseData(id, sessionId || '');
+        storePurchaseData(id, sessionId || '', userId);
         
         return true;
       } else {
@@ -151,7 +226,17 @@ export const useVerifyPurchase = (
         
         if (updated) {
           // Try to fetch the updated result
-          const finalResult = await fetchResultById(id);
+          let finalQuery = supabase
+            .from('quiz_results')
+            .select('*')
+            .eq('id', id);
+            
+          // Add user filter for logged-in users
+          if (userId) {
+            finalQuery = finalQuery.eq('user_id', userId);
+          }
+          
+          const { data: finalResult } = await finalQuery.maybeSingle();
               
           if (finalResult) {
             setResult(finalResult);

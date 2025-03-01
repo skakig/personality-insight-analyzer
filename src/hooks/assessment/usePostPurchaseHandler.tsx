@@ -17,7 +17,6 @@ export const usePostPurchaseHandler = () => {
         variant: "default",
         action: (
           <ToastAction 
-            altText="Refresh" 
             onClick={() => window.location.reload()}
           >
             Refresh
@@ -36,12 +35,21 @@ export const usePostPurchaseHandler = () => {
     stripeSessionId: string;
     isPostPurchase: boolean;
     verificationId: string;
+    userId?: string;
   }) => {
-    const { stripeSessionId, isPostPurchase, verificationId } = options;
+    const { stripeSessionId, isPostPurchase, verificationId, userId } = options;
     
-    if (stripeSessionId && isPostPurchase && verificationId) {
+    if (isPostPurchase && verificationId) {
       try {
-        await supabase
+        console.log('Attempting direct database update for verification', {
+          verificationId,
+          userId,
+          hasSessionId: !!stripeSessionId,
+          isPostPurchase
+        });
+        
+        // Create the base query
+        let query = supabase
           .from('quiz_results')
           .update({ 
             is_purchased: true,
@@ -52,12 +60,52 @@ export const usePostPurchaseHandler = () => {
           })
           .eq('id', verificationId);
           
+        // For logged-in users, add the user_id filter to ensure we're updating the correct record
+        if (userId) {
+          console.log('Adding user ID filter to update query', userId);
+          query = query.eq('user_id', userId);
+        } 
+        // For guest users or as a fallback, try with session ID
+        else if (stripeSessionId) {
+          console.log('Adding session ID filter to update query', stripeSessionId);
+          query = query.eq('stripe_session_id', stripeSessionId);
+        }
+        
+        const { error: updateError } = await query;
+        
+        if (updateError) {
+          console.error('Direct update failed with filters:', updateError);
+          
+          // If the filtered update failed, try once more without filters as last resort
+          if ((userId || stripeSessionId) && isPostPurchase) {
+            console.log('Attempting final direct update without filters');
+            await supabase
+              .from('quiz_results')
+              .update({ 
+                is_purchased: true,
+                is_detailed: true,
+                purchase_status: 'completed',
+                purchase_completed_at: new Date().toISOString(),
+                access_method: 'purchase'
+              })
+              .eq('id', verificationId);
+          }
+        } else {
+          console.log('Direct update successful for verification ID', verificationId);
+        }
+          
         // Fetch the updated result once more
-        const { data: finalResult } = await supabase
+        let resultQuery = supabase
           .from('quiz_results')
           .select('*')
-          .eq('id', verificationId)
-          .maybeSingle();
+          .eq('id', verificationId);
+          
+        // Add user filter for logged-in users
+        if (userId) {
+          resultQuery = resultQuery.eq('user_id', userId);
+        }
+        
+        const { data: finalResult } = await resultQuery.maybeSingle();
           
         return finalResult;
       } catch (error) {

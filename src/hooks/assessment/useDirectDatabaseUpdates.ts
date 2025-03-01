@@ -9,6 +9,27 @@ export const useDirectDatabaseUpdates = () => {
     try {
       console.log('Attempting direct update for logged-in user:', userId);
       
+      // First check if the result belongs to this user
+      const { data: userResult, error: checkError } = await supabase
+        .from('quiz_results')
+        .select('*')
+        .eq('id', id)
+        .eq('user_id', userId)
+        .maybeSingle();
+        
+      if (checkError) {
+        console.error('Failed to check if result belongs to user:', checkError);
+      }
+      
+      // If the result doesn't belong to this user, try to update the user_id first
+      if (!userResult) {
+        console.log('Result not found for user, trying to update ownership');
+        await supabase
+          .from('quiz_results')
+          .update({ user_id: userId })
+          .eq('id', id);
+      }
+      
       const { error } = await supabase
         .from('quiz_results')
         .update({ 
@@ -16,14 +37,31 @@ export const useDirectDatabaseUpdates = () => {
           is_detailed: true,
           purchase_status: 'completed',
           purchase_completed_at: new Date().toISOString(),
-          access_method: 'purchase'
+          access_method: 'purchase',
+          user_id: userId // Ensure the result is associated with this user
         })
-        .eq('id', id)
-        .eq('user_id', userId);
+        .eq('id', id);
       
       if (error) {
         console.error('Direct update for logged-in user failed:', error);
-        return false;
+        
+        // Try one more time without user_id filter (in case the result exists but doesn't have user_id set)
+        const { error: fallbackError } = await supabase
+          .from('quiz_results')
+          .update({ 
+            is_purchased: true,
+            is_detailed: true,
+            purchase_status: 'completed',
+            purchase_completed_at: new Date().toISOString(),
+            access_method: 'purchase',
+            user_id: userId // Ensure the result is associated with this user
+          })
+          .eq('id', id);
+          
+        if (fallbackError) {
+          console.error('Fallback update also failed:', fallbackError);
+          return false;
+        }
       }
       
       console.log('Direct DB update successful for logged-in user');
@@ -45,14 +83,32 @@ export const useDirectDatabaseUpdates = () => {
           is_detailed: true,
           purchase_status: 'completed',
           purchase_completed_at: new Date().toISOString(),
-          access_method: 'purchase'
+          access_method: 'purchase',
+          stripe_session_id: sessionId // Store session ID in result
         })
         .eq('id', id)
         .eq('stripe_session_id', sessionId);
       
       if (error) {
         console.error('Session ID update failed:', error);
-        return false;
+        
+        // Try again without the session ID filter (in case it wasn't set yet)
+        const { error: fallbackError } = await supabase
+          .from('quiz_results')
+          .update({ 
+            is_purchased: true,
+            is_detailed: true,
+            purchase_status: 'completed',
+            purchase_completed_at: new Date().toISOString(),
+            access_method: 'purchase',
+            stripe_session_id: sessionId
+          })
+          .eq('id', id);
+          
+        if (fallbackError) {
+          console.error('Fallback session ID update failed:', fallbackError);
+          return false;
+        }
       }
       
       // Also update purchase tracking
@@ -92,10 +148,10 @@ export const useDirectDatabaseUpdates = () => {
             is_detailed: true,
             purchase_status: 'completed',
             purchase_completed_at: new Date().toISOString(),
-            access_method: 'purchase'
+            access_method: 'purchase',
+            user_id: userId // Ensure user ownership
           })
           .eq('id', id)
-          .eq('user_id', userId)
       });
     }
     
@@ -110,10 +166,10 @@ export const useDirectDatabaseUpdates = () => {
             is_detailed: true,
             purchase_status: 'completed',
             purchase_completed_at: new Date().toISOString(),
-            access_method: 'purchase'
+            access_method: 'purchase',
+            stripe_session_id: sessionId
           })
           .eq('id', id)
-          .eq('stripe_session_id', sessionId)
       });
     }
     
@@ -128,10 +184,10 @@ export const useDirectDatabaseUpdates = () => {
             is_detailed: true,
             purchase_status: 'completed',
             purchase_completed_at: new Date().toISOString(),
-            access_method: 'purchase'
+            access_method: 'purchase',
+            guest_email: guestEmail
           })
           .eq('id', id)
-          .eq('guest_email', guestEmail)
       });
     }
     

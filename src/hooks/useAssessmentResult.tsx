@@ -74,8 +74,7 @@ export const useAssessmentResult = (id?: string) => {
           hasTrackingId: !!trackingId,
           storedResultId,
           verificationAttempts,
-          verificationAttempted,
-          isLoggedIn: !!userId
+          verificationAttempted
         });
 
         const directResult = await checkDirectAccess(id, userId);
@@ -89,7 +88,12 @@ export const useAssessmentResult = (id?: string) => {
                             (stripeSessionId && (id || storedResultId));
         
         if (!verificationAttempted && shouldVerify) {
-          console.log('Initiating purchase verification flow');
+          console.log('Initiating purchase verification flow', {
+            id,
+            userId,
+            stripeSessionId,
+            isPostPurchase
+          });
           setVerificationAttempted(true);
           
           const verificationId = id || storedResultId;
@@ -119,7 +123,8 @@ export const useAssessmentResult = (id?: string) => {
             const finalResult = await attemptDirectUpdate({
               stripeSessionId,
               isPostPurchase,
-              verificationId
+              verificationId,
+              userId
             });
             
             if (finalResult) {
