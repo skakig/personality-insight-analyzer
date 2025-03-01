@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,6 +7,7 @@ import { useFetchResult } from "./assessment/useFetchResult";
 import { useVerificationState } from "./assessment/useVerificationState";
 import { useVerifyPurchase } from "./assessment/useVerifyPurchase";
 import React from "react";
+import { ToastAction } from "@/components/ui/toast";
 
 export const useAssessmentResult = (id?: string) => {
   const [searchParams] = useSearchParams();
@@ -98,19 +100,19 @@ export const useAssessmentResult = (id?: string) => {
           const fetchedResult = await fetchResultById(id, { userId, accessToken });
           
           if (fetchedResult && !userId && fetchedResult.guest_email) {
-            const signUpButton = React.createElement(
-              'a',
-              {
-                href: `/auth?email=${encodeURIComponent(fetchedResult.guest_email)}&action=signup`,
-                className: "bg-primary text-white px-4 py-2 rounded-md hover:bg-primary/90"
-              },
-              'Sign Up'
-            );
-            
             toast({
               title: "Create an Account",
               description: "Create an account to keep permanent access to your report",
-              action: signUpButton,
+              action: (
+                <ToastAction 
+                  altText="Sign Up" 
+                  onClick={() => {
+                    window.location.href = `/auth?email=${encodeURIComponent(fetchedResult.guest_email)}&action=signup`;
+                  }}
+                >
+                  Sign Up
+                </ToastAction>
+              ),
               duration: 10000,
             });
           }
