@@ -17,6 +17,7 @@ export const usePostPurchaseHandler = () => {
         variant: "default",
         action: (
           <ToastAction 
+            altText="Refresh the page"
             onClick={() => window.location.reload()}
           >
             Refresh
