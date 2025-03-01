@@ -1,15 +1,10 @@
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useFetchResult } from "./assessment/useFetchResult";
-import { useVerificationState } from "./assessment/useVerificationState";
-import { useVerifyPurchase } from "./assessment/useVerifyPurchase";
-import { storePurchaseData } from "@/utils/purchaseStateUtils";
-import { usePreVerificationChecks } from "./assessment/usePreVerificationChecks";
-import { usePostPurchaseHandler } from "./assessment/usePostPurchaseHandler";
-import { logAssessmentInfo } from "@/utils/assessmentLogging";
+import { useAssessmentCoordinator } from "./assessment/useAssessmentCoordinator";
+import { useVerificationFlow } from "./assessment/useVerificationFlow";
 
 export const useAssessmentResult = (id?: string) => {
   const [searchParams] = useSearchParams();
@@ -22,29 +17,19 @@ export const useAssessmentResult = (id?: string) => {
   } = useFetchResult();
   
   const {
+    verificationAttempted,
+    setVerificationAttempted,
+    maxVerificationRetries,
+    collectAssessmentData
+  } = useAssessmentCoordinator();
+
+  const {
     verifying,
     verificationAttempts,
-    startVerification,
-    stopVerification,
-    incrementAttempts
-  } = useVerificationState();
-  
-  const { verifyPurchase } = useVerifyPurchase(
-    setLoading, 
-    setResult, 
-    { 
-      startVerification, 
-      stopVerification, 
-      incrementAttempts,
-      verificationAttempts 
-    }
-  );
-
-  const { checkDirectAccess, showCreateAccountToast } = usePreVerificationChecks();
-  const { handleVerificationFailure, attemptDirectUpdate } = usePostPurchaseHandler();
-
-  const [verificationAttempted, setVerificationAttempted] = useState(false);
-  const [maxVerificationRetries] = useState(5); // Maximum retry attempts before forcing dashboard redirect
+    checkDirectAccess,
+    showCreateAccountToast,
+    executeVerificationFlow
+  } = useVerificationFlow(setLoading, setResult);
 
   useEffect(() => {
     const loadAssessment = async () => {
@@ -54,43 +39,21 @@ export const useAssessmentResult = (id?: string) => {
           return;
         }
 
-        const { data: { session } } = await supabase.auth.getSession();
-        const userId = session?.user?.id;
-        const accessToken = searchParams.get('token') || localStorage.getItem('guestAccessToken');
-        const isPostPurchase = searchParams.get('success') === 'true';
-        const sessionId = searchParams.get('session_id');
-        const storedSessionId = localStorage.getItem('stripeSessionId');
-        const stripeSessionId = sessionId || storedSessionId;
-        const trackingId = localStorage.getItem('purchaseTrackingId');
-        const storedResultId = localStorage.getItem('purchaseResultId');
+        // Collect all necessary data for assessment processing
+        const data = await collectAssessmentData(id, searchParams);
         
-        // Store the session ID from the URL if available
-        if (sessionId && !storedSessionId) {
-          localStorage.setItem('stripeSessionId', sessionId);
-          console.log('Stored new session ID from URL', sessionId);
-        }
-        
-        // If this is a post-purchase redirect, save all relevant data
-        if (isPostPurchase && (id || storedResultId)) {
-          storePurchaseData(id || storedResultId || '', stripeSessionId || '', userId);
-          console.log('Stored purchase data after redirect', {
-            resultId: id || storedResultId,
-            sessionId: stripeSessionId,
-            userId
-          });
+        if (!data.validId) {
+          setLoading(false);
+          return;
         }
 
-        logAssessmentInfo({
-          resultId: id,
-          userId,
-          hasAccessToken: !!accessToken,
+        const { 
+          userId, 
+          accessToken, 
           isPostPurchase,
-          hasStripeSession: !!stripeSessionId,
-          hasTrackingId: !!trackingId,
-          storedResultId,
-          verificationAttempts,
-          verificationAttempted
-        });
+          stripeSessionId,
+          storedResultId 
+        } = data;
 
         // First, try to access the result directly through user ID or other means
         const directResult = await checkDirectAccess(id, userId);
@@ -103,98 +66,19 @@ export const useAssessmentResult = (id?: string) => {
 
         // Determine if we should verify a purchase
         const shouldVerify = isPostPurchase || 
-                            (stripeSessionId && (id || storedResultId));
+                          (stripeSessionId && (id || storedResultId));
         
         if (!verificationAttempted && shouldVerify) {
-          console.log('Initiating purchase verification flow', {
-            id,
-            userId,
-            stripeSessionId,
-            isPostPurchase
-          });
           setVerificationAttempted(true);
           
-          const verificationId = id || storedResultId;
-          
-          if (!verificationId) {
-            console.error('No result ID available for verification');
-            toast({
-              title: "Verification Error",
-              description: "Missing result ID. Please try accessing your report from the dashboard.",
-              variant: "destructive",
-            });
-            setLoading(false);
-            return;
-          }
-          
-          // Maximum retries check - if we've exceeded the limit, try one last direct update
-          // and then redirect to prevent infinite loading
-          if (verificationAttempts >= maxVerificationRetries) {
-            console.log('Maximum verification retries exceeded, attempting final direct update');
-            const finalResult = await attemptDirectUpdate({
-              stripeSessionId: stripeSessionId || '',
-              isPostPurchase,
-              verificationId,
-              userId
-            });
-            
-            if (finalResult) {
-              console.log('Final direct update succeeded!');
-              setResult(finalResult);
-              setLoading(false);
-              stopVerification();
-              return;
-            } else {
-              console.log('Final direct update failed, redirecting to dashboard');
-              // Store a flag in localStorage to show a notification on dashboard
-              localStorage.setItem('purchaseVerificationFailed', 'true');
-              localStorage.setItem('failedVerificationId', verificationId);
-              
-              toast({
-                title: "Verification taking too long",
-                description: "Redirecting you to the dashboard where you can access your reports.",
-                variant: "default",
-              });
-              
-              // Short delay before redirecting
-              setTimeout(() => {
-                window.location.href = '/dashboard';
-              }, 2000);
-              
-              return;
-            }
-          }
-          
-          // First attempt at verifying purchase
-          let success = await verifyPurchase(verificationId);
-          
-          // If first attempt fails and this is directly after purchase, try again
-          if (!success && isPostPurchase) {
-            console.log('First attempt failed, trying again after short delay');
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            success = await verifyPurchase(verificationId);
-          }
-          
-          // If verification failed, use fallback methods
-          if (!success) {
-            handleVerificationFailure(verificationAttempts);
-            
-            console.log('Attempting direct database update as fallback');
-            const finalResult = await attemptDirectUpdate({
-              stripeSessionId: stripeSessionId || '',
-              isPostPurchase,
-              verificationId,
-              userId
-            });
-            
-            if (finalResult) {
-              console.log('Direct database update successful!');
-              setResult(finalResult);
-              setLoading(false);
-              stopVerification();
-              return;
-            }
-          }
+          // Execute the verification flow
+          await executeVerificationFlow(id, {
+            userId,
+            stripeSessionId,
+            isPostPurchase,
+            storedResultId,
+            maxRetries: maxVerificationRetries
+          });
         }
 
         // If we still don't have a result, try to fetch it directly
@@ -209,7 +93,6 @@ export const useAssessmentResult = (id?: string) => {
       } catch (error: any) {
         console.error('Error in assessment result:', error);
         setLoading(false);
-        stopVerification();
       }
     };
 
