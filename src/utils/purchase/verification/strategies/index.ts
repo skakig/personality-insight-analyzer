@@ -1,4 +1,8 @@
 
+/**
+ * Export all verification strategies
+ */
+
 export { verifyWithUserId } from './userVerification';
 export { verifyWithGuestToken, verifyWithGuestEmail } from './guestVerification';
 export { verifyWithStripeSession } from './stripeVerification';

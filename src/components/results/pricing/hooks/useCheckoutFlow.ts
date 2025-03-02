@@ -30,25 +30,84 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null, final
         setEmail(storedEmail);
       }
     }
-  }, [session]);
+    
+    // Check for success parameter in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const success = urlParams.get('success');
+    
+    if (success === 'true' && quizResultId) {
+      console.log('[DEBUG] Detected success=true in URL, checking purchase status for:', quizResultId);
+      
+      // Attempt to directly fetch and check the result
+      const checkPurchaseStatus = async () => {
+        try {
+          const { data: result } = await supabase
+            .from('quiz_results')
+            .select('*')
+            .eq('id', quizResultId)
+            .maybeSingle();
+            
+          console.log('[DEBUG] Current result status:', {
+            id: result?.id,
+            is_purchased: result?.is_purchased,
+            purchase_status: result?.purchase_status,
+            hasSessionId: !!result?.stripe_session_id
+          });
+          
+          // If not purchased, try to update it
+          if (result && !result.is_purchased) {
+            const sessionId = urlParams.get('session_id') || localStorage.getItem('stripeSessionId');
+            
+            if (sessionId) {
+              console.log('[DEBUG] Updating purchase with session ID:', sessionId);
+              
+              const { error: updateError } = await supabase
+                .from('quiz_results')
+                .update({
+                  is_purchased: true,
+                  is_detailed: true,
+                  purchase_status: 'completed',
+                  purchase_completed_at: new Date().toISOString(),
+                  access_method: 'purchase'
+                })
+                .eq('id', quizResultId);
+                
+              if (updateError) {
+                console.error('[ERROR] Error updating purchase status:', updateError);
+              } else {
+                console.log('[DEBUG] Successfully updated purchase status');
+                window.location.reload(); // Refresh to show updated UI
+              }
+            }
+          }
+        } catch (error) {
+          console.error('[ERROR] Error checking purchase status:', error);
+        }
+      };
+      
+      checkPurchaseStatus();
+    }
+  }, [session, quizResultId]);
 
   /**
    * Main function to handle detailed results checkout
    */
   const handleGetDetailedResults = async () => {
     try {
+      console.log('[DEBUG] Starting checkout process');
+      
       // For logged in users, process directly
       if (session?.user) {
-        console.log('Processing as logged in user with ID:', session.user.id);
+        console.log('[DEBUG] Processing as logged in user with ID:', session.user.id);
         await handleCheckout();
         return;
       }
       
       // For guest users, open email dialog
-      console.log('Processing as guest user, opening email dialog');
+      console.log('[DEBUG] Processing as guest user, opening email dialog');
       setIsEmailDialogOpen(true);
     } catch (error) {
-      console.error('Checkout error:', error);
+      console.error('[ERROR] Checkout error:', error);
       toast({
         title: "Error",
         description: "Something went wrong. Please try again.",
@@ -72,7 +131,7 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null, final
       return;
     }
     
-    console.log('Processing guest checkout with email:', email);
+    console.log('[DEBUG] Processing guest checkout with email:', email);
     await handleGuestCheckout();
   };
 

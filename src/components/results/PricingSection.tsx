@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { storePurchaseData } from "@/utils/purchaseStateUtils";
 import { CouponInput } from "@/components/common/CouponInput";
+import { verifyPurchaseWithRetry } from "@/utils/purchaseUtils";
 
 interface PricingSectionProps {
   session: any;
@@ -38,7 +39,7 @@ export const PricingSection = ({ session, quizResultId }: PricingSectionProps) =
 
   // Apply coupon discount
   const handleCouponApplied = (discount: number, code: string, discountType: string) => {
-    console.log('Coupon applied:', { discount, code, discountType });
+    console.log('[DEBUG] Coupon applied:', { discount, code, discountType });
     setAppliedDiscount({ amount: discount, code, type: discountType });
     
     // Show a success notification
@@ -50,7 +51,7 @@ export const PricingSection = ({ session, quizResultId }: PricingSectionProps) =
 
   // Remove coupon
   const handleCouponRemoved = () => {
-    console.log('Coupon removed');
+    console.log('[DEBUG] Coupon removed');
     setAppliedDiscount(null);
     
     toast({
@@ -63,8 +64,10 @@ export const PricingSection = ({ session, quizResultId }: PricingSectionProps) =
   useEffect(() => {
     const verifyAuthState = async () => {
       try {
+        console.log('[DEBUG] PricingSection mounted, checking state');
+        
         const { data: { session: currentSession } } = await supabase.auth.getSession();
-        console.log('PricingSection authentication check:', {
+        console.log('[DEBUG] PricingSection authentication check:', {
           hasSession: !!session,
           hasCurrentSession: !!currentSession,
           hasQuizResultId: !!quizResultId,
@@ -75,68 +78,82 @@ export const PricingSection = ({ session, quizResultId }: PricingSectionProps) =
         // Check if this is a return from Stripe with success=true
         const urlParams = new URLSearchParams(window.location.search);
         const success = urlParams.get('success') === 'true';
+        const sessionId = urlParams.get('session_id');
         
         if (success && quizResultId) {
-          toast({
-            title: "Purchase Successful!",
-            description: "Your detailed report is now available."
-          });
+          console.log('[DEBUG] Detected successful return from Stripe checkout');
           
-          // Handle successful purchase return
-          console.log('Detected successful return from Stripe checkout');
+          // Store session ID from URL if present
+          if (sessionId) {
+            localStorage.setItem('stripeSessionId', sessionId);
+          }
           
-          // Let's update the purchase status directly
-          try {
-            const sessionId = localStorage.getItem('stripeSessionId');
+          // Try to verify the purchase with retry logic
+          const verificationResult = await verifyPurchaseWithRetry(quizResultId);
+          
+          if (verificationResult) {
+            console.log('[DEBUG] Purchase verification successful');
             
-            if (sessionId) {
-              await supabase
-                .from('quiz_results')
-                .update({ 
-                  is_purchased: true,
-                  is_detailed: true,
-                  purchase_status: 'completed',
-                  purchase_completed_at: new Date().toISOString(),
-                  access_method: 'purchase'
-                })
-                .eq('id', quizResultId);
-              
-              console.log('Successfully updated purchase status');
-              
-              // Send a welcome email via edge function
-              try {
-                const userEmail = currentSession?.user?.email || localStorage.getItem('guestEmail');
-                if (userEmail) {
-                  await supabase.functions.invoke('send-results', {
-                    body: { 
-                      email: userEmail,
-                      resultId: quizResultId
-                    }
-                  });
-                  console.log('Sent result email to:', userEmail);
-                }
-              } catch (emailError) {
-                console.error('Error sending welcome email:', emailError);
-              }
-              
-              // Subscribe to newsletter if user opted in
-              const optedIn = localStorage.getItem('newsletterOptIn') === 'true';
-              if (optedIn) {
-                const userEmail = currentSession?.user?.email || localStorage.getItem('guestEmail');
-                if (userEmail) {
-                  try {
-                    await supabase
-                      .from('newsletter_subscribers')
-                      .upsert({ email: userEmail }, { onConflict: 'email' });
-                    console.log('Added email to newsletter:', userEmail);
-                  } catch (newsletterError) {
-                    console.error('Error adding to newsletter:', newsletterError);
+            toast({
+              title: "Purchase Successful!",
+              description: "Your detailed report is now available."
+            });
+            
+            // Try to send results email
+            try {
+              const userEmail = currentSession?.user?.email || localStorage.getItem('guestEmail');
+              if (userEmail) {
+                await supabase.functions.invoke('send-results', {
+                  body: { 
+                    email: userEmail,
+                    resultId: quizResultId
                   }
-                }
+                });
+                console.log('[DEBUG] Sent result email to:', userEmail);
               }
+            } catch (emailError) {
+              console.error('[ERROR] Error sending results email:', emailError);
             }
-          } catch (updateError) {
-            console.error('Error updating purchase status:', updateError);
+          } else {
+            console.log('[DEBUG] Purchase verification failed, trying direct update');
+            
+            // Let's update the purchase status directly as a fallback
+            try {
+              const sessionId = localStorage.getItem('stripeSessionId');
+              
+              if (sessionId) {
+                console.log('[DEBUG] Attempting direct update with session ID:', sessionId);
+                
+                await supabase
+                  .from('quiz_results')
+                  .update({ 
+                    is_purchased: true,
+                    is_detailed: true,
+                    purchase_status: 'completed',
+                    purchase_completed_at: new Date().toISOString(),
+                    access_method: 'purchase'
+                  })
+                  .eq('id', quizResultId);
+                
+                console.log('[DEBUG] Successfully updated purchase status');
+                
+                toast({
+                  title: "Purchase Successful!",
+                  description: "Your detailed report is now available."
+                });
+                
+                // Force page refresh to show updated UI
+                window.location.reload();
+              }
+            } catch (updateError) {
+              console.error('[ERROR] Error updating purchase status:', updateError);
+              
+              toast({
+                title: "Purchase Verification Issue",
+                description: "Please refresh the page to see your report.",
+                variant: "destructive"
+              });
+            }
           }
         } else if (urlParams.get('success') === 'false') {
           toast({
@@ -146,7 +163,7 @@ export const PricingSection = ({ session, quizResultId }: PricingSectionProps) =
           });
         }
       } catch (error) {
-        console.error('Error checking authentication state:', error);
+        console.error('[ERROR] Error checking authentication state:', error);
       }
     };
     

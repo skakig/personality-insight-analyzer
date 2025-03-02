@@ -17,58 +17,131 @@ import { QuizResult } from "@/types/quiz";
  * Execute verification with retry logic
  */
 export const executeVerification = async (resultId: string, maxRetries = 5, currentRetry = 0): Promise<QuizResult | null> => {
-  console.log(`Attempting verification for result ${resultId} (attempt ${currentRetry + 1}/${maxRetries})`);
+  console.log(`[DEBUG] Attempting verification for result ${resultId} (attempt ${currentRetry + 1}/${maxRetries})`);
   
   if (!resultId) {
-    console.error('No result ID provided for verification');
+    console.error('[ERROR] No result ID provided for verification');
     return null;
   }
   
   try {
+    // Log URL parameters to check for success=true
+    const urlParams = new URLSearchParams(window.location.search);
+    const success = urlParams.get('success');
+    const sessionId = urlParams.get('session_id');
+    
+    console.log(`[DEBUG] URL parameters: success=${success}, session_id=${sessionId}`);
+    
     // Get current stored data
     const storedData = getStoredPurchaseData();
+    console.log('[DEBUG] Stored purchase data:', storedData);
+    
+    // First, try a fast verification if returning from Stripe with success=true
+    if (success === 'true') {
+      console.log('[DEBUG] Success=true detected in URL, attempting fast checkout verification');
+      
+      // Directly fetch the result to check current state
+      const currentResult = await fetchLatestResult(resultId);
+      if (currentResult?.is_purchased) {
+        console.log('[DEBUG] Result already marked as purchased, skipping verification');
+        return currentResult;
+      }
+      
+      // Add session ID from URL if available
+      if (sessionId && !storedData.stripeSessionId) {
+        console.log(`[DEBUG] Using session ID from URL: ${sessionId}`);
+        localStorage.setItem('stripeSessionId', sessionId);
+        
+        // Update stored data with new session ID
+        storedData.stripeSessionId = sessionId;
+      }
+    }
     
     // Step 1: Try to verify with user ID if available
     if (storedData.checkoutUserId) {
+      console.log(`[DEBUG] Attempting verification with user ID: ${storedData.checkoutUserId}`);
       const userResult = await verifyWithUserId(resultId, storedData.checkoutUserId);
-      if (userResult) return userResult;
+      if (userResult) {
+        console.log('[DEBUG] Verification with user ID successful');
+        return userResult;
+      } else {
+        console.log('[DEBUG] Verification with user ID failed');
+      }
     }
     
     // Step 2: Try to verify with guest token if available
     if (storedData.guestAccessToken) {
+      console.log(`[DEBUG] Attempting verification with guest token: ${storedData.guestAccessToken}`);
       const guestTokenResult = await verifyWithGuestToken(resultId, storedData.guestAccessToken);
-      if (guestTokenResult) return guestTokenResult;
+      if (guestTokenResult) {
+        console.log('[DEBUG] Verification with guest token successful');
+        return guestTokenResult;
+      } else {
+        console.log('[DEBUG] Verification with guest token failed');
+      }
     }
     
     // Step 3: Try to verify with guest email if available
     if (storedData.guestEmail) {
+      console.log(`[DEBUG] Attempting verification with guest email: ${storedData.guestEmail}`);
       const guestEmailResult = await verifyWithGuestEmail(resultId, storedData.guestEmail);
-      if (guestEmailResult) return guestEmailResult;
+      if (guestEmailResult) {
+        console.log('[DEBUG] Verification with guest email successful');
+        return guestEmailResult;
+      } else {
+        console.log('[DEBUG] Verification with guest email failed');
+      }
     }
     
     // Step 4: Try to verify with stripe session if available
     if (storedData.stripeSessionId) {
+      console.log(`[DEBUG] Attempting verification with Stripe session ID: ${storedData.stripeSessionId}`);
       const stripeResult = await verifyWithStripeSession(resultId, storedData.stripeSessionId);
-      if (stripeResult) return stripeResult;
+      if (stripeResult) {
+        console.log('[DEBUG] Verification with Stripe session successful');
+        return stripeResult;
+      } else {
+        console.log('[DEBUG] Verification with Stripe session failed');
+      }
+    }
+    
+    // Check if direct verification with session ID from URL is possible
+    if (sessionId && sessionId !== storedData.stripeSessionId) {
+      console.log(`[DEBUG] Attempting verification with session ID from URL: ${sessionId}`);
+      const urlSessionResult = await verifyWithStripeSession(resultId, sessionId);
+      if (urlSessionResult) {
+        console.log('[DEBUG] Verification with URL session ID successful');
+        return urlSessionResult;
+      } else {
+        console.log('[DEBUG] Verification with URL session ID failed');
+      }
     }
     
     // Step 5: If we've tried max times, force the update as a last resort
     if (currentRetry >= maxRetries - 1) {
-      console.log('Maximum verification attempts reached, forcing update');
-      return await forceUpdatePurchaseStatus(resultId);
+      console.log('[DEBUG] Maximum verification attempts reached, forcing update');
+      const forceResult = await forceUpdatePurchaseStatus(resultId);
+      if (forceResult) {
+        console.log('[DEBUG] Force update successful');
+      } else {
+        console.log('[DEBUG] Force update failed');
+      }
+      return forceResult;
     }
     
     // If we got here, retry with backoff
     const delay = Math.pow(2, currentRetry) * 1000; // Exponential backoff
+    console.log(`[DEBUG] No verification methods succeeded, retrying in ${delay}ms`);
     await new Promise(resolve => setTimeout(resolve, delay));
     
     return executeVerification(resultId, maxRetries, currentRetry + 1);
   } catch (error) {
-    console.error('Error during verification process:', error);
+    console.error('[ERROR] Error during verification process:', error);
     
     // If failed but have retries left, try again
     if (currentRetry < maxRetries - 1) {
       const delay = Math.pow(2, currentRetry) * 1000;
+      console.log(`[DEBUG] Verification error, retrying in ${delay}ms`);
       await new Promise(resolve => setTimeout(resolve, delay));
       return executeVerification(resultId, maxRetries, currentRetry + 1);
     }
@@ -84,6 +157,7 @@ export const fetchLatestResult = async (resultId: string): Promise<QuizResult | 
   if (!resultId) return null;
   
   try {
+    console.log(`[DEBUG] Fetching latest result for ID: ${resultId}`);
     const { data, error } = await supabase
       .from('quiz_results')
       .select('*')
@@ -91,11 +165,23 @@ export const fetchLatestResult = async (resultId: string): Promise<QuizResult | 
       .maybeSingle();
       
     if (error) {
-      console.error('Error fetching latest result:', error);
+      console.error('[ERROR] Error fetching latest result:', error);
       return null;
     }
     
-    if (!data) return null;
+    if (!data) {
+      console.log('[DEBUG] No data found for result ID');
+      return null;
+    }
+    
+    console.log('[DEBUG] Latest result data:', {
+      id: data.id,
+      is_purchased: data.is_purchased,
+      purchase_status: data.purchase_status,
+      stripe_session_id: data.stripe_session_id && data.stripe_session_id.substring(0, 10) + '...',
+      guest_email: data.guest_email ? 'present' : 'null',
+      user_id: data.user_id ? 'present' : 'null'
+    });
     
     // Cast the data to the QuizResult type with proper type handling
     const result: QuizResult = {
@@ -129,7 +215,7 @@ export const fetchLatestResult = async (resultId: string): Promise<QuizResult | 
     
     return result;
   } catch (error) {
-    console.error('Error in fetchLatestResult:', error);
+    console.error('[ERROR] Error in fetchLatestResult:', error);
     return null;
   }
 };
