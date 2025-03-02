@@ -30,6 +30,14 @@ export const AffiliateSection = () => {
         
       if (affiliatesError) throw affiliatesError;
       
+      // Cast status to the correct type for Affiliate
+      const typedAffiliates = affiliatesData?.map(affiliate => ({
+        ...affiliate,
+        status: affiliate.status as "active" | "inactive" | "pending"
+      })) || [];
+      
+      setAffiliates(typedAffiliates);
+      
       // Fetch commission tiers
       const { data: tiersData, error: tiersError } = await supabase
         .from('affiliate_commission_tiers')
@@ -38,7 +46,6 @@ export const AffiliateSection = () => {
         
       if (tiersError) throw tiersError;
       
-      setAffiliates(affiliatesData || []);
       setCommissionTiers(tiersData || []);
     } catch (error) {
       console.error("Error fetching affiliate data:", error);

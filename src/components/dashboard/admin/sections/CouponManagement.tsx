@@ -60,27 +60,27 @@ export function CouponManagement() {
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <CouponStats 
-          title="Active Coupons" 
-          value={activeCoupons.toString()} 
-          description="Currently active coupon codes"
+          statTitle="Active Coupons" 
+          statValue={activeCoupons.toString()} 
+          statDescription="Currently active coupon codes"
           trend={activeCoupons > totalCoupons / 2 ? "up" : "neutral"}
         />
         <CouponStats 
-          title="Total Coupons" 
-          value={totalCoupons.toString()} 
-          description="All coupon codes created"
+          statTitle="Total Coupons" 
+          statValue={totalCoupons.toString()} 
+          statDescription="All coupon codes created"
           trend="neutral"
         />
         <CouponStats 
-          title="Expired Coupons" 
-          value={expiredCoupons.toString()} 
-          description="Coupons past expiration date"
+          statTitle="Expired Coupons" 
+          statValue={expiredCoupons.toString()} 
+          statDescription="Coupons past expiration date"
           trend={expiredCoupons > totalCoupons / 3 ? "down" : "neutral"}
         />
         <CouponStats 
-          title="Redemptions" 
-          value={totalUsed.toString()} 
-          description="Total coupon redemptions"
+          statTitle="Redemptions" 
+          statValue={totalUsed.toString()} 
+          statDescription="Total coupon redemptions"
           trend={totalUsed > 0 ? "up" : "neutral"}
         />
       </div>
