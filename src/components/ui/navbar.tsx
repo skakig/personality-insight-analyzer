@@ -81,7 +81,7 @@ export function Navbar() {
           <div className="fixed inset-0 z-50"></div>
           <div className="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-white px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-gray-900/10">
             <div className="flex items-center justify-between">
-              <Link to="/" className="-m-1.5 p-1.5 text-xl font-bold">
+              <Link to="/" className="-m-1.5 p-1.5 text-xl font-bold" onClick={toggleMobileMenu}>
                 The Moral Hierarchy
               </Link>
               <button
