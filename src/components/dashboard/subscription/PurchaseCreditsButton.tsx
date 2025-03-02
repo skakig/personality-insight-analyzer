@@ -17,7 +17,12 @@ export const PurchaseCreditsButton = () => {
         body: { 
           mode: 'payment',
           productType: 'credits',
-          amount: 5 // Default to 5 credits
+          amount: 5, // Default to 5 credits
+          metadata: {
+            productType: 'credits',
+            amount: 5,
+            returnUrl: `${window.location.origin}/dashboard?success=true`
+          }
         }
       });
 
@@ -27,7 +32,12 @@ export const PurchaseCreditsButton = () => {
       }
       
       if (data?.url) {
-        console.log('Redirecting to credits checkout URL');
+        console.log('Redirecting to credits checkout URL:', data.url);
+        
+        // Store the session ID for verification after return
+        if (data.sessionId) {
+          localStorage.setItem('creditsPurchaseSessionId', data.sessionId);
+        }
         
         // Add a small delay to ensure any state updates are processed
         setTimeout(() => {

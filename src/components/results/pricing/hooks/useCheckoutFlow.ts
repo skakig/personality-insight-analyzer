@@ -1,74 +1,80 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { toast } from "@/hooks/use-toast";
 import { useLoggedInCheckout } from "./useLoggedInCheckout";
 import { useGuestCheckout } from "./useGuestCheckout";
-import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
-// Simple email validation function
-const validateEmail = (email: string): boolean => {
-  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return re.test(email);
-};
-
-export const useCheckoutFlow = (
-  session: any,
-  quizResultId: string | null,
-  priceAmount: number,
-  couponCode?: string
-) => {
+export const useCheckoutFlow = (session: any, quizResultId: string | null, finalPrice: number, couponCode?: string) => {
   const [email, setEmail] = useState("");
   const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
   
-  const { 
-    loading: loggedInLoading, 
-    handleCheckout: handleLoggedInCheckout 
-  } = useLoggedInCheckout();
-  
-  const { 
-    loading: guestLoading, 
-    handleCheckout: handleGuestCheckout 
-  } = useGuestCheckout();
+  // Initialize checkout methods
+  const { loading: loggedInLoading, handleCheckout: handleLoggedInCheckout } = useLoggedInCheckout();
+  const { loading: guestLoading, handleCheckout: handleGuestCheckout } = useGuestCheckout();
   
   const loading = loggedInLoading || guestLoading;
+  
+  // Set initial email from session if available
+  useEffect(() => {
+    if (session?.user?.email) {
+      setEmail(session.user.email);
+    } else {
+      const storedEmail = localStorage.getItem('guestEmail');
+      if (storedEmail) {
+        setEmail(storedEmail);
+      }
+    }
+  }, [session]);
 
-  // Handle click on "Get Detailed Results" button
+  /**
+   * Main function to handle detailed results checkout
+   */
   const handleGetDetailedResults = async () => {
-    if (!quizResultId) {
+    try {
+      // For logged in users, process directly
+      if (session?.user) {
+        console.log('Processing as logged in user with ID:', session.user.id);
+        
+        const success = await handleLoggedInCheckout({
+          quizResultId,
+          userId: session.user.id,
+          email: session.user.email,
+          priceAmount: finalPrice,
+          couponCode
+        });
+        
+        if (!success) {
+          console.error('Logged-in checkout failed');
+          toast({
+            title: "Checkout Error",
+            description: "Unable to process your purchase. Please try again.",
+            variant: "destructive",
+          });
+        }
+        
+        return;
+      }
+      
+      // For guest users, open email dialog
+      console.log('Processing as guest user, opening email dialog');
+      setIsEmailDialogOpen(true);
+    } catch (error) {
+      console.error('Checkout error:', error);
       toast({
         title: "Error",
-        description: "No assessment result found. Please try taking the assessment again.",
+        description: "Something went wrong. Please try again.",
         variant: "destructive",
       });
-      return;
-    }
-    
-    console.log('Initiating checkout flow:', {
-      isAuthenticated: !!session?.user,
-      quizResultId,
-      priceAmount,
-      hasCoupon: !!couponCode
-    });
-    
-    // If user is logged in, proceed with logged-in checkout
-    if (session?.user) {
-      console.log('Proceeding with logged-in checkout');
-      await handleLoggedInCheckout({
-        quizResultId,
-        userId: session.user.id,
-        email: session.user.email,
-        priceAmount,
-        couponCode
-      });
-    } else {
-      // Otherwise, show email dialog for guest checkout
-      console.log('Opening email dialog for guest checkout');
-      setIsEmailDialogOpen(true);
     }
   };
 
-  // Handle guest email submission
-  const handleGuestSubmit = async () => {
-    if (!validateEmail(email)) {
+  /**
+   * Handle guest user email submission
+   */
+  const handleGuestSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !email.includes('@')) {
       toast({
         title: "Invalid Email",
         description: "Please enter a valid email address.",
@@ -77,32 +83,25 @@ export const useCheckoutFlow = (
       return;
     }
     
-    if (!quizResultId) {
-      toast({
-        title: "Error",
-        description: "No assessment result found. Please try taking the assessment again.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    console.log('Proceeding with guest checkout:', {
-      email,
-      quizResultId,
-      priceAmount,
-      hasCoupon: !!couponCode
-    });
+    console.log('Processing guest checkout with email:', email);
     
     const success = await handleGuestCheckout({
       quizResultId,
       guestEmail: email,
-      priceAmount,
+      priceAmount: finalPrice,
       couponCode
     });
     
-    if (success) {
-      setIsEmailDialogOpen(false);
+    if (!success) {
+      console.error('Guest checkout failed');
+      toast({
+        title: "Checkout Error",
+        description: "Unable to process your purchase. Please try again.",
+        variant: "destructive",
+      });
     }
+    
+    // Keep dialog open until redirect happens
   };
 
   return {

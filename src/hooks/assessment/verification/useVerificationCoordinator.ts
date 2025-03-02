@@ -42,7 +42,8 @@ export const useVerificationCoordinator = () => {
       id,
       userId,
       stripeSessionId,
-      isPostPurchase
+      isPostPurchase,
+      verificationAttempts
     });
     
     const verificationId = id || storedResultId;
@@ -60,76 +61,99 @@ export const useVerificationCoordinator = () => {
     
     // First, try to handle direct return from Stripe
     if (isPostPurchase || stripeSessionId) {
-      const stripeReturnResult = await handleStripeReturn(verificationId, {
-        userId, 
-        sessionId: stripeSessionId
-      });
-      
-      if (stripeReturnResult) {
-        console.log('Successfully processed Stripe return directly');
-        setResult(stripeReturnResult);
-        setLoading(false);
-        return stripeReturnResult;
+      try {
+        const stripeReturnResult = await handleStripeReturn(verificationId, {
+          userId, 
+          sessionId: stripeSessionId
+        });
+        
+        if (stripeReturnResult) {
+          console.log('Successfully processed Stripe return directly');
+          setResult(stripeReturnResult);
+          setLoading(false);
+          return stripeReturnResult;
+        }
+      } catch (error) {
+        console.error('Error handling Stripe return:', error);
+        // Continue to next strategy
       }
     }
     
-    // Last resort - attempt direct update if all else fails
-    if (verificationAttempts >= 1 && userId) {
-      console.log('Attempting direct database update as fallback for logged-in user');
-      
-      const directResult = await attemptDirectUpdate(
-        verificationId, 
-        userId,
-        stripeSessionId
-      );
-      
-      if (directResult) {
-        setResult(directResult);
-        setLoading(false);
-        stopVerification();
-        return directResult;
+    // For logged-in users, attempt direct update
+    if (userId) {
+      try {
+        console.log('Attempting direct database update for logged-in user');
+        
+        const directResult = await attemptDirectUpdate(
+          verificationId, 
+          userId,
+          stripeSessionId
+        );
+        
+        if (directResult) {
+          setResult(directResult);
+          setLoading(false);
+          stopVerification();
+          return directResult;
+        }
+      } catch (error) {
+        console.error('Error during direct update:', error);
+        // Continue to next strategy
       }
     }
     
     // Maximum retries check
     if (verificationAttempts >= maxRetries) {
-      return await handleMaxRetriesExceeded(verificationId, {
-        stripeSessionId,
-        userId
-      });
+      try {
+        return await handleMaxRetriesExceeded(verificationId, {
+          stripeSessionId,
+          userId
+        });
+      } catch (error) {
+        console.error('Error handling max retries:', error);
+        // Continue to next strategy
+      }
     }
     
     // Standard verification attempt
-    let success = await verifyPurchase(verificationId);
-    
-    // If first attempt fails and this is directly after purchase, try again
-    if (!success && isPostPurchase) {
-      console.log('First attempt failed, trying again after short delay');
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      success = await verifyPurchase(verificationId);
-    }
-    
-    // If verification failed, use fallback methods
-    if (!success) {
-      toast({
-        title: "Verification in progress",
-        description: "We're still processing your purchase. Please wait a moment...",
-      });
+    try {
+      let success = await verifyPurchase(verificationId);
       
-      console.log('Attempting direct database update as fallback');
-      const finalResult = await attemptDirectUpdate(
-        verificationId,
-        userId,
-        stripeSessionId
-      );
-      
-      if (finalResult) {
-        console.log('Direct database update successful!');
-        setResult(finalResult);
-        setLoading(false);
-        stopVerification();
-        return finalResult;
+      // If first attempt fails and this is directly after purchase, try again
+      if (!success && isPostPurchase) {
+        console.log('First attempt failed, trying again after short delay');
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        success = await verifyPurchase(verificationId);
       }
+      
+      // If verification failed, use fallback methods
+      if (!success) {
+        toast({
+          title: "Verification in progress",
+          description: "We're still processing your purchase. Please wait a moment...",
+        });
+        
+        try {
+          console.log('Attempting final direct database update as fallback');
+          const finalResult = await attemptDirectUpdate(
+            verificationId,
+            userId,
+            stripeSessionId
+          );
+          
+          if (finalResult) {
+            console.log('Final direct database update successful!');
+            setResult(finalResult);
+            setLoading(false);
+            stopVerification();
+            return finalResult;
+          }
+        } catch (finalError) {
+          console.error('Final fallback attempt failed:', finalError);
+        }
+      }
+    } catch (error) {
+      console.error('Error during verification process:', error);
     }
     
     return null;

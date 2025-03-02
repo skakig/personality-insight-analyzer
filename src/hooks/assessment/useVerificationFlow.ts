@@ -50,20 +50,32 @@ export const useVerificationFlow = (
       maxRetries: number;
     }
   ) => {
-    return executeVerificationFlow(
-      id,
-      options,
-      {
-        verificationAttempts,
-        startVerification,
-        stopVerification
-      },
-      {
-        setResult,
-        setLoading,
-        verifyPurchase
-      }
-    );
+    try {
+      return await executeVerificationFlow(
+        id,
+        options,
+        {
+          verificationAttempts,
+          startVerification,
+          stopVerification
+        },
+        {
+          setResult,
+          setLoading,
+          verifyPurchase
+        }
+      );
+    } catch (error) {
+      console.error('Verification flow error:', error);
+      toast({
+        title: "Verification Error",
+        description: "We encountered an error during verification. Please try again or contact support.",
+        variant: "destructive",
+      });
+      stopVerification();
+      setLoading(false);
+      return null;
+    }
   };
 
   return {
