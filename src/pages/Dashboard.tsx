@@ -60,9 +60,10 @@ const Dashboard = ({ session }: DashboardProps) => {
         const typedAssessments: QuizResult[] = assessments ? assessments.map(assessment => ({
           ...assessment,
           category_scores: assessment.category_scores as Record<string, number> | null,
-          purchase_status: assessment.purchase_status,
-          access_method: assessment.access_method,
-          primary_level: assessment.primary_level
+          purchase_status: assessment.purchase_status as string,
+          access_method: assessment.access_method as string,
+          primary_level: assessment.primary_level,
+          updated_at: assessment.updated_at || assessment.created_at
         })) : [];
         
         setPreviousAssessments(typedAssessments);

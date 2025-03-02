@@ -31,7 +31,7 @@ export interface Affiliate {
   total_sales: number;
   earnings: number;
   conversions: number;
-  status: 'active' | 'inactive' | 'pending';
+  status: string;
   created_at: string;
   updated_at: string;
 }
@@ -43,6 +43,8 @@ export interface CommissionTier {
   commission_rate: number;
   created_at: string;
   updated_at: string;
+  is_default: boolean;
+  tier_name?: string;
 }
 
 // Alias for backwards compatibility
