@@ -64,6 +64,7 @@ const Index = ({ session }: IndexProps) => {
           category={currentQuestion.category}
           subcategory={currentQuestion.subcategory}
           explanation={currentQuestion.explanation}
+          level={currentQuestion.level}
           onAnswer={(value) => handleAnswer(currentQuestion.id, value)}
           currentProgress={progress}
         />

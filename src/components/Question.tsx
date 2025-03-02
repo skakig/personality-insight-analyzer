@@ -14,6 +14,7 @@ interface QuestionProps {
   category?: string;
   subcategory?: string;
   explanation?: string;
+  level?: number;
 }
 
 export const Question = ({ 
@@ -22,11 +23,12 @@ export const Question = ({
   currentProgress,
   category,
   subcategory,
-  explanation 
+  explanation,
+  level
 }: QuestionProps) => {
   useEffect(() => {
-    console.log("Question component mounted with:", { question, currentProgress });
-  }, [question, currentProgress]);
+    console.log("Question component mounted with:", { question, currentProgress, level });
+  }, [question, currentProgress, level]);
 
   if (!question) {
     return (
@@ -51,9 +53,7 @@ export const Question = ({
             
             <AnswerOptions onAnswer={onAnswer} />
 
-            {explanation && (
-              <QuestionExplanation explanation={explanation} />
-            )}
+            <QuestionExplanation explanation={explanation} level={level} />
           </CardContent>
         </Card>
       </div>
