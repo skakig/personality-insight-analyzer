@@ -14,11 +14,12 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { hasAnyPurchasedReport } from "@/utils/purchaseUtils";
 import { storePurchaseData } from "@/utils/purchaseStateUtils";
+import { QuizResult } from "@/types/quiz";
 
 interface DashboardContentProps {
   subscription: any;
   error: string | null;
-  previousAssessments: any[];
+  previousAssessments: QuizResult[];
   session: Session | null;
 }
 

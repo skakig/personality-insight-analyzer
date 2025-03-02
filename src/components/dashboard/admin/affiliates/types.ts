@@ -5,7 +5,7 @@ export interface Affiliate {
   email: string;
   code: string;
   commission_rate: number;
-  status: "active" | "inactive" | "pending";
+  status: "active" | "inactive" | "pending" | string;
   total_sales: number;
   earnings: number;
   created_at: string;

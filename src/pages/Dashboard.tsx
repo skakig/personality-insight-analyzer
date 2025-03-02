@@ -56,7 +56,16 @@ const Dashboard = ({ session }: DashboardProps) => {
         console.error('Error fetching assessments:', assessmentsError);
         setError('Failed to load assessment history');
       } else {
-        setPreviousAssessments(assessments || []);
+        // Convert the raw data to QuizResult type
+        const typedAssessments: QuizResult[] = assessments ? assessments.map(assessment => ({
+          ...assessment,
+          // Ensure these properties match the QuizResult interface
+          purchase_status: assessment.purchase_status,
+          access_method: assessment.access_method,
+          primary_level: assessment.primary_level
+        })) : [];
+        
+        setPreviousAssessments(typedAssessments);
       }
     } catch (err: any) {
       console.error('Error in fetchData:', {

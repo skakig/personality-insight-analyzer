@@ -29,8 +29,8 @@ export interface QuizResult {
   personality_type: string;
   is_purchased: boolean;
   is_detailed: boolean;
-  purchase_status?: 'pending' | 'completed' | null;
-  access_method?: 'purchase' | 'free' | 'credit' | 'subscription' | 'forced_update' | null;
+  purchase_status?: 'pending' | 'completed' | string | null;
+  access_method?: 'purchase' | 'free' | 'credit' | 'subscription' | 'forced_update' | string | null;
   stripe_session_id?: string | null;
   guest_email?: string | null;
   guest_access_token?: string | null;
@@ -49,7 +49,6 @@ export interface QuizResult {
   primary_level?: string | number | null;
 }
 
-// Now, let's add the affiliate and commission tier types to address those errors
 export interface Affiliate {
   id: string;
   name: string;
@@ -75,7 +74,6 @@ export interface CommissionTier {
   is_default: boolean;
 }
 
-// Add a type definition for UseAssessmentResultProps
 export interface UseAssessmentResultProps {
   id?: string;
   sessionId?: string;
