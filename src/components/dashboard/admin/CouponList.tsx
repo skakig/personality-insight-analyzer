@@ -5,14 +5,8 @@ import { Loader2, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { format, parseISO } from "date-fns";
-import { Coupon } from "./types";
+import { Coupon, CouponListProps } from "./types";
 import { Badge } from "@/components/ui/badge";
-
-interface CouponListProps {
-  coupons: Coupon[];
-  onCouponUpdated: () => void;
-  loading: boolean;
-}
 
 export const CouponList = ({ coupons, onCouponUpdated, loading }: CouponListProps) => {
   const toggleCouponStatus = async (couponId: string, currentStatus: boolean) => {

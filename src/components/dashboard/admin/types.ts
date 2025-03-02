@@ -10,7 +10,9 @@ export interface Coupon {
   expires_at: string | null;
   created_at: string;
   applicable_products: string[];
-  affiliate_id?: string;
+  affiliate_id?: string | null;
+  created_by?: string | null;
+  updated_at?: string;
 }
 
 export interface AdminSectionProps {
@@ -37,4 +39,10 @@ export interface AffiliateCommissionTier {
   commission_rate: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface CouponListProps {
+  coupons: Coupon[];
+  onCouponUpdated: () => void;
+  loading: boolean;
 }
