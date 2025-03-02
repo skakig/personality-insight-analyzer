@@ -40,15 +40,26 @@ export const PricingSection = ({ session, quizResultId }: PricingSectionProps) =
   const handleCouponApplied = (discount: number, code: string, discountType: string) => {
     console.log('Coupon applied:', { discount, code, discountType });
     setAppliedDiscount({ amount: discount, code, type: discountType });
+    
+    // Show a success notification
+    toast({
+      title: "Coupon Applied",
+      description: `${discountType === 'percentage' ? `${discount}% discount` : `$${(discount / 100).toFixed(2)} discount`} has been applied to your order.`
+    });
   };
 
   // Remove coupon
   const handleCouponRemoved = () => {
     console.log('Coupon removed');
     setAppliedDiscount(null);
+    
+    toast({
+      title: "Coupon Removed",
+      description: "Discount has been removed from your order."
+    });
   };
 
-  // Verify authentication state when component mounts
+  // Verify authentication state and handle Stripe return when component mounts
   useEffect(() => {
     const verifyAuthState = async () => {
       try {
@@ -69,6 +80,7 @@ export const PricingSection = ({ session, quizResultId }: PricingSectionProps) =
           toast({
             title: "Purchase Successful!",
             description: "Your detailed report is now available.",
+            variant: "success",
           });
           
           // Handle successful purchase return
@@ -91,10 +103,48 @@ export const PricingSection = ({ session, quizResultId }: PricingSectionProps) =
                 .eq('id', quizResultId);
               
               console.log('Successfully updated purchase status');
+              
+              // Send a welcome email via edge function
+              try {
+                const userEmail = currentSession?.user?.email || localStorage.getItem('guestEmail');
+                if (userEmail) {
+                  await supabase.functions.invoke('send-results', {
+                    body: { 
+                      email: userEmail,
+                      resultId: quizResultId
+                    }
+                  });
+                  console.log('Sent result email to:', userEmail);
+                }
+              } catch (emailError) {
+                console.error('Error sending welcome email:', emailError);
+              }
+              
+              // Subscribe to newsletter if user opted in
+              const optedIn = localStorage.getItem('newsletterOptIn') === 'true';
+              if (optedIn) {
+                const userEmail = currentSession?.user?.email || localStorage.getItem('guestEmail');
+                if (userEmail) {
+                  try {
+                    await supabase
+                      .from('newsletter_subscribers')
+                      .upsert({ email: userEmail }, { onConflict: 'email' });
+                    console.log('Added email to newsletter:', userEmail);
+                  } catch (newsletterError) {
+                    console.error('Error adding to newsletter:', newsletterError);
+                  }
+                }
+              }
             }
           } catch (updateError) {
             console.error('Error updating purchase status:', updateError);
           }
+        } else if (urlParams.get('success') === 'false') {
+          toast({
+            title: "Purchase Cancelled",
+            description: "Your purchase was not completed. You can try again when you're ready.",
+            variant: "destructive",
+          });
         }
       } catch (error) {
         console.error('Error checking authentication state:', error);
@@ -124,6 +174,18 @@ export const PricingSection = ({ session, quizResultId }: PricingSectionProps) =
           onCouponRemoved={handleCouponRemoved}
           disabled={loading}
         />
+      </div>
+      
+      <div className="mb-2">
+        <label className="flex items-center justify-center space-x-2 text-sm text-gray-600">
+          <input 
+            type="checkbox" 
+            className="rounded border-gray-300 text-primary focus:ring-primary"
+            onChange={(e) => localStorage.setItem('newsletterOptIn', e.target.checked.toString())}
+            defaultChecked={localStorage.getItem('newsletterOptIn') === 'true'}
+          />
+          <span>Subscribe to our newsletter for moral growth tips</span>
+        </label>
       </div>
       
       <CheckoutButton 

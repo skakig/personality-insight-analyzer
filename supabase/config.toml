@@ -1,2 +1,6 @@
 
 project_id = "caebnpbdprrptogirxky"
+[api]
+[api.edge_functions]
+[api.edge_functions.send-results]
+verify_jwt = false

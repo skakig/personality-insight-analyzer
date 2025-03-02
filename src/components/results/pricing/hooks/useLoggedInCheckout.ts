@@ -28,16 +28,23 @@ export const useLoggedInCheckout = (quizResultId: string | null, couponCode?: st
         throw new Error('Please log in to complete this purchase');
       }
 
+      // Store newsletter preference
+      const newsletterOptIn = localStorage.getItem('newsletterOptIn') === 'true';
+
       // Create checkout session via Edge Function
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: {
           resultId: quizResultId,
           couponCode,
           userId: session.user.id,
+          email: session.user.email,
+          newsletterOptIn,
           metadata: {
             resultId: quizResultId,
             couponCode,
             userId: session.user.id,
+            email: session.user.email,
+            newsletterOptIn,
             returnUrl: `${window.location.origin}/assessment/${quizResultId}?success=true`
           }
         }

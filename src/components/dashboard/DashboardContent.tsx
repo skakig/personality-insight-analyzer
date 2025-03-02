@@ -70,9 +70,12 @@ export const DashboardContent = ({
           resultId: reportId,
           userId: session.user.id,
           email: session.user.email,
+          newsletterOptIn: localStorage.getItem('newsletterOptIn') === 'true',
           metadata: {
             resultId: reportId,
             userId: session.user.id,
+            email: session.user.email,
+            newsletterOptIn: localStorage.getItem('newsletterOptIn') === 'true',
             returnUrl: `${window.location.origin}/assessment/${reportId}?success=true`
           }
         }
@@ -141,6 +144,17 @@ export const DashboardContent = ({
           <p className="text-sm text-gray-600 mb-4">
             Purchase additional assessment credits to unlock detailed reports.
           </p>
+          <div className="mb-2">
+            <label className="flex items-center space-x-2 text-sm text-gray-600 mb-4">
+              <input 
+                type="checkbox" 
+                className="rounded border-gray-300 text-primary focus:ring-primary"
+                onChange={(e) => localStorage.setItem('newsletterOptIn', e.target.checked.toString())}
+                defaultChecked={localStorage.getItem('newsletterOptIn') === 'true'}
+              />
+              <span>Subscribe to our newsletter</span>
+            </label>
+          </div>
           <PurchaseCreditsButton />
         </div>
       </div>

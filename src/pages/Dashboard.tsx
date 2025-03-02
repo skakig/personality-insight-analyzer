@@ -56,14 +56,31 @@ const Dashboard = ({ session }: DashboardProps) => {
         console.error('Error fetching assessments:', assessmentsError);
         setError('Failed to load assessment history');
       } else {
-        // Convert the raw data to QuizResult type
+        // Convert the raw data to QuizResult type with proper type handling
         const typedAssessments: QuizResult[] = assessments ? assessments.map(assessment => ({
-          ...assessment,
-          category_scores: assessment.category_scores as Record<string, number> | null,
+          id: assessment.id,
+          user_id: assessment.user_id,
+          personality_type: assessment.personality_type,
+          is_purchased: assessment.is_purchased || false,
+          is_detailed: assessment.is_detailed || false,
           purchase_status: assessment.purchase_status as string,
           access_method: assessment.access_method as string,
-          primary_level: assessment.primary_level,
-          updated_at: assessment.updated_at || assessment.created_at
+          stripe_session_id: assessment.stripe_session_id,
+          guest_email: assessment.guest_email,
+          guest_access_token: assessment.guest_access_token,
+          purchase_initiated_at: assessment.purchase_initiated_at,
+          purchase_completed_at: assessment.purchase_completed_at,
+          created_at: assessment.created_at,
+          updated_at: assessment.updated_at || assessment.created_at,
+          detailed_analysis: assessment.detailed_analysis,
+          category_scores: assessment.category_scores as Record<string, number> | null,
+          answers: assessment.answers,
+          temp_access_token: assessment.temp_access_token,
+          temp_access_expires_at: assessment.temp_access_expires_at,
+          guest_access_expires_at: assessment.guest_access_expires_at,
+          purchase_date: assessment.purchase_date,
+          purchase_amount: assessment.purchase_amount,
+          primary_level: assessment.primary_level
         })) : [];
         
         setPreviousAssessments(typedAssessments);
@@ -103,6 +120,12 @@ const Dashboard = ({ session }: DashboardProps) => {
           .eq('id', resultId);
           
         console.log('Purchase confirmed for result:', resultId);
+        
+        // Show a success notification
+        toast({
+          title: "Purchase Successful",
+          description: "Your full report is now available for viewing.",
+        });
         
         // Refresh data to show updated purchases
         await fetchData();

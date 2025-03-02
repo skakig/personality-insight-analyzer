@@ -36,6 +36,30 @@ export const executeImmediateVerificationStrategies = async (
     return directResult;
   }
   
+  // Check URL params for success=true
+  if (window.location.search.includes('success=true')) {
+    console.log('Detected success=true in URL, force updating purchase status');
+    const forcedResult = await forceUpdatePurchaseStatus(resultId);
+    if (forcedResult && isPurchased(forcedResult)) {
+      console.log('Successfully forced purchase update from URL success param');
+      
+      // Send confirmation email if we have an email
+      try {
+        const email = guestEmail || (await supabase.auth.getSession()).data.session?.user?.email;
+        if (email && resultId) {
+          await supabase.functions.invoke('send-results', {
+            body: { email, resultId }
+          });
+          console.log('Confirmation email sent to:', email);
+        }
+      } catch (emailError) {
+        console.error('Error sending confirmation email:', emailError);
+      }
+      
+      return forcedResult;
+    }
+  }
+  
   // Try verification with tracking ID
   if (trackingId) {
     console.log('Checking tracking ID:', trackingId);

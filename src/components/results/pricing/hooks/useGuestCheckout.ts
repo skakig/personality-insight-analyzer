@@ -39,16 +39,21 @@ export const useGuestCheckout = (
       localStorage.setItem('guestEmail', email);
       localStorage.setItem('guestQuizResultId', quizResultId);
       
+      // Get newsletter opt-in preference
+      const newsletterOptIn = localStorage.getItem('newsletterOptIn') === 'true';
+      
       // Create guest checkout session via Edge Function
       const { data, error } = await supabase.functions.invoke('create-guest-checkout', {
         body: {
           resultId: quizResultId,
           email,
           couponCode,
+          newsletterOptIn,
           metadata: {
             resultId: quizResultId,
             email,
             couponCode,
+            newsletterOptIn,
             isGuest: true,
             returnUrl: `${window.location.origin}/assessment/${quizResultId}?success=true`
           }
