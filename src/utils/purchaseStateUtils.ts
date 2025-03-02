@@ -50,11 +50,29 @@ export const getPurchaseData = () => {
 };
 
 /**
- * Clean up purchase state (alias for clearPurchaseData for compatibility)
+ * Alias for clearPurchaseData for compatibility
  */
 export const cleanupPurchaseState = clearPurchaseData;
 
 /**
- * Get purchase state (alias for getPurchaseData for compatibility)
+ * Alias for getPurchaseData for compatibility
  */
 export const getPurchaseState = getPurchaseData;
+
+/**
+ * Get stored purchase data (extended)
+ */
+export const getStoredPurchaseData = () => {
+  return {
+    resultId: localStorage.getItem('purchaseResultId') || localStorage.getItem('checkoutResultId'),
+    sessionId: localStorage.getItem('stripeSessionId') || localStorage.getItem('creditsPurchaseSessionId'),
+    userId: localStorage.getItem('checkoutUserId'),
+    guestEmail: localStorage.getItem('guestEmail'),
+    initiatedAt: localStorage.getItem('purchaseInitiatedAt'),
+    trackingId: localStorage.getItem('purchaseTrackingId'),
+    guestAccessToken: localStorage.getItem('guestAccessToken'),
+    checkoutResultId: localStorage.getItem('checkoutResultId'),
+    checkoutUserId: localStorage.getItem('checkoutUserId'),
+    stripeSessionId: localStorage.getItem('stripeSessionId')
+  };
+};

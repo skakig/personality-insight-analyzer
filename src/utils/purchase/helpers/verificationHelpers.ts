@@ -55,7 +55,8 @@ export const getStoredPurchaseData = () => {
     checkoutUserId: localStorage.getItem('checkoutUserId'),
     guestEmail: localStorage.getItem('guestEmail'),
     initiatedAt: localStorage.getItem('purchaseInitiatedAt'),
-    resultId: localStorage.getItem('purchaseResultId') || localStorage.getItem('checkoutResultId')
+    resultId: localStorage.getItem('purchaseResultId') || localStorage.getItem('checkoutResultId'),
+    storedResultId: localStorage.getItem('purchaseResultId') || localStorage.getItem('checkoutResultId')
   };
 };
 
