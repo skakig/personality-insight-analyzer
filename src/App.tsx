@@ -1,45 +1,84 @@
-import { Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import { Assessment } from "./pages/Assessment";
-import Auth from "./pages/Auth";
-import BookLanding from "./pages/BookLanding";
-import Pricing from "./pages/Pricing";
-import { Toaster } from "./components/ui/toaster";
-import Dashboard from "./pages/Dashboard";
-import { Privacy } from "./pages/Privacy";
-import { Terms } from "./pages/Terms";
-import { AffiliateDetails } from "./components/dashboard/admin/affiliates/AffiliateDetails";
-import { PurchaseNotification } from "./components/notifications/PurchaseNotification";
-import { useAuth } from "@/hooks/useAuth";
-import { Layout } from "./components/layout/Layout";
-import AffiliateSignup from './pages/AffiliateSignup';
+import React, { useEffect, useState } from 'react';
+import {
+  BrowserRouter as Router,
+  Route,
+  Routes,
+  Navigate,
+  useNavigate,
+  useLocation
+} from 'react-router-dom';
+import { Auth } from '@supabase/auth-ui-react'
+import { ThemeSupa } from '@supabase/auth-ui-shared'
+import { useSession, useSupabaseClient } from '@supabase/auth-helpers-react'
+import Account from './Account'
+import Dashboard from './pages/Dashboard';
+import QuizPage from './pages/QuizPage';
+import ResultsPage from './pages/ResultsPage';
+import AuthWrapper from './AuthWrapper';
+import { PricingSection } from './components/results/PricingSection';
+import { AdminDashboard } from './components/dashboard/admin/AdminDashboard';
 
-function App() {
-  const { session } = useAuth();
-
+const App = () => {
   return (
-    <>
-      <PurchaseNotification />
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Index session={session} />} />
-          <Route path="/assessment/:id?" element={<Assessment />} />
-          <Route path="/login" element={<Auth />} />
-          <Route path="/signup" element={<Auth />} />
-          <Route path="/forgot-password" element={<Auth />} />
-          <Route path="/book" element={<BookLanding />} />
-          <Route path="/pricing" element={<Pricing />} />
-          <Route path="/privacy-policy" element={<Privacy />} />
-          <Route path="/terms-of-service" element={<Terms />} />
-          <Route path="/affiliate-signup" element={<AffiliateSignup />} />
-          <Route path="/dashboard/*" element={<Dashboard session={session} />} />
-
-          <Route path="*" element={<Index session={session} />} />
-        </Routes>
-      </Layout>
-      <Toaster />
-    </>
+    <Router>
+      <Routes>
+        <Route path="/auth" element={<AuthWrapper />} />
+        <Route
+          path="/account"
+          element={
+            <ProtectedRoute>
+              <Account />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/quiz"
+          element={
+            <ProtectedRoute>
+              <QuizPage />
+            </ProtectedRoute>
+          }
+        />
+       <Route
+          path="/results/:quizResultId"
+          element={
+            <ProtectedRoute>
+              <ResultsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/pricing/:quizResultId"
+          element={
+            <ProtectedRoute>
+              <PricingSection />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/dashboard/admin/*" element={<AdminDashboard />} />
+        <Route path="/" element={<Navigate to="/auth" />} />
+      </Routes>
+    </Router>
   );
+};
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const session = useSession();
+  const location = useLocation();
+
+  if (!session) {
+    return <Navigate to="/auth" replace state={{ from: location }} />;
+  }
+
+  return <>{children}</>;
 }
 
 export default App;
