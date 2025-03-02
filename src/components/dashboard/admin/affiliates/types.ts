@@ -39,16 +39,5 @@ export interface CreateAffiliateFormProps {
   onSuccess: () => void;
 }
 
-export interface AffiliateResult {
-  id: string;
-  name: string;
-  email: string;
-  code: string;
-  commission_rate: number;
-  status: string;
-  total_sales: number;
-  earnings: number;
-  created_at: string;
-  updated_at: string;
-  conversions: number;
-}
+export { Affiliate, CommissionTier }; // Export these types
+export type AffiliateResult = Affiliate; // For backwards compatibility
