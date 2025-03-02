@@ -12,7 +12,6 @@ export function Navbar() {
 
   const navigation = [
     { name: "Home", href: "/" },
-    { name: "Assessment", href: "/assessment" },
     { name: "Book", href: "/book" },
     { name: "Pricing", href: "/pricing" },
   ];
@@ -28,18 +27,6 @@ export function Navbar() {
           <Link to="/" className="-m-1.5 p-1.5 text-xl font-bold">
             The Moral Hierarchy
           </Link>
-        </div>
-        
-        {/* Mobile menu button */}
-        <div className="flex lg:hidden">
-          <button
-            type="button"
-            className="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-gray-700"
-            onClick={toggleMobileMenu}
-          >
-            <span className="sr-only">Open main menu</span>
-            <Menu className="h-6 w-6" aria-hidden="true" />
-          </button>
         </div>
         
         {/* Desktop navigation */}
@@ -72,6 +59,18 @@ export function Navbar() {
               </Link>
             </Button>
           )}
+        </div>
+        
+        {/* Mobile menu button */}
+        <div className="flex lg:hidden">
+          <button
+            type="button"
+            className="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-gray-700"
+            onClick={toggleMobileMenu}
+          >
+            <span className="sr-only">Open main menu</span>
+            <Menu className="h-6 w-6" aria-hidden="true" />
+          </button>
         </div>
       </nav>
 
