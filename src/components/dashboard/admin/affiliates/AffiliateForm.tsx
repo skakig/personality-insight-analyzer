@@ -1,13 +1,11 @@
 
-import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
-import { Affiliate } from "../types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Save, Loader2 } from "lucide-react";
+import { Affiliate } from "../types";
+import { useAffiliateForm } from "@/hooks/useAffiliateForm";
 
 interface AffiliateFormProps {
   affiliate: Affiliate;
@@ -15,76 +13,14 @@ interface AffiliateFormProps {
 }
 
 export const AffiliateForm = ({ affiliate, onSaved }: AffiliateFormProps) => {
-  const [saving, setSaving] = useState(false);
-  const [formData, setFormData] = useState({
-    name: affiliate.name,
-    email: affiliate.email,
-    commission_rate: affiliate.commission_rate * 100, // Convert to percentage for display
-    status: affiliate.status
-  });
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: name === 'commission_rate' ? parseFloat(value) : value
-    });
-  };
-
-  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFormData({
-      ...formData,
-      status: e.target.value as "active" | "inactive" | "pending"
-    });
-  };
-
-  const handleSave = async () => {
-    try {
-      setSaving(true);
-      
-      // Validate form data
-      if (!formData.name || !formData.email) {
-        toast({
-          title: "Validation Error",
-          description: "Name and email are required",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Convert commission rate back to decimal for storage
-      const commissionRateDecimal = formData.commission_rate / 100;
-      
-      const { error } = await supabase
-        .from('affiliates')
-        .update({
-          name: formData.name,
-          email: formData.email,
-          commission_rate: commissionRateDecimal,
-          status: formData.status as "active" | "inactive" | "pending",
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', affiliate.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Affiliate updated successfully",
-      });
-      
-      onSaved();
-    } catch (error: any) {
-      console.error("Error updating affiliate:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update affiliate",
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
+  const {
+    formData,
+    saving,
+    errors,
+    handleInputChange,
+    handleStatusChange,
+    handleSave
+  } = useAffiliateForm(affiliate, onSaved);
 
   return (
     <Card>
@@ -100,7 +36,11 @@ export const AffiliateForm = ({ affiliate, onSaved }: AffiliateFormProps) => {
               name="name"
               value={formData.name}
               onChange={handleInputChange}
+              className={errors.name ? "border-red-500" : ""}
             />
+            {errors.name && (
+              <p className="text-sm text-red-500">{errors.name}</p>
+            )}
           </div>
           
           <div className="space-y-2">
@@ -111,7 +51,11 @@ export const AffiliateForm = ({ affiliate, onSaved }: AffiliateFormProps) => {
               type="email"
               value={formData.email}
               onChange={handleInputChange}
+              className={errors.email ? "border-red-500" : ""}
             />
+            {errors.email && (
+              <p className="text-sm text-red-500">{errors.email}</p>
+            )}
           </div>
           
           <div className="space-y-2">
@@ -125,7 +69,11 @@ export const AffiliateForm = ({ affiliate, onSaved }: AffiliateFormProps) => {
               step="0.1"
               value={formData.commission_rate}
               onChange={handleInputChange}
+              className={errors.commission_rate ? "border-red-500" : ""}
             />
+            {errors.commission_rate && (
+              <p className="text-sm text-red-500">{errors.commission_rate}</p>
+            )}
           </div>
           
           <div className="space-y-2">
