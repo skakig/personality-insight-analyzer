@@ -39,7 +39,7 @@ export interface Affiliate {
   total_sales: number;
   earnings: number;
   created_at: string;
-  updated_at: string;
+  updated_at: string | null;
   conversions: number;
 }
 
