@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CheckCircle, Loader2, XCircle } from "lucide-react";
+import { Check, Loader2, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -147,7 +147,7 @@ export const CouponInput = ({ onCouponApplied, onCouponRemoved, disabled = false
         ) : (
           <div className="flex items-center justify-between w-full p-2 border rounded-md bg-muted/20">
             <div className="flex items-center space-x-2">
-              <CheckCircle className="h-4 w-4 text-green-500" />
+              <Check className="h-4 w-4 text-green-500" />
               <span className="font-medium">{appliedCoupon.code}</span>
               <span className="text-sm text-muted-foreground">
                 {appliedCoupon.discountType === 'percentage' 
@@ -161,7 +161,7 @@ export const CouponInput = ({ onCouponApplied, onCouponRemoved, disabled = false
               onClick={handleRemoveCoupon}
               disabled={disabled}
             >
-              <XCircle className="h-4 w-4 text-destructive" />
+              <X className="h-4 w-4 text-destructive" />
             </Button>
           </div>
         )}
