@@ -3,7 +3,7 @@ export interface Assessment {
   id: string;
   personality_type: string;
   created_at: string;
-  updated_at?: string;
+  updated_at?: string | null;
   is_purchased: boolean;
   is_detailed: boolean;
   access_method: string | null;
