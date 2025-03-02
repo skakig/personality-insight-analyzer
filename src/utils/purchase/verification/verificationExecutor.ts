@@ -61,7 +61,7 @@ export const executeVerification = async (
       const userResult = await verifyWithUserId(resultId, storedData.checkoutUserId);
       if (userResult) {
         console.log('[DEBUG] Verification with user ID successful');
-        return userResult;
+        return userResult as QuizResult;
       } else {
         console.log('[DEBUG] Verification with user ID failed');
       }
@@ -73,7 +73,7 @@ export const executeVerification = async (
       const guestTokenResult = await verifyWithGuestToken(resultId, storedData.guestAccessToken);
       if (guestTokenResult) {
         console.log('[DEBUG] Verification with guest token successful');
-        return guestTokenResult;
+        return guestTokenResult as QuizResult;
       } else {
         console.log('[DEBUG] Verification with guest token failed');
       }
@@ -85,7 +85,7 @@ export const executeVerification = async (
       const guestEmailResult = await verifyWithGuestEmail(resultId, storedData.guestEmail);
       if (guestEmailResult) {
         console.log('[DEBUG] Verification with guest email successful');
-        return guestEmailResult;
+        return guestEmailResult as QuizResult;
       } else {
         console.log('[DEBUG] Verification with guest email failed');
       }
@@ -97,7 +97,7 @@ export const executeVerification = async (
       const stripeResult = await verifyWithStripeSession(resultId, storedData.stripeSessionId);
       if (stripeResult) {
         console.log('[DEBUG] Verification with Stripe session successful');
-        return stripeResult;
+        return stripeResult as QuizResult;
       } else {
         console.log('[DEBUG] Verification with Stripe session failed');
       }
@@ -109,7 +109,7 @@ export const executeVerification = async (
       const urlSessionResult = await verifyWithStripeSession(resultId, sessionId);
       if (urlSessionResult) {
         console.log('[DEBUG] Verification with URL session ID successful');
-        return urlSessionResult;
+        return urlSessionResult as QuizResult;
       } else {
         console.log('[DEBUG] Verification with URL session ID failed');
       }
@@ -124,7 +124,7 @@ export const executeVerification = async (
       } else {
         console.log('[DEBUG] Force update failed');
       }
-      return forceResult;
+      return forceResult as QuizResult;
     }
     
     // If we got here, retry with backoff
