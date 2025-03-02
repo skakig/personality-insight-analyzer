@@ -30,7 +30,7 @@ export function Navbar() {
         </div>
         
         {/* Desktop navigation */}
-        <div className="hidden lg:flex lg:gap-x-8" style={{ display: "flex" }}>
+        <div className="hidden lg:flex lg:gap-x-8">
           {navigation.map((item) => (
             <Link
               key={item.name}
@@ -45,7 +45,7 @@ export function Navbar() {
         </div>
         
         {/* Login/Dashboard button */}
-        <div className="hidden lg:flex lg:flex-1 lg:justify-end" style={{ display: "flex" }}>
+        <div className="hidden lg:flex lg:flex-1 lg:justify-end">
           {session ? (
             <Button asChild variant="outline">
               <Link to="/dashboard">
