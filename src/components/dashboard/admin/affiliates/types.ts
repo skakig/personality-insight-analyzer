@@ -9,7 +9,6 @@ export interface Affiliate {
   commission_rate: number;
   user_id?: string;
   referral_code: string;
-  // Add missing properties
   code: string;
   earnings: number;
   conversions: number;

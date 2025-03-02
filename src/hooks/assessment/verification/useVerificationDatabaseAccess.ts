@@ -1,73 +1,133 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { useResultFetchingStrategies } from "./useResultFetchingStrategies";
+import { isPurchased } from "@/utils/purchaseStatus";
 
-/**
- * Hook that provides database access functionality for verification
- */
 export const useVerificationDatabaseAccess = () => {
-  const resultFetchers = useResultFetchingStrategies();
-  
-  /**
-   * Updates a result as purchased
-   */
-  const markResultAsPurchased = async (resultId: string, options?: {
-    userId?: string;
-    sessionId?: string;
-    guestToken?: string;
-    guestEmail?: string;
-  }) => {
+  // Fetch a result by user ID and result ID
+  const fetchUserResult = async (resultId: string, userId?: string) => {
+    if (!resultId) {
+      return { data: null, error: new Error('No result ID provided') };
+    }
+    
     try {
-      const { userId, sessionId, guestToken, guestEmail } = options || {};
-      console.log('Marking result as purchased:', { resultId, userId, sessionId });
-      
-      // Start with base query
       let query = supabase
         .from('quiz_results')
-        .update({
-          is_purchased: true,
-          is_detailed: true,
-          purchase_status: 'completed',
-          purchase_completed_at: new Date().toISOString(),
-          access_method: 'purchase'
-        })
+        .select('*')
         .eq('id', resultId);
       
-      // Add filters if available
       if (userId) {
         query = query.eq('user_id', userId);
-      } else if (sessionId) {
-        query = query.eq('stripe_session_id', sessionId);
-      } else if (guestToken) {
-        query = query.eq('guest_access_token', guestToken);
-      } else if (guestEmail) {
-        query = query.eq('guest_email', guestEmail);
       }
       
-      const { error } = await query;
+      const { data, error } = await query.maybeSingle();
+      return { data, error };
+    } catch (error: any) {
+      console.error('Error fetching user result:', error);
+      return { data: null, error };
+    }
+  };
+  
+  // Fetch a result by session ID
+  const fetchResultBySessionId = async (resultId: string, sessionId: string) => {
+    if (!resultId || !sessionId) {
+      return { data: null, error: new Error('Missing required parameters') };
+    }
+    
+    try {
+      const { data, error } = await supabase
+        .from('quiz_results')
+        .select('*')
+        .eq('id', resultId)
+        .eq('stripe_session_id', sessionId)
+        .maybeSingle();
       
-      if (error) {
-        console.error('Error marking result as purchased:', error);
-        return false;
+      return { data, error };
+    } catch (error: any) {
+      console.error('Error fetching result by session ID:', error);
+      return { data: null, error };
+    }
+  };
+  
+  // Check if a result exists by guest email
+  const fetchResultByGuestEmail = async (resultId: string, guestEmail: string) => {
+    if (!resultId || !guestEmail) {
+      return { data: null, error: new Error('Missing required parameters') };
+    }
+    
+    try {
+      const { data, error } = await supabase
+        .from('quiz_results')
+        .select('*')
+        .eq('id', resultId)
+        .eq('guest_email', guestEmail)
+        .maybeSingle();
+      
+      return { data, error };
+    } catch (error: any) {
+      console.error('Error fetching result by guest email:', error);
+      return { data: null, error };
+    }
+  };
+  
+  // Direct updates to purchase status
+  const markResultAsPurchased = async (
+    resultId: string, 
+    options?: { 
+      userId?: string,
+      sessionId?: string,
+      guestToken?: string,
+      guestEmail?: string
+    }
+  ) => {
+    if (!resultId) {
+      return false;
+    }
+    
+    try {
+      const updateData: any = {
+        is_purchased: true,
+        is_detailed: true,
+        purchase_status: 'completed',
+        purchase_completed_at: new Date().toISOString(),
+        access_method: 'purchase'
+      };
+      
+      if (options?.userId) {
+        updateData.user_id = options.userId;
       }
       
-      return true;
+      if (options?.sessionId) {
+        updateData.stripe_session_id = options.sessionId;
+      }
+      
+      if (options?.guestEmail) {
+        updateData.guest_email = options.guestEmail;
+      }
+      
+      const { error } = await supabase
+        .from('quiz_results')
+        .update(updateData)
+        .eq('id', resultId);
+      
+      return !error;
     } catch (error) {
-      console.error('Exception marking result as purchased:', error);
+      console.error('Error updating purchase status:', error);
       return false;
     }
   };
   
-  /**
-   * Links a result to a user
-   */
+  // Link a result to a user ID
   const linkResultToUser = async (resultId: string, userId: string) => {
+    if (!resultId || !userId) {
+      return false;
+    }
+    
     try {
       const { error } = await supabase
         .from('quiz_results')
         .update({ user_id: userId })
         .eq('id', resultId);
-        
+      
       return !error;
     } catch (error) {
       console.error('Error linking result to user:', error);
@@ -76,7 +136,9 @@ export const useVerificationDatabaseAccess = () => {
   };
   
   return {
-    ...resultFetchers,
+    fetchUserResult,
+    fetchResultBySessionId, 
+    fetchResultByGuestEmail,
     markResultAsPurchased,
     linkResultToUser
   };
