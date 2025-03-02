@@ -9,7 +9,7 @@ export function Footer() {
           <div>
             <h3 className="font-semibold text-lg mb-3">About Us</h3>
             <p className="text-sm text-gray-600">
-              Helping individuals and organizations understand and elevate their moral development through scientific assessment and AI-powered analysis.
+              Helping individuals and organizations understand and elevate their moral development through scientific assessment, AI-powered analysis, and actionable insights.
             </p>
           </div>
           <div>
@@ -26,6 +26,9 @@ export function Footer() {
               </li>
               <li>
                 <Link to="/pricing" className="text-gray-600 hover:text-gray-900">Pricing</Link>
+              </li>
+              <li>
+                <Link to="/affiliate-signup" className="text-gray-600 hover:text-gray-900 font-medium">Become an Affiliate</Link>
               </li>
             </ul>
           </div>
