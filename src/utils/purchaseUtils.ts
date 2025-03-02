@@ -3,6 +3,7 @@
  * Re-exports purchase utility functions from modular files
  */
 
+import { supabase } from "@/integrations/supabase/client";
 export { isPurchased, isPending, shouldAllowAccess, shouldShowPurchaseOptions, hasAnyPurchasedReport } from './purchaseStatus';
 export { 
   checkPurchaseTracking, 
@@ -28,7 +29,7 @@ export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 5) 
       localStorage.setItem('stripeSessionId', sessionId);
     }
     
-    // Import dynamically to avoid circular dependencies
+    // Dynamic import to avoid circular dependencies
     const { executeVerification } = await import('./purchase/verificationCore');
     
     const result = await executeVerification(resultId, maxRetries);
