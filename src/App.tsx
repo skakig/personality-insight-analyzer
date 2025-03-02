@@ -6,6 +6,7 @@ import {
   Navigate
 } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
+import Index from './pages/Index';
 import { PricingSection } from './components/results/PricingSection';
 import { AdminDashboard } from './components/dashboard/admin/AdminDashboard';
 import { useAuth } from './hooks/useAuth';
@@ -19,7 +20,7 @@ const App = () => {
       <Route path="/results/:quizResultId" element={<Navigate to="/dashboard" />} />
       <Route path="/pricing/:quizResultId" element={<Navigate to="/dashboard" />} />
       <Route path="/dashboard/admin/*" element={<AdminDashboard />} />
-      <Route path="/" element={<Navigate to="/dashboard" />} />
+      <Route path="/" element={<Index session={session} />} />
     </Routes>
   );
 };
