@@ -5,6 +5,7 @@ import { EmailDialog } from "./pricing/EmailDialog";
 import { PricingFooter } from "./pricing/PricingFooter";
 import { CheckoutButton } from "./pricing/CheckoutButton";
 import { useCheckoutFlow } from "./pricing/hooks/useCheckoutFlow";
+import { useCouponState } from "./pricing/hooks/useCouponState";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { storePurchaseData } from "@/utils/purchaseStateUtils";
@@ -16,13 +17,14 @@ interface PricingSectionProps {
 }
 
 export const PricingSection = ({ session, quizResultId }: PricingSectionProps) => {
-  const [appliedDiscount, setAppliedDiscount] = useState<{
-    amount: number;
-    code: string;
-    type: string;
-  } | null>(null);
   const [originalPrice] = useState(1499); // $14.99 in cents
-  const [finalPrice, setFinalPrice] = useState(originalPrice);
+  const { 
+    appliedDiscount, 
+    setAppliedDiscount, 
+    calculateDiscountedPrice 
+  } = useCouponState(originalPrice);
+  
+  const finalPrice = calculateDiscountedPrice(originalPrice);
 
   const {
     email,
@@ -37,21 +39,11 @@ export const PricingSection = ({ session, quizResultId }: PricingSectionProps) =
   // Apply coupon discount
   const handleCouponApplied = (discount: number, code: string, discountType: string) => {
     setAppliedDiscount({ amount: discount, code, type: discountType });
-    
-    // Calculate price based on discount type
-    if (discountType === 'percentage') {
-      const discountedAmount = Math.round(originalPrice * (discount / 100));
-      setFinalPrice(originalPrice - discountedAmount);
-    } else if (discountType === 'fixed') {
-      // For fixed amount discounts (in cents)
-      setFinalPrice(Math.max(0, originalPrice - discount));
-    }
   };
 
   // Remove coupon
   const handleCouponRemoved = () => {
     setAppliedDiscount(null);
-    setFinalPrice(originalPrice);
   };
 
   // Verify authentication state when component mounts

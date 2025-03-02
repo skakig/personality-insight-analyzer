@@ -1,167 +1,132 @@
 
 import { useState } from "react";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { storePurchaseData } from "@/utils/purchaseStateUtils";
 
-export const useLoggedInCheckout = (quizResultId: string | null, userId: string) => {
+export interface LoggedInCheckoutOptions {
+  quizResultId: string | null;
+  userId: string;
+  email: string | null;
+  priceAmount: number;
+  couponCode?: string;
+}
+
+export const useLoggedInCheckout = () => {
   const [loading, setLoading] = useState(false);
 
-  const handleLoggedInCheckout = async () => {
+  const handleCheckout = async ({
+    quizResultId,
+    userId,
+    email,
+    priceAmount,
+    couponCode
+  }: LoggedInCheckoutOptions) => {
     if (!quizResultId) {
       toast({
         title: "Error",
-        description: "Unable to process your purchase. Please try again later.",
+        description: "No assessment result found. Please try taking the assessment again.",
         variant: "destructive",
       });
-      return;
+      return false;
     }
-
-    // Check if userId is provided
-    if (!userId) {
-      console.error('No user ID provided for logged-in checkout');
-      
-      // Double-check authentication status
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
-        toast({
-          title: "Authentication Error",
-          description: "Please log in to continue with your purchase.",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-
-    setLoading(true);
-
+    
     try {
-      console.log('Processing logged-in user checkout:', {
-        userId,
-        resultId: quizResultId,
-        timestamp: new Date().toISOString()
-      });
-
-      // Double-check authentication before proceeding
-      const { data: { session } } = await supabase.auth.getSession();
-      const currentUserId = session?.user?.id;
+      setLoading(true);
       
-      if (!session?.user) {
-        console.error('No active session found');
-        toast({
-          title: "Session Error",
-          description: "Your session may have expired. Please log in again.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Create purchase tracking record
-      const { data: tracking, error: trackingError } = await supabase
-        .from('purchase_tracking')
-        .insert({
-          quiz_result_id: quizResultId,
-          user_id: currentUserId || userId,
-          status: 'pending',
-          stripe_session_id: null
-        })
-        .select()
-        .single();
-
-      if (trackingError) {
-        console.error('Error creating purchase tracking:', trackingError);
-        throw new Error('Failed to prepare checkout. Please try again.');
-      }
-
-      console.log('Created purchase tracking record:', tracking.id);
-
-      // Update quiz result with pending status
-      const { error: updateError } = await supabase
-        .from('quiz_results')
-        .update({ 
-          purchase_initiated_at: new Date().toISOString(),
-          purchase_status: 'pending',
-          user_id: currentUserId || userId  // Ensure user ID is associated with the result
-        })
-        .eq('id', quizResultId);
-        
-      if (updateError) {
-        console.error('Error updating quiz result:', updateError);
-        // Continue anyway as this isn't critical
-      }
-
-      // Store information for verification after return
-      localStorage.setItem('purchaseTrackingId', tracking.id);
-      localStorage.setItem('purchaseResultId', quizResultId);
-      localStorage.setItem('purchaseUserId', currentUserId || userId);
+      console.log('Starting logged-in checkout flow for result:', quizResultId, 'with price:', priceAmount);
       
-      // Create Stripe checkout session
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-        body: { 
-          resultId: quizResultId,
-          userId: currentUserId || userId,
-          priceAmount: 1499,
-          mode: 'payment',
-          metadata: {
-            userId: currentUserId || userId,
+      // Create checkout session via Supabase function
+      const { data, error } = await supabase.functions.invoke(
+        'create-checkout-session',
+        {
+          body: {
             resultId: quizResultId,
-            trackingId: tracking.id,
-            returnUrl: `/assessment/${quizResultId}?success=true`
+            userId,
+            email,
+            priceAmount,
+            couponCode,
+            metadata: {
+              resultId: quizResultId,
+              userId,
+              couponCode,
+              returnUrl: `/assessment/${quizResultId}?success=true`
+            }
           }
         }
-      });
-
+      );
+      
       if (error) {
-        console.error('Checkout error:', error);
-        throw error;
+        console.error('Function error:', error);
+        throw new Error(error.message || 'Error creating checkout session');
       }
       
       if (!data?.url) {
-        console.error('No checkout URL received');
+        console.error('No checkout URL received:', data);
         throw new Error('No checkout URL received');
       }
-
-      console.log('Logged-in checkout session created:', {
-        sessionId: data.sessionId,
-        hasUrl: !!data.url,
-        redirectingTo: data.url
-      });
-
-      // Store the Stripe session ID for verification
+      
+      // Store information for verification after return
       if (data.sessionId) {
-        // Update purchase tracking record
-        await supabase
-          .from('purchase_tracking')
-          .update({ 
-            stripe_session_id: data.sessionId 
-          })
-          .eq('id', tracking.id);
+        // Store purchase data
+        storePurchaseData(quizResultId, data.sessionId, userId);
         
-        // Update quiz result with stripe session
+        // Update result with session ID
         await supabase
           .from('quiz_results')
           .update({ 
             stripe_session_id: data.sessionId,
-            user_id: currentUserId || userId  // Ensure user ID is associated again
+            purchase_initiated_at: new Date().toISOString(),
+            purchase_status: 'pending'
           })
           .eq('id', quizResultId);
 
-        // Store session data in localStorage using the utility function
-        storePurchaseData(quizResultId, data.sessionId, currentUserId || userId);
+        // Track coupon usage (if a coupon was applied)
+        if (couponCode) {
+          try {
+            // First get the coupon ID
+            const { data: couponData } = await supabase
+              .from('coupons')
+              .select('id, current_uses')
+              .eq('code', couponCode)
+              .single();
+              
+            if (couponData) {
+              // Increment coupon usage counter
+              await supabase
+                .from('coupons')
+                .update({ 
+                  current_uses: (couponData.current_uses || 0) + 1 
+                })
+                .eq('id', couponData.id);
+              
+              // Record coupon usage
+              await supabase
+                .from('coupon_usage')
+                .insert({
+                  coupon_id: couponData.id,
+                  user_id: userId,
+                  purchase_amount: priceAmount,
+                  discount_amount: data.discountAmount || 0
+                });
+            }
+          } catch (couponError) {
+            console.error('Error tracking coupon usage:', couponError);
+            // Continue with checkout even if coupon tracking fails
+          }
+        }
       }
-
-      // Add a small delay to ensure data is saved before redirecting
-      setTimeout(() => {
-        window.location.href = data.url;
-      }, 200);
+      
+      // Redirect to Stripe
+      console.log('Redirecting to Stripe checkout URL:', data.url);
+      window.location.href = data.url;
       
       return true;
     } catch (error: any) {
-      console.error('Error initiating checkout:', error);
+      console.error('Logged-in checkout error:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to initiate checkout. Please try again.",
+        title: "Checkout Error",
+        description: error.message || "Could not process your checkout. Please try again.",
         variant: "destructive",
       });
       setLoading(false);
@@ -171,6 +136,6 @@ export const useLoggedInCheckout = (quizResultId: string | null, userId: string)
 
   return {
     loading,
-    handleLoggedInCheckout
+    handleCheckout
   };
 };
