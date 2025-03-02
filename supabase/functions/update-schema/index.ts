@@ -54,7 +54,7 @@ serve(async (req) => {
       const { error: couponError } = await supabase.rpc('execute_sql', {
         sql: `
           ALTER TABLE IF EXISTS public.coupons 
-          ADD COLUMN IF NOT EXISTS applicable_products text[] DEFAULT NULL,
+          ADD COLUMN IF NOT EXISTS applicable_products text[] DEFAULT '{}',
           ADD COLUMN IF NOT EXISTS affiliate_id uuid REFERENCES affiliates(id) ON DELETE SET NULL;
         `
       });
@@ -71,12 +71,12 @@ serve(async (req) => {
           CREATE TABLE IF NOT EXISTS public.affiliates (
             id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
             name text NOT NULL,
-            email text NOT NULL,
+            email text NOT NULL UNIQUE,
             code text NOT NULL UNIQUE,
             commission_rate numeric NOT NULL DEFAULT 0.10,
             earnings numeric NOT NULL DEFAULT 0,
             total_sales numeric NOT NULL DEFAULT 0,
-            status text NOT NULL CHECK (status IN ('active', 'inactive', 'pending')),
+            status text NOT NULL CHECK (status IN ('active', 'inactive', 'pending')) DEFAULT 'active',
             created_at timestamp with time zone NOT NULL DEFAULT now(),
             updated_at timestamp with time zone NOT NULL DEFAULT now()
           );
@@ -86,7 +86,8 @@ serve(async (req) => {
             min_sales numeric NOT NULL,
             max_sales numeric,
             commission_rate numeric NOT NULL,
-            created_at timestamp with time zone NOT NULL DEFAULT now()
+            created_at timestamp with time zone NOT NULL DEFAULT now(),
+            updated_at timestamp with time zone NOT NULL DEFAULT now()
           );
 
           ALTER TABLE public.coupon_usage
@@ -106,6 +107,23 @@ serve(async (req) => {
           BEFORE UPDATE ON public.affiliates
           FOR EACH ROW
           EXECUTE FUNCTION update_affiliate_updated_at();
+          
+          -- Add default commission tiers if they don't exist
+          INSERT INTO public.affiliate_commission_tiers (min_sales, max_sales, commission_rate)
+          SELECT 0, 1000, 0.10
+          WHERE NOT EXISTS (SELECT 1 FROM public.affiliate_commission_tiers LIMIT 1);
+          
+          INSERT INTO public.affiliate_commission_tiers (min_sales, max_sales, commission_rate)
+          SELECT 1000, 5000, 0.15
+          WHERE NOT EXISTS (SELECT 1 FROM public.affiliate_commission_tiers WHERE min_sales = 1000);
+          
+          INSERT INTO public.affiliate_commission_tiers (min_sales, max_sales, commission_rate)
+          SELECT 5000, 10000, 0.20
+          WHERE NOT EXISTS (SELECT 1 FROM public.affiliate_commission_tiers WHERE min_sales = 5000);
+          
+          INSERT INTO public.affiliate_commission_tiers (min_sales, max_sales, commission_rate)
+          SELECT 10000, NULL, 0.25
+          WHERE NOT EXISTS (SELECT 1 FROM public.affiliate_commission_tiers WHERE min_sales = 10000);
         `
       });
       if (affiliatesError) throw affiliatesError;

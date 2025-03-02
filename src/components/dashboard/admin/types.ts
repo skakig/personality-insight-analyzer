@@ -27,6 +27,7 @@ export interface Affiliate {
   total_sales: number;
   status: 'active' | 'inactive' | 'pending';
   created_at: string;
+  updated_at: string;
 }
 
 export interface AffiliateCommissionTier {
@@ -34,4 +35,6 @@ export interface AffiliateCommissionTier {
   min_sales: number;
   max_sales: number | null;
   commission_rate: number;
+  created_at: string;
+  updated_at: string;
 }
