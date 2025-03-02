@@ -34,7 +34,7 @@ export const useLoggedInCheckout = () => {
     try {
       setLoading(true);
       
-      console.log('Starting logged-in checkout flow for result:', quizResultId, 'with price:', priceAmount);
+      console.log('Starting logged-in checkout flow for result:', quizResultId, 'with price:', priceAmount, 'coupon:', couponCode);
       
       // Create checkout session via Supabase function
       const { data, error } = await supabase.functions.invoke(
@@ -65,6 +65,12 @@ export const useLoggedInCheckout = () => {
         console.error('No checkout URL received:', data);
         throw new Error('No checkout URL received');
       }
+      
+      console.log('Checkout session created successfully:', {
+        hasUrl: !!data.url,
+        hasSessionId: !!data.sessionId,
+        discountApplied: !!data.discountAmount
+      });
       
       // Store information for verification after return
       if (data.sessionId) {
@@ -109,6 +115,12 @@ export const useLoggedInCheckout = () => {
                   purchase_amount: priceAmount,
                   discount_amount: data.discountAmount || 0
                 });
+                
+              console.log('Tracked coupon usage:', {
+                couponId: couponData.id,
+                userId,
+                discountAmount: data.discountAmount
+              });
             }
           } catch (couponError) {
             console.error('Error tracking coupon usage:', couponError);

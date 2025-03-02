@@ -43,7 +43,7 @@ export const useGuestCheckout = () => {
         return false;
       }
       
-      console.log('Starting guest checkout flow for result:', quizResultId, 'with email:', guestEmail, 'price:', priceAmount);
+      console.log('Starting guest checkout flow for result:', quizResultId, 'with email:', guestEmail, 'price:', priceAmount, 'coupon:', couponCode);
       
       // Store email for future use
       localStorage.setItem('guestEmail', guestEmail);
@@ -76,6 +76,8 @@ export const useGuestCheckout = () => {
       if (trackingError) {
         console.error('Error creating purchase tracking:', trackingError);
         // Continue anyway - not critical for the main flow
+      } else {
+        console.log('Created purchase tracking record:', trackingData.id);
       }
       
       // Create checkout session
@@ -109,6 +111,12 @@ export const useGuestCheckout = () => {
         throw new Error('No checkout URL received');
       }
       
+      console.log('Checkout session created successfully:', {
+        hasUrl: !!data.url,
+        hasSessionId: !!data.sessionId,
+        discountApplied: !!data.discountAmount
+      });
+      
       // Store information for verification after return
       if (data.sessionId) {
         // Store purchase data
@@ -121,6 +129,8 @@ export const useGuestCheckout = () => {
             .from('purchase_tracking')
             .update({ stripe_session_id: data.sessionId })
             .eq('id', trackingData.id);
+            
+          console.log('Updated purchase tracking with session ID');
         }
         
         // Update quiz result with session ID
@@ -157,11 +167,16 @@ export const useGuestCheckout = () => {
                 .from('coupon_usage')
                 .insert({
                   coupon_id: couponData.id,
-                  user_id: null,
                   guest_email: guestEmail,
                   purchase_amount: priceAmount,
                   discount_amount: data.discountAmount || 0
                 });
+                
+              console.log('Tracked coupon usage:', {
+                couponId: couponData.id,
+                guestEmail,
+                discountAmount: data.discountAmount
+              });
             }
           } catch (couponError) {
             console.error('Error tracking coupon usage:', couponError);

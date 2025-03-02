@@ -1,171 +1,310 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { corsHeaders } from "../_shared/cors.ts";
-import Stripe from "https://esm.sh/stripe@12.5.0?target=deno";
+import { serve } from 'http/server';
+import { createClient } from '@supabase/supabase-js';
+import Stripe from 'stripe';
 
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || '', {
-  httpClient: Stripe.createFetchHttpClient(),
+// Initialize Stripe
+const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+  apiVersion: '2023-10-16',
 });
 
+// Initialize Supabase
+const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
   try {
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    );
+    // Handle CORS for preflight requests
+    if (req.method === 'OPTIONS') {
+      return new Response('ok', {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        },
+      });
+    }
 
-    // Get request data
+    // Only allow POST requests
+    if (req.method !== 'POST') {
+      return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+        status: 405,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
+    }
+
     const { 
       resultId, 
       userId, 
       email, 
-      priceAmount, 
-      productType = "report",
-      mode = "payment",
+      priceAmount = 1499, 
       couponCode,
-      metadata = {} 
+      metadata = {},
+      mode = 'payment',
+      productType = 'assessment'
     } = await req.json();
 
-    console.log("Create checkout session request received:", {
+    console.log('Creating checkout session:', {
       resultId,
-      email,
       userId,
+      email,
       priceAmount,
-      productType,
+      couponCode,
       mode,
-      hasCouponCode: !!couponCode,
-      timestamp: new Date().toISOString(),
+      productType
     });
 
-    // Validate input data
-    if (!email && !userId) {
-      console.error("Missing required data: email or userId");
-      return new Response(
-        JSON.stringify({
-          error: "Missing required information: email or user ID is required"
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
+    // Validate required fields
+    if (productType === 'assessment' && !resultId) {
+      return new Response(JSON.stringify({ error: 'Quiz result ID is required' }), {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
     }
 
-    let discountAmount = 0;
-    let discountData = null;
+    if (!email && productType !== 'credits') {
+      return new Response(JSON.stringify({ error: 'Email is required' }), {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
+    }
 
-    // Apply coupon if provided
-    if (couponCode) {
+    // Create a customer if not existing already
+    let customerId;
+    
+    if (userId) {
+      // Try to find existing customer by userId
+      const { data: existingCustomers } = await stripe.customers.search({
+        query: `metadata['userId']:'${userId}'`,
+      });
+
+      if (existingCustomers && existingCustomers.length > 0) {
+        customerId = existingCustomers[0].id;
+        console.log('Found existing customer:', customerId);
+      }
+    }
+    
+    if (!customerId && email) {
+      // Try to find existing customer by email
+      const { data: existingCustomers } = await stripe.customers.search({
+        query: `email:'${email}'`,
+      });
+
+      if (existingCustomers && existingCustomers.length > 0) {
+        customerId = existingCustomers[0].id;
+        console.log('Found existing customer by email:', customerId);
+      }
+    }
+    
+    // Create a new customer if none exists
+    if (!customerId && email) {
       try {
-        const { data: coupon, error: couponError } = await supabaseClient
-          .from("coupons")
-          .select("*")
-          .eq("code", couponCode)
-          .eq("is_active", true)
-          .single();
-
-        if (couponError || !coupon) {
-          console.error("Coupon lookup error:", couponError);
-        } else if (coupon) {
-          if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
-            console.log("Coupon expired:", couponCode);
-          } else if (coupon.max_uses && coupon.current_uses >= coupon.max_uses) {
-            console.log("Coupon usage limit reached:", couponCode);
-          } else {
-            // Calculate discount based on discount type
-            if (coupon.discount_type === "percentage") {
-              discountAmount = Math.round(priceAmount * (coupon.discount_amount / 100));
-            } else if (coupon.discount_type === "fixed") {
-              discountAmount = coupon.discount_amount;
-            }
-
-            discountData = {
-              amount: coupon.discount_amount,
-              type: coupon.discount_type,
-              code: coupon.code
-            };
-
-            console.log("Applied discount:", {
-              code: couponCode,
-              originalPrice: priceAmount,
-              discountAmount,
-              finalPrice: Math.max(0, priceAmount - discountAmount)
-            });
-          }
-        }
-      } catch (couponError) {
-        console.error("Error processing coupon:", couponError);
-        // Continue without applying coupon
+        const customer = await stripe.customers.create({
+          email,
+          metadata: { userId: userId || 'guest' },
+        });
+        customerId = customer.id;
+        console.log('Created new customer:', customerId);
+      } catch (error) {
+        console.error('Error creating Stripe customer:', error);
+        throw error;
       }
     }
 
-    // Calculate final price after discount
-    const finalPrice = Math.max(0, priceAmount - discountAmount);
-
-    // Create stripe checkout session
-    const product_data = {
-      name: productType === "report" ? "The Moral Hierarchy Assessment" : "Detailed Analysis",
-      description: "Full detailed personalized analysis"
+    // Prepare line items
+    let successUrl = 'https://moralworkbook.com/success?session_id={CHECKOUT_SESSION_ID}';
+    
+    if (metadata.returnUrl) {
+      successUrl = `https://moralworkbook.com${metadata.returnUrl}`;
+      if (!successUrl.includes('?')) {
+        successUrl += '?session_id={CHECKOUT_SESSION_ID}';
+      } else {
+        successUrl += '&session_id={CHECKOUT_SESSION_ID}';
+      }
+    }
+    
+    // Set appropriate cancel URL
+    let cancelUrl = 'https://moralworkbook.com/cancel';
+    if (productType === 'assessment' && resultId) {
+      cancelUrl = `https://moralworkbook.com/assessment/${resultId}`;
+    } else if (productType === 'credits') {
+      cancelUrl = 'https://moralworkbook.com/dashboard';
+    }
+    
+    // Prepare product details based on type
+    let productDetails = {
+      name: 'Detailed Moral Analysis',
+      description: 'Full assessment report with personalized insights',
+      price: priceAmount, // Default price in cents
     };
+    
+    if (productType === 'credits') {
+      productDetails = {
+        name: 'Assessment Credits',
+        description: 'Credits for team assessments',
+        price: 1999, // $19.99 for credits
+      };
+    }
 
-    const lineItems = [{
-      price_data: {
-        currency: "usd",
-        unit_amount: finalPrice,
-        product_data
+    // Check if there's a valid coupon code
+    let discountAmount = 0;
+    let lineItems = [];
+    let discountOptions = undefined;
+    
+    if (couponCode) {
+      try {
+        console.log('Looking up coupon:', couponCode);
+        
+        // Fetch coupon details from Supabase
+        const { data: coupon, error } = await supabase
+          .from('coupons')
+          .select('*')
+          .eq('code', couponCode)
+          .eq('is_active', true)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error fetching coupon:', error);
+        } else if (coupon) {
+          console.log('Found coupon:', coupon);
+          
+          // Check if coupon has reached max uses
+          if (coupon.max_uses && coupon.current_uses >= coupon.max_uses) {
+            console.log('Coupon has reached maximum usage limit');
+          } 
+          // Check if coupon is expired
+          else if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
+            console.log('Coupon has expired');
+          }
+          // Valid coupon
+          else {
+            console.log('Applying coupon discount:', coupon.discount_type, coupon.discount_amount);
+            
+            if (coupon.discount_type === 'percentage') {
+              const discountPercentage = coupon.discount_amount;
+              discountAmount = Math.round((productDetails.price * discountPercentage) / 100);
+              
+              // Create a coupon in Stripe for the percentage discount
+              const stripeCoupon = await stripe.coupons.create({
+                percent_off: discountPercentage,
+                duration: 'once',
+                metadata: {
+                  source: 'moralworkbook',
+                  code: coupon.code
+                }
+              });
+              
+              discountOptions = {
+                coupon: stripeCoupon.id,
+              };
+              
+              console.log('Created Stripe percentage coupon:', stripeCoupon.id);
+            } else if (coupon.discount_type === 'fixed') {
+              discountAmount = coupon.discount_amount;
+              
+              // Create a coupon in Stripe for the fixed amount discount
+              const stripeCoupon = await stripe.coupons.create({
+                amount_off: discountAmount,
+                currency: 'usd',
+                duration: 'once',
+                metadata: {
+                  source: 'moralworkbook',
+                  code: coupon.code
+                }
+              });
+              
+              discountOptions = {
+                coupon: stripeCoupon.id,
+              };
+              
+              console.log('Created Stripe fixed amount coupon:', stripeCoupon.id);
+            }
+          }
+        } else {
+          console.log('No active coupon found with code:', couponCode);
+        }
+      } catch (couponError) {
+        console.error('Error processing coupon:', couponError);
+        // Continue without discount if there's an error
+      }
+    }
+    
+    // Create line items based on product type
+    lineItems = [
+      {
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: productDetails.name,
+            description: productDetails.description,
+          },
+          unit_amount: productDetails.price,
+        },
+        quantity: 1,
       },
-      quantity: 1
-    }];
+    ];
 
-    // Include metadata for later verification
-    const stripeMetadata = {
-      resultId,
-      userId: userId || "guest",
-      couponApplied: couponCode || "none",
-      ...metadata
-    };
-
-    // Create session with Stripe
+    // Create checkout session
     const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      payment_method_types: ['card'],
       line_items: lineItems,
-      mode,
-      success_url: `${req.headers.get("origin")}/assessment/${resultId}?success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.get("origin")}/assessment/${resultId}?success=false`,
-      customer_email: email,
-      metadata: stripeMetadata,
+      mode: mode,
+      discounts: discountOptions ? [discountOptions] : [],
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      client_reference_id: resultId || undefined,
+      metadata: {
+        ...metadata,
+        productType,
+        couponCode: couponCode || undefined,
+      },
     });
 
-    // Return checkout URL and other metadata
-    const responseData = {
-      url: session.url,
+    console.log('Checkout session created:', {
       sessionId: session.id,
+      customerId,
+      discountApplied: !!discountOptions,
       discountAmount
-    };
+    });
 
     return new Response(
-      JSON.stringify(responseData),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      JSON.stringify({
+        url: session.url,
+        sessionId: session.id,
+        discountAmount: discountAmount
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
       }
     );
   } catch (error) {
-    console.error("Checkout session creation error:", error);
+    console.error('Error creating checkout session:', error);
     
     return new Response(
       JSON.stringify({
-        error: "Error creating checkout session",
-        details: error.message
+        error: error.message || 'An error occurred creating the checkout session',
       }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
       }
     );
   }

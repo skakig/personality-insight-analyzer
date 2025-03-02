@@ -33,6 +33,7 @@ export const CouponInput = ({ onCouponApplied, onCouponRemoved, disabled = false
 
     try {
       setValidatingCoupon(true);
+      console.log('Validating coupon:', couponCode.toUpperCase());
       
       // Fetch coupon from database
       const { data: coupon, error } = await supabase
@@ -46,6 +47,8 @@ export const CouponInput = ({ onCouponApplied, onCouponRemoved, disabled = false
         console.error('Error validating coupon:', error);
         throw new Error('Failed to validate coupon');
       }
+
+      console.log('Coupon validation result:', coupon);
 
       if (!coupon) {
         toast({
@@ -83,12 +86,17 @@ export const CouponInput = ({ onCouponApplied, onCouponRemoved, disabled = false
         discountType: coupon.discount_type
       };
       
+      console.log('Applying coupon:', appliedCouponData);
       setAppliedCoupon(appliedCouponData);
       onCouponApplied(coupon.discount_amount, coupon.code, coupon.discount_type);
       
+      const discountMessage = coupon.discount_type === 'percentage' 
+        ? `${coupon.discount_amount}% discount` 
+        : `$${(coupon.discount_amount / 100).toFixed(2)} discount`;
+
       toast({
         title: "Coupon Applied!",
-        description: `${coupon.discount_amount}% discount applied to your purchase`,
+        description: `${discountMessage} applied to your purchase`,
       });
     } catch (error: any) {
       console.error('Coupon validation error:', error);
@@ -142,7 +150,9 @@ export const CouponInput = ({ onCouponApplied, onCouponRemoved, disabled = false
               <CheckCircle className="h-4 w-4 text-green-500" />
               <span className="font-medium">{appliedCoupon.code}</span>
               <span className="text-sm text-muted-foreground">
-                ({appliedCoupon.discount}% discount)
+                {appliedCoupon.discountType === 'percentage' 
+                  ? `(${appliedCoupon.discount}% off)` 
+                  : `($${(appliedCoupon.discount / 100).toFixed(2)} off)`}
               </span>
             </div>
             <Button 

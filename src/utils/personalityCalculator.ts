@@ -6,7 +6,13 @@ export const calculatePersonalityType = (answers: Record<string, number> | numbe
     const sum = answers.reduce((acc, curr) => acc + curr, 0);
     const average = sum / answers.length;
 
-    // Map the average score to a moral hierarchy level (1-9) with more appropriate thresholds
+    console.log('Calculating personality type from array:', {
+      answerCount: answers.length,
+      sum,
+      average
+    });
+
+    // Map the average score to a moral hierarchy level (1-9) with appropriate thresholds
     if (average <= 1.5) return "1";
     if (average <= 2.2) return "2";
     if (average <= 2.8) return "3";
@@ -25,7 +31,13 @@ export const calculatePersonalityType = (answers: Record<string, number> | numbe
     const sum = values.reduce((acc, curr) => acc + curr, 0);
     const average = sum / values.length;
 
-    // Map the average score to a moral hierarchy level (1-9) with more appropriate thresholds
+    console.log('Calculating personality type from object:', {
+      answerCount: values.length,
+      sum,
+      average
+    });
+
+    // Map the average score to a moral hierarchy level (1-9) with appropriate thresholds
     if (average <= 1.5) return "1";
     if (average <= 2.2) return "2";
     if (average <= 2.8) return "3";

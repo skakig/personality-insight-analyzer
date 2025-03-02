@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 export const usePurchaseHandler = (resultId: string) => {
   const [loading, setLoading] = useState(false);
 
-  const handlePurchase = async () => {
+  const handlePurchase = async (couponCode?: string) => {
     try {
       if (!resultId) {
         console.error('Purchase attempt failed: Missing result ID');
@@ -19,7 +19,7 @@ export const usePurchaseHandler = (resultId: string) => {
       }
       
       setLoading(true);
-      console.log(`Initiating purchase for assessment ${resultId}`);
+      console.log(`Initiating purchase for assessment ${resultId}`, couponCode ? `with coupon: ${couponCode}` : '');
       
       // Get current session
       const { data: { session } } = await supabase.auth.getSession();
@@ -40,9 +40,11 @@ export const usePurchaseHandler = (resultId: string) => {
               userId: session.user.id,
               email: session.user.email,
               priceAmount: 1499, // Default price
+              couponCode,
               metadata: {
                 resultId,
                 userId: session.user.id,
+                couponCode,
                 returnUrl: `/assessment/${resultId}?success=true`
               }
             }
@@ -58,6 +60,12 @@ export const usePurchaseHandler = (resultId: string) => {
           throw new Error('No checkout URL received');
         }
         
+        console.log('Checkout session created successfully:', {
+          hasUrl: !!data.url,
+          hasSessionId: !!data.sessionId,
+          discountApplied: !!data.discountAmount
+        });
+        
         // Store session data for verification after return
         if (data.sessionId) {
           localStorage.setItem('purchaseResultId', resultId);
@@ -72,6 +80,47 @@ export const usePurchaseHandler = (resultId: string) => {
               purchase_status: 'pending'
             })
             .eq('id', resultId);
+            
+          // Track coupon usage if provided
+          if (couponCode) {
+            try {
+              // First get the coupon ID
+              const { data: couponData } = await supabase
+                .from('coupons')
+                .select('id, current_uses')
+                .eq('code', couponCode)
+                .single();
+                
+              if (couponData) {
+                // Increment coupon usage counter
+                await supabase
+                  .from('coupons')
+                  .update({ 
+                    current_uses: (couponData.current_uses || 0) + 1 
+                  })
+                  .eq('id', couponData.id);
+                
+                // Record coupon usage
+                await supabase
+                  .from('coupon_usage')
+                  .insert({
+                    coupon_id: couponData.id,
+                    user_id: session.user.id,
+                    purchase_amount: 1499,
+                    discount_amount: data.discountAmount || 0
+                  });
+                  
+                console.log('Tracked coupon usage:', {
+                  couponId: couponData.id,
+                  userId: session.user.id,
+                  discountAmount: data.discountAmount
+                });
+              }
+            } catch (couponError) {
+              console.error('Error tracking coupon usage:', couponError);
+              // Continue with checkout even if coupon tracking fails
+            }
+          }
         }
         
         // Redirect to Stripe

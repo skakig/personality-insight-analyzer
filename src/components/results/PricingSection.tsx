@@ -38,11 +38,13 @@ export const PricingSection = ({ session, quizResultId }: PricingSectionProps) =
 
   // Apply coupon discount
   const handleCouponApplied = (discount: number, code: string, discountType: string) => {
+    console.log('Coupon applied:', { discount, code, discountType });
     setAppliedDiscount({ amount: discount, code, type: discountType });
   };
 
   // Remove coupon
   const handleCouponRemoved = () => {
+    console.log('Coupon removed');
     setAppliedDiscount(null);
   };
 
