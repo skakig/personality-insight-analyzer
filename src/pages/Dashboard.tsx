@@ -80,7 +80,8 @@ const Dashboard = ({ session }: DashboardProps) => {
           guest_access_expires_at: assessment.guest_access_expires_at,
           purchase_date: assessment.purchase_date,
           purchase_amount: assessment.purchase_amount,
-          primary_level: assessment.primary_level
+          primary_level: assessment.primary_level,
+          conversions: assessment.conversions
         })) : [];
         
         setPreviousAssessments(typedAssessments);

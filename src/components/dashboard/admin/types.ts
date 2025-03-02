@@ -1,4 +1,3 @@
-
 // Admin section types
 export interface AdminSectionProps {
   userId?: string;
@@ -41,8 +40,8 @@ export interface CommissionTier {
   min_sales: number;
   max_sales: number | null;
   commission_rate: number;
-  created_at: string;
-  updated_at: string;
+  created_at: string | null;
+  updated_at: string | null;
   is_default: boolean;
   tier_name?: string;
 }

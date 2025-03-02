@@ -20,6 +20,6 @@ export interface CommissionTier {
   min_sales: number;
   max_sales: number | null;
   is_default: boolean;
-  created_at: string;
-  updated_at: string;
+  created_at: string | null;
+  updated_at: string | null;
 }
