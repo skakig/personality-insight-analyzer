@@ -57,9 +57,9 @@ export const useAdminOperations = (userId: string) => {
       const transformedCoupons = data.map(coupon => ({
         ...coupon,
         applicable_products: coupon.applicable_products || []
-      }));
+      })) as Coupon[];
 
-      setCoupons(transformedCoupons as Coupon[]);
+      setCoupons(transformedCoupons);
     } catch (error: any) {
       console.error('Error fetching coupons:', error);
       toast({
