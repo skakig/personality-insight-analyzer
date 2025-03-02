@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -47,7 +48,8 @@ export function AffiliateSection() {
       const typedTiers = tiersData?.map(tier => ({
         ...tier,
         tier_name: `Tier ${tier.min_sales}-${tier.max_sales || 'Unlimited'}`,
-        is_default: false // Setting a default value
+        is_default: tier.is_default || false, // Setting a default value
+        max_sales: tier.max_sales || Number.MAX_SAFE_INTEGER // Ensure max_sales is always defined
       })) || [];
       
       setCommissionTiers(typedTiers);
@@ -120,8 +122,9 @@ export function AffiliateSection() {
         .from('affiliate_commission_tiers')
         .insert({
           min_sales: parseFloat(minSales),
-          max_sales: maxSales ? parseFloat(maxSales) : null,
-          commission_rate: parseFloat(commissionRate) / 100
+          max_sales: maxSales ? parseFloat(maxSales) : Number.MAX_SAFE_INTEGER, // Use a default value if empty
+          commission_rate: parseFloat(commissionRate) / 100,
+          is_default: false // Set a default value
         });
 
       if (error) throw error;

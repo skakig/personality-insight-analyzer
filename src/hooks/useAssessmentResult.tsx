@@ -9,6 +9,7 @@ export function useAssessmentResult(resultId: string | null) {
   const [result, setResult] = useState<QuizResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [verificationAttempts, setVerificationAttempts] = useState(0);
   const { session } = useAuth();
   
   // Add compatibility properties for existing code
@@ -22,6 +23,7 @@ export function useAssessmentResult(resultId: string | null) {
     try {
       setLoading(true);
       setError(null);
+      setVerificationAttempts(prev => prev + 1);
       
       const { data, error: fetchError } = await supabase
         .from('quiz_results')
@@ -49,7 +51,7 @@ export function useAssessmentResult(resultId: string | null) {
         purchase_initiated_at: data.purchase_initiated_at,
         purchase_completed_at: data.purchase_completed_at,
         created_at: data.created_at,
-        updated_at: data.updated_at,
+        updated_at: data.updated_at || null,
         detailed_analysis: data.detailed_analysis,
         category_scores: data.category_scores as Record<string, number> | null,
         answers: data.answers
@@ -70,6 +72,12 @@ export function useAssessmentResult(resultId: string | null) {
     return runVerification(id);
   };
   
+  const refreshPage = () => {
+    if (resultId) {
+      runVerification(resultId);
+    }
+  };
+  
   useEffect(() => {
     if (resultId) {
       runVerification(resultId);
@@ -83,8 +91,10 @@ export function useAssessmentResult(resultId: string | null) {
     isVerifying,
     verificationComplete,
     verificationSuccess,
+    verificationAttempts,
     runVerification,
     verifyPurchase,
-    verified: !loading && !error && !!result
+    verified: !loading && !error && !!result,
+    refreshPage
   };
 }

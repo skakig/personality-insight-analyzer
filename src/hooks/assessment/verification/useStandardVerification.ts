@@ -1,46 +1,63 @@
 
-import { verifyPurchaseWithRetry } from "@/utils/purchaseUtils";
-import { storePurchaseData } from "@/utils/purchaseStateUtils";
-import { toast } from "@/hooks/use-toast";
+import { useDatabaseUpdateStrategies } from './useDatabaseUpdateStrategies';
+import { useFallbackVerificationStrategies } from './useFallbackVerificationStrategies';
 
-/**
- * Handles standard verification with retries
- */
-export const useStandardVerification = (
-  setResult: (result: any) => void,
-  setLoading: (loading: boolean) => void,
-  stopVerification: () => void,
-  incrementAttempts: () => void,
-) => {
-  /**
-   * Standard verification flow with retries
-   */
-  const performStandardVerification = async (id: string, sessionId?: string | null, userId?: string) => {
-    console.log('Attempting standard purchase verification with retries');
-    const verifiedResult = await verifyPurchaseWithRetry(id, 8, 1000);
-    
-    if (verifiedResult) {
-      console.log('Purchase verified successfully through standard verification!');
-      setResult(verifiedResult);
-      toast({
-        title: "Purchase successful!",
-        description: "Your detailed report is now available.",
-      });
-      setLoading(false);
-      stopVerification();
+export const useStandardVerification = () => {
+  const databaseStrategies = useDatabaseUpdateStrategies();
+  const fallbackStrategies = useFallbackVerificationStrategies();
+  
+  // Implement standard verification flow
+  const performStandardVerification = async (
+    resultId: string,
+    userId?: string,
+    trackingId?: string,
+    sessionId?: string,
+    guestToken?: string,
+    guestEmail?: string
+  ) => {
+    try {
+      // Try all available strategies
+      let result = null;
       
-      // Store the result ID correctly
-      storePurchaseData(id, sessionId || '', userId);
+      if (userId && databaseStrategies.updateResultForUser) {
+        result = await databaseStrategies.updateResultForUser(resultId, userId);
+      }
       
-      return true;
-    } else {
-      console.log('Purchase verification failed after retries');
-      incrementAttempts();
-      return false;
+      if (!result && sessionId && databaseStrategies.updateResultWithSessionId) {
+        result = await databaseStrategies.updateResultWithSessionId(resultId, sessionId);
+      }
+      
+      if (!result && fallbackStrategies.tryFallbackUpdates) {
+        result = await fallbackStrategies.tryFallbackUpdates({ 
+          id: resultId, 
+          userId, 
+          sessionId, 
+          guestEmail 
+        });
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Standard verification error:', error);
+      return null;
     }
   };
   
+  // Implement fallback verification
+  const performLastResortVerification = async (resultId: string) => {
+    try {
+      if (fallbackStrategies.tryFallbackUpdates) {
+        return await fallbackStrategies.tryFallbackUpdates({ id: resultId });
+      }
+      return null;
+    } catch (error) {
+      console.error('Fallback verification error:', error);
+      return null;
+    }
+  };
+
   return {
-    performStandardVerification
+    performStandardVerification,
+    performLastResortVerification
   };
 };
