@@ -1,80 +1,65 @@
 
-import { useState } from "react";
-import { useVerificationCoordinator } from "./verification/useVerificationCoordinator";
+import { useVerificationCoordinator } from './verification/useVerificationCoordinator';
+import { useState } from 'react';
 
 export const useVerificationFlow = () => {
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [verificationComplete, setVerificationComplete] = useState(false);
-  const [verificationSuccess, setVerificationSuccess] = useState(false);
   const coordinator = useVerificationCoordinator();
-
-  // Add missing state properties to coordinator
-  const enhancedCoordinator = {
-    ...coordinator,
-    isVerifying,
-    verificationComplete,
-    verificationSuccess,
-    runStandardVerification: coordinator.updateResultForUser || coordinator.updateForCheckoutSuccess,
-    runFallbackVerification: coordinator.tryFallbackUpdates
-  };
-
+  const [verificationAttempts, setVerificationAttempts] = useState(0);
+  
+  // Add properties from coordinator
+  const isVerifying = coordinator.isVerifying;
+  const verificationComplete = coordinator.verificationComplete;
+  const verificationSuccess = coordinator.verificationSuccess;
+  
+  // Add runVerification method
   const runVerification = async (resultId: string, sessionId?: string, userId?: string) => {
-    console.log('Running verification with:', { resultId, sessionId, userId });
-    
-    setIsVerifying(true);
-    setVerificationComplete(false);
-    setVerificationSuccess(false);
+    setVerificationAttempts(prev => prev + 1);
     
     try {
-      // Use whatever method is available
-      const verificationMethod = enhancedCoordinator.runStandardVerification || coordinator.updateForCheckoutSuccess;
-      const verificationResult = await verificationMethod(
-        resultId,
-        userId,
-        sessionId
-      );
+      // Use the appropriate method from coordinator
+      if (coordinator.runStandardVerification) {
+        return await coordinator.runStandardVerification(resultId, userId, undefined, sessionId);
+      }
       
-      setVerificationSuccess(!!verificationResult);
-      console.log('Verification result:', verificationResult);
-      return verificationResult;
+      // Fallback to other methods for backward compatibility
+      if (userId) {
+        return await coordinator.updateResultForUser(resultId, userId);
+      }
+      
+      if (sessionId) {
+        return await coordinator.updateResultWithSessionId(resultId, sessionId);
+      }
+      
+      return null;
     } catch (error) {
-      console.error("Verification flow error:", error);
-      return false;
-    } finally {
-      setIsVerifying(false);
-      setVerificationComplete(true);
+      console.error('Verification error:', error);
+      return null;
     }
   };
-
-  const executeLastResortVerification = async (resultId: string) => {
-    console.log('Running last resort verification for:', resultId);
-    
-    setIsVerifying(true);
-    
+  
+  // Add runFallbackVerification method
+  const runFallbackVerification = async (resultId: string) => {
     try {
-      // Use whatever method is available
-      const fallbackMethod = enhancedCoordinator.runFallbackVerification || coordinator.tryFallbackUpdates;
-      const fallbackResult = await fallbackMethod({
-        id: resultId
-      });
+      // Use the appropriate method from coordinator
+      if (coordinator.runFallbackVerification) {
+        return await coordinator.runFallbackVerification(resultId);
+      }
       
-      setVerificationSuccess(!!fallbackResult);
-      console.log('Fallback verification result:', fallbackResult);
-      return fallbackResult;
+      // Fallback to other methods for backward compatibility
+      return await coordinator.tryFallbackUpdates({ id: resultId });
     } catch (error) {
-      console.error("Last resort verification error:", error);
-      return false;
-    } finally {
-      setIsVerifying(false);
-      setVerificationComplete(true);
+      console.error('Fallback verification error:', error);
+      return null;
     }
   };
 
   return {
-    isVerifying,
-    verificationComplete,
-    verificationSuccess,
+    // Original methods from coordinator
+    ...coordinator,
+    
+    // New methods specific to this hook
     runVerification,
-    runFallbackVerification: executeLastResortVerification
+    runFallbackVerification,
+    verificationAttempts
   };
 };

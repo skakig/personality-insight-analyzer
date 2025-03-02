@@ -19,21 +19,17 @@ export const useStandardVerification = () => {
       // Try all available strategies
       let result = null;
       
-      if (userId && databaseStrategies.updateResultForUser) {
-        result = await databaseStrategies.updateResultForUser(resultId, userId);
+      // Directly use the method we know exists
+      if (userId && databaseStrategies.updateForCheckoutSuccess) {
+        result = await databaseStrategies.updateForCheckoutSuccess(resultId, userId, sessionId);
       }
       
-      if (!result && sessionId && databaseStrategies.updateResultWithSessionId) {
-        result = await databaseStrategies.updateResultWithSessionId(resultId, sessionId);
+      if (!result && sessionId && databaseStrategies.updateForCheckoutSuccess) {
+        result = await databaseStrategies.updateForCheckoutSuccess(resultId, userId, sessionId);
       }
       
-      if (!result && fallbackStrategies.tryFallbackUpdates) {
-        result = await fallbackStrategies.tryFallbackUpdates({ 
-          id: resultId, 
-          userId, 
-          sessionId, 
-          guestEmail 
-        });
+      if (!result && fallbackStrategies.performStandardVerification) {
+        result = await fallbackStrategies.performStandardVerification(resultId, sessionId, userId);
       }
       
       return result;
@@ -46,8 +42,8 @@ export const useStandardVerification = () => {
   // Implement fallback verification
   const performLastResortVerification = async (resultId: string) => {
     try {
-      if (fallbackStrategies.tryFallbackUpdates) {
-        return await fallbackStrategies.tryFallbackUpdates({ id: resultId });
+      if (fallbackStrategies.performLastResortVerification) {
+        return await fallbackStrategies.performLastResortVerification(resultId);
       }
       return null;
     } catch (error) {

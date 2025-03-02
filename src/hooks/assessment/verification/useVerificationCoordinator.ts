@@ -13,10 +13,18 @@ export const useVerificationCoordinator = () => {
   const fallbackStrategies = useFallbackVerificationStrategies();
   const standardVerification = useStandardVerification();
 
-  // Create aliases for backward compatibility
-  const updateResultForUser = databaseStrategies.updateResultForUser;
-  const updateResultWithSessionId = databaseStrategies.updateResultWithSessionId;
-  const tryFallbackUpdates = fallbackStrategies.tryFallbackUpdates;
+  // Create aliases for methods we know exist
+  const updateResultForUser = (resultId: string, userId: string) => {
+    return databaseStrategies.updateForCheckoutSuccess(resultId, userId);
+  };
+  
+  const updateResultWithSessionId = (resultId: string, sessionId: string) => {
+    return databaseStrategies.updateForCheckoutSuccess(resultId, undefined, sessionId);
+  };
+  
+  const tryFallbackUpdates = (params: { id: string, userId?: string, sessionId?: string, guestEmail?: string }) => {
+    return fallbackStrategies.performStandardVerification(params.id, params.sessionId, params.userId);
+  };
   
   // Implement standard verification flow
   const runStandardVerification = async (
@@ -44,12 +52,14 @@ export const useVerificationCoordinator = () => {
       }
       
       if (!result) {
-        result = await tryFallbackUpdates({ 
-          id: resultId, 
-          userId, 
-          sessionId, 
-          guestEmail 
-        });
+        result = await standardVerification.performStandardVerification(
+          resultId,
+          userId,
+          trackingId,
+          sessionId,
+          guestToken,
+          guestEmail
+        );
       }
       
       setVerificationSuccess(!!result);
@@ -70,7 +80,7 @@ export const useVerificationCoordinator = () => {
     setVerificationSuccess(false);
     
     try {
-      const result = await fallbackStrategies.tryFallbackUpdates({ id: resultId });
+      const result = await standardVerification.performLastResortVerification(resultId);
       setVerificationSuccess(!!result);
       return result;
     } catch (error) {

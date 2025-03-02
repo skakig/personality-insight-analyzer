@@ -1,4 +1,3 @@
-
 import { useParams } from "react-router-dom";
 import { DetailedReport } from "@/components/results/DetailedReport";
 import { AssessmentLoading } from "@/components/assessment/AssessmentLoading";
@@ -10,31 +9,33 @@ import { useState, useEffect } from "react";
 const Assessment = () => {
   const { id } = useParams();
   const { 
-    result, 
-    loading, 
-    verifying, 
-    verificationAttempts, 
+    result,
+    loading,
+    error,
+    isVerifying,
+    verificationComplete,
     verificationSuccess,
-    refreshPage 
+    verificationAttempts,
+    refreshPage,
+    runVerification
   } = useAssessmentResult(id);
   const [showVerificationSuccess, setShowVerificationSuccess] = useState(false);
   
-  // Show success indicator briefly when verification completes
   useEffect(() => {
-    if (result && (verificationSuccess || (verifying === false && verificationAttempts > 0))) {
+    if (result && (verificationSuccess || (isVerifying === false && verificationAttempts > 0))) {
       setShowVerificationSuccess(true);
       const timer = setTimeout(() => {
         setShowVerificationSuccess(false);
-      }, 5000); // Hide after 5 seconds
+      }, 5000);
       
       return () => clearTimeout(timer);
     }
-  }, [result, verifying, verificationAttempts, verificationSuccess]);
+  }, [result, isVerifying, verificationAttempts, verificationSuccess]);
 
-  if (loading || verifying) {
+  if (loading || isVerifying) {
     return (
       <AssessmentLoading
-        verifying={verifying}
+        verifying={isVerifying}
         verificationAttempts={verificationAttempts}
         onRefresh={() => refreshPage()}
       />

@@ -5,54 +5,36 @@ import { isPurchased } from "../../../purchaseStatus";
 /**
  * Verify purchase with guest token
  */
-export const verifyWithGuestToken = async (resultId: string, token: string) => {
+export const verifyWithGuestToken = async (resultId: string, accessToken: string) => {
   try {
     console.log('Verifying purchase with guest token');
     
-    // First check if the token is valid
+    // Update the result as purchased
+    const { error } = await supabase
+      .from('quiz_results')
+      .update({
+        is_purchased: true,
+        is_detailed: true,
+        purchase_status: 'completed',
+        purchase_completed_at: new Date().toISOString(),
+        access_method: 'purchase'
+      })
+      .eq('id', resultId)
+      .eq('guest_access_token', accessToken);
+      
+    if (error) {
+      console.error('Guest token verification error:', error);
+      return null;
+    }
+    
+    // Fetch the updated result
     const { data: result } = await supabase
       .from('quiz_results')
       .select('*')
       .eq('id', resultId)
-      .eq('guest_access_token', token)
       .maybeSingle();
       
-    if (!result) {
-      console.log('No result found with guest token');
-      return null;
-    }
-    
-    // Update to purchased if not already
-    if (!isPurchased(result)) {
-      const { error } = await supabase
-        .from('quiz_results')
-        .update({
-          is_purchased: true,
-          is_detailed: true,
-          purchase_status: 'completed',
-          purchase_completed_at: new Date().toISOString(),
-          access_method: 'purchase'
-        })
-        .eq('id', resultId)
-        .eq('guest_access_token', token);
-        
-      if (error) {
-        console.error('Guest token update error:', error);
-        return null;
-      }
-      
-      // Fetch updated result
-      const { data: updatedResult } = await supabase
-        .from('quiz_results')
-        .select('*')
-        .eq('id', resultId)
-        .eq('guest_access_token', token)
-        .maybeSingle();
-        
-      if (updatedResult && isPurchased(updatedResult)) {
-        return updatedResult;
-      }
-    } else {
+    if (result && isPurchased(result)) {
       return result;
     }
     
@@ -70,7 +52,25 @@ export const verifyWithGuestEmail = async (resultId: string, email: string) => {
   try {
     console.log('Verifying purchase with guest email:', email);
     
-    // Check if result exists with this email
+    // Update the result as purchased
+    const { error } = await supabase
+      .from('quiz_results')
+      .update({
+        is_purchased: true,
+        is_detailed: true,
+        purchase_status: 'completed',
+        purchase_completed_at: new Date().toISOString(),
+        access_method: 'purchase'
+      })
+      .eq('id', resultId)
+      .eq('guest_email', email);
+      
+    if (error) {
+      console.error('Guest email verification error:', error);
+      return null;
+    }
+    
+    // Fetch the updated result
     const { data: result } = await supabase
       .from('quiz_results')
       .select('*')
@@ -78,42 +78,7 @@ export const verifyWithGuestEmail = async (resultId: string, email: string) => {
       .eq('guest_email', email)
       .maybeSingle();
       
-    if (!result) {
-      console.log('No result found with guest email');
-      return null;
-    }
-    
-    // Update to purchased if not already
-    if (!isPurchased(result)) {
-      const { error } = await supabase
-        .from('quiz_results')
-        .update({
-          is_purchased: true,
-          is_detailed: true,
-          purchase_status: 'completed',
-          purchase_completed_at: new Date().toISOString(),
-          access_method: 'purchase'
-        })
-        .eq('id', resultId)
-        .eq('guest_email', email);
-        
-      if (error) {
-        console.error('Guest email update error:', error);
-        return null;
-      }
-      
-      // Fetch updated result
-      const { data: updatedResult } = await supabase
-        .from('quiz_results')
-        .select('*')
-        .eq('id', resultId)
-        .eq('guest_email', email)
-        .maybeSingle();
-        
-      if (updatedResult && isPurchased(updatedResult)) {
-        return updatedResult;
-      }
-    } else {
+    if (result && isPurchased(result)) {
       return result;
     }
     
