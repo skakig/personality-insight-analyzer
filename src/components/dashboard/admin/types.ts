@@ -43,3 +43,6 @@ export interface CommissionTier {
   created_at: string;
   updated_at: string;
 }
+
+// Alias for backwards compatibility
+export type AffiliateCommissionTier = CommissionTier;

@@ -1,20 +1,14 @@
 
 import { useState, FormEvent } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
-import { CalendarIcon, CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
+import { CodeInputSection } from "./form-sections/CodeInputSection";
+import { DiscountTypeSection } from "./form-sections/DiscountTypeSection";
+import { DiscountAmountSection } from "./form-sections/DiscountAmountSection";
+import { MaxUsesSection } from "./form-sections/MaxUsesSection";
+import { ExpirationDateSection } from "./form-sections/ExpirationDateSection";
 
 export interface CreateCouponFormProps {
   onCouponCreated: () => void;
@@ -128,106 +122,35 @@ export const CreateCouponForm = ({ onCouponCreated }: CreateCouponFormProps) => 
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <label htmlFor="code" className="text-sm font-medium">Coupon Code</label>
-            <div className="flex gap-2">
-              <Input
-                id="code"
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-                className="flex-1"
-                placeholder="e.g. SUMMER25"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={generateCode}
-                disabled={isGenerating}
-              >
-                {isGenerating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  "Generate"
-                )}
-              </Button>
-            </div>
-          </div>
+          <CodeInputSection 
+            code={code}
+            setCode={setCode}
+            generateCode={generateCode}
+            isGenerating={isGenerating}
+          />
 
-          <div className="space-y-2">
-            <label htmlFor="discount-type" className="text-sm font-medium">Discount Type</label>
-            <Select
-              value={discountType}
-              onValueChange={(value) => setDiscountType(value as "percentage" | "fixed")}
-            >
-              <SelectTrigger id="discount-type">
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="percentage">Percentage (%)</SelectItem>
-                <SelectItem value="fixed">Fixed Amount ($)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <DiscountTypeSection 
+            discountType={discountType}
+            setDiscountType={setDiscountType}
+          />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <div className="space-y-2">
-            <label htmlFor="discount-amount" className="text-sm font-medium">
-              {discountType === "percentage" ? "Discount Percentage" : "Discount Amount"}
-            </label>
-            <div className="relative">
-              <Input
-                id="discount-amount"
-                type="number"
-                value={discountAmount}
-                onChange={(e) => setDiscountAmount(e.target.value ? Number(e.target.value) : "")}
-                className="pr-8"
-                min="0"
-                max={discountType === "percentage" ? "100" : undefined}
-                step="0.01"
-                placeholder={discountType === "percentage" ? "25" : "10.00"}
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
-                {discountType === "percentage" ? "%" : "$"}
-              </span>
-            </div>
-          </div>
+          <DiscountAmountSection 
+            discountType={discountType}
+            discountAmount={discountAmount}
+            setDiscountAmount={setDiscountAmount}
+          />
 
-          <div className="space-y-2">
-            <label htmlFor="max-uses" className="text-sm font-medium">Maximum Uses</label>
-            <Input
-              id="max-uses"
-              type="number"
-              value={maxUses}
-              onChange={(e) => setMaxUses(e.target.value ? Number(e.target.value) : "")}
-              min="1"
-              placeholder="Unlimited"
-            />
-          </div>
+          <MaxUsesSection 
+            maxUses={maxUses}
+            setMaxUses={setMaxUses}
+          />
 
-          <div className="space-y-2">
-            <label htmlFor="expires-at" className="text-sm font-medium">Expiration Date</label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start text-left font-normal"
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {expiresAt ? format(expiresAt, "PPP") : "Select date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={expiresAt}
-                  onSelect={setExpiresAt}
-                  initialFocus
-                  disabled={(date) => date < new Date()}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
+          <ExpirationDateSection 
+            expiresAt={expiresAt}
+            setExpiresAt={setExpiresAt}
+          />
         </div>
 
         <Button type="submit" disabled={isSubmitting} className="mt-4">
