@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -45,7 +44,13 @@ export function AffiliateSection() {
         
       if (tiersError) throw tiersError;
       
-      setCommissionTiers(tiersData || []);
+      const typedTiers = tiersData?.map(tier => ({
+        ...tier,
+        tier_name: `Tier ${tier.min_sales}-${tier.max_sales || 'Unlimited'}`,
+        is_default: false // Setting a default value
+      })) || [];
+      
+      setCommissionTiers(typedTiers);
     } catch (error) {
       console.error("Error fetching affiliate data:", error);
       toast({

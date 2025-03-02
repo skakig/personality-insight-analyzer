@@ -18,6 +18,7 @@ export interface CommissionTier {
   tier_name: string;
   commission_rate: number;
   min_sales: number;
+  max_sales?: number; // Making this optional as it might be null
   is_default: boolean;
   created_at: string;
   updated_at: string;

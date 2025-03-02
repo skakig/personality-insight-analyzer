@@ -1,89 +1,74 @@
 
-import { useState } from "react";
-import { useDatabaseUpdateStrategies } from "./useDatabaseUpdateStrategies";
+import { useState } from 'react';
+import { verifyWithUserId, verifyWithStripeSession, forceUpdatePurchaseStatus } from '@/utils/purchase/verification/baseStrategies';
 
 export const useVerificationCoordinator = () => {
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [verificationComplete, setVerificationComplete] = useState(false);
-  const [verificationSuccess, setVerificationSuccess] = useState(false);
-  
-  const { 
-    updateResultForUser, 
-    updateResultWithSessionId, 
-    tryFallbackUpdates 
-  } = useDatabaseUpdateStrategies();
-  
-  // Add these methods to match what's being called in other files
-  const performStandardVerification = async (resultId: string, userId?: string, trackingId?: string, sessionId?: string, guestToken?: string, guestEmail?: string) => {
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // Function to update a result for a logged-in user
+  const updateResultForUser = async (resultId: string, userId: string) => {
     try {
-      setIsVerifying(true);
-      // Implement verification logic or delegate to other methods
-      // For example:
-      let success = false;
-      
-      if (userId) {
-        success = await updateResultForUser(resultId, userId);
-      }
-      
-      if (!success && sessionId) {
-        success = await updateResultWithSessionId(resultId, sessionId);
-      }
-      
-      if (!success && (userId || sessionId || guestEmail)) {
-        success = await tryFallbackUpdates({ 
-          id: resultId, 
-          userId, 
-          sessionId, 
-          guestEmail 
-        });
-      }
-      
-      setVerificationSuccess(success);
-      setVerificationComplete(true);
-      return success;
+      setIsProcessing(true);
+      const result = await verifyWithUserId(resultId, userId);
+      return !!result;
     } catch (error) {
-      console.error("Verification error:", error);
-      setVerificationSuccess(false);
-      setVerificationComplete(true);
+      console.error('Error in updateResultForUser:', error);
       return false;
     } finally {
-      setIsVerifying(false);
+      setIsProcessing(false);
     }
   };
-  
-  const performLastResortVerification = async (resultId: string) => {
+
+  // Function to update a result using a Stripe session ID
+  const updateResultWithSessionId = async (resultId: string, sessionId: string) => {
     try {
-      setIsVerifying(true);
-      const success = await tryFallbackUpdates({ id: resultId });
-      setVerificationSuccess(success);
-      setVerificationComplete(true);
-      return success;
+      setIsProcessing(true);
+      const result = await verifyWithStripeSession(resultId, sessionId);
+      return !!result;
     } catch (error) {
-      console.error("Last resort verification error:", error);
-      setVerificationSuccess(false);
-      setVerificationComplete(true);
+      console.error('Error in updateResultWithSessionId:', error);
       return false;
     } finally {
-      setIsVerifying(false);
+      setIsProcessing(false);
     }
   };
-  
-  // These are the methods we'll use for consistency
-  const runStandardVerification = async (resultId: string, userId?: string, trackingId?: string, sessionId?: string, guestToken?: string, guestEmail?: string) => {
-    return performStandardVerification(resultId, userId, trackingId, sessionId, guestToken, guestEmail);
+
+  // Function to try various fallback update strategies
+  const tryFallbackUpdates = async ({ id, userId, sessionId, guestEmail }: { 
+    id: string;
+    userId?: string;
+    sessionId?: string;
+    guestEmail?: string;
+  }) => {
+    try {
+      setIsProcessing(true);
+      
+      // Try various verification methods
+      const result = await forceUpdatePurchaseStatus(id);
+      return !!result;
+    } catch (error) {
+      console.error('Error in tryFallbackUpdates:', error);
+      return false;
+    } finally {
+      setIsProcessing(false);
+    }
   };
-  
-  const runFallbackVerification = async (resultId: string) => {
-    return performLastResortVerification(resultId);
+
+  // For compatibility with existing code, provide the new function name
+  const updateForCheckoutSuccess = async (id: string, userId?: string, sessionId?: string) => {
+    if (userId) {
+      return updateResultForUser(id, userId);
+    } else if (sessionId) {
+      return updateResultWithSessionId(id, sessionId);
+    } else {
+      return tryFallbackUpdates({ id });
+    }
   };
-  
-  return {
-    isVerifying,
-    verificationComplete,
-    verificationSuccess,
-    performStandardVerification,
-    performLastResortVerification,
-    runStandardVerification,
-    runFallbackVerification
+
+  return { 
+    updateResultForUser,
+    updateResultWithSessionId,
+    tryFallbackUpdates,
+    updateForCheckoutSuccess
   };
 };
