@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,8 +10,9 @@ import { CreateCommissionTierForm } from "./CreateCommissionTierForm";
 import { AffiliatePerformanceCard } from "./AffiliatePerformanceCard";
 import { toast } from "@/hooks/use-toast";
 import { Affiliate, CommissionTier } from "../types";
+import { Plus } from "lucide-react";
 
-export const AffiliateSection = () => {
+export function AffiliateSection() {
   const [activeTab, setActiveTab] = useState("overview");
   const [affiliates, setAffiliates] = useState<Affiliate[]>([]);
   const [commissionTiers, setCommissionTiers] = useState<CommissionTier[]>([]);
@@ -22,7 +22,6 @@ export const AffiliateSection = () => {
     setIsLoading(true);
     
     try {
-      // Fetch affiliates data
       const { data: affiliatesData, error: affiliatesError } = await supabase
         .from('affiliates')
         .select('*')
@@ -30,7 +29,6 @@ export const AffiliateSection = () => {
         
       if (affiliatesError) throw affiliatesError;
       
-      // Cast status to the correct type for Affiliate
       const typedAffiliates = affiliatesData?.map(affiliate => ({
         ...affiliate,
         status: affiliate.status as "active" | "inactive" | "pending"
@@ -38,7 +36,6 @@ export const AffiliateSection = () => {
       
       setAffiliates(typedAffiliates);
       
-      // Fetch commission tiers
       const { data: tiersData, error: tiersError } = await supabase
         .from('affiliate_commission_tiers')
         .select('*')
@@ -63,14 +60,14 @@ export const AffiliateSection = () => {
     fetchData();
   }, []);
 
-  // Calculate some basic statistics
   const totalAffiliates = affiliates.length;
   const activeAffiliates = affiliates.filter(a => a.status === 'active').length;
   const totalEarnings = affiliates.reduce((sum, a) => sum + (a.earnings || 0), 0);
-  
+  const totalSales = affiliates.reduce((sum, a) => sum + (a.total_sales || 0), 0);
+  const totalConversions = affiliates.reduce((sum, a) => sum + (a.conversions || 0), 0);
+
   const handleCreateAffiliate = async (name: string, email: string) => {
     try {
-      // Generate affiliate code from name (first letter + last name + random digits)
       const nameParts = name.split(' ');
       const baseName = nameParts.length > 1 
         ? (nameParts[0][0] + nameParts[nameParts.length - 1]).toUpperCase() 
@@ -84,7 +81,7 @@ export const AffiliateSection = () => {
           name: name,
           email: email,
           code: generatedCode,
-          commission_rate: 0.10, // Default 10%
+          commission_rate: 0.10,
           status: 'active',
           earnings: 0,
           total_sales: 0
@@ -117,7 +114,7 @@ export const AffiliateSection = () => {
         .insert({
           min_sales: parseFloat(minSales),
           max_sales: maxSales ? parseFloat(maxSales) : null,
-          commission_rate: parseFloat(commissionRate) / 100 // Convert from percentage to decimal
+          commission_rate: parseFloat(commissionRate) / 100
         });
 
       if (error) throw error;
@@ -137,31 +134,35 @@ export const AffiliateSection = () => {
       });
     }
   };
-  
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-semibold">Affiliate Program</h2>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+  return (
+    <div className="space-y-8">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Affiliate Management</h2>
+        <Button onClick={() => setActiveTab('create')} size="sm">
+          <Plus className="mr-2 h-4 w-4" />
+          Add New Affiliate
+        </Button>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <AffiliatePerformanceCard
           statTitle="Total Affiliates"
-          statValue={totalAffiliates.toString()}
-          statDescription="Total number of registered affiliates"
+          statValue={affiliates.length.toString()}
+          statDescription="Active affiliate partners"
           iconName="users"
         />
         <AffiliatePerformanceCard
-          statTitle="Active Affiliates"
-          statValue={activeAffiliates.toString()}
-          statDescription="Number of currently active affiliates"
-          iconName="userCheck"
+          statTitle="Total Sales"
+          statValue={`$${totalSales.toFixed(2)}`}
+          statDescription="Revenue from affiliate sales"
+          iconName="dollar"
         />
         <AffiliatePerformanceCard
-          statTitle="Total Commissions"
-          statValue={`$${totalEarnings.toFixed(2)}`}
-          statDescription="Total commissions paid to affiliates"
-          iconName="dollarSign"
+          statTitle="Conversion Rate"
+          statValue={`${totalConversions}%`}
+          statDescription="Average affiliate conversion"
+          iconName="chart"
         />
       </div>
 
@@ -304,4 +305,4 @@ export const AffiliateSection = () => {
       </Tabs>
     </div>
   );
-};
+}

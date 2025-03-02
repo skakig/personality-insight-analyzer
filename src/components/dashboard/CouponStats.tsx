@@ -3,7 +3,7 @@ import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowDownIcon, ArrowRightIcon, ArrowUpIcon } from "lucide-react";
 
-interface CouponStatsProps {
+export interface CouponStatsProps {
   statTitle: string;
   statValue: string;
   statDescription: string;

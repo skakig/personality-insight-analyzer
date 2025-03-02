@@ -1,13 +1,46 @@
-
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { BookOpen, CheckCircle2, ArrowRight } from "lucide-react";
+import { BookOpen, CheckCircle2, ArrowRight, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { toast } from "@/hooks/use-toast";
 
 export interface HeroSectionProps {
   onPreOrder: () => void;
 }
 
 export const HeroSection = ({ onPreOrder }: HeroSectionProps) => {
+  const [loading, setLoading] = useState(false);
+
+  const handleDirectPreOrder = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-book-checkout', {
+        body: { 
+          returnUrl: `${window.location.origin}/book?success=true`
+        }
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Failed to create checkout session');
+      }
+      
+      if (!data?.url) {
+        throw new Error('No checkout URL received');
+      }
+
+      window.location.href = data.url;
+    } catch (error: any) {
+      console.error('Pre-order error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to process pre-order. Please try again.",
+        variant: "destructive",
+      });
+      setLoading(false);
+    }
+  };
+
   return (
     <section className="container mx-auto px-4 pt-12 md:pt-20 pb-16 md:pb-32">
       <motion.div 
@@ -24,11 +57,21 @@ export const HeroSection = ({ onPreOrder }: HeroSectionProps) => {
         <div className="flex flex-col md:flex-row items-center justify-center gap-4 mb-8 md:mb-12 px-4">
           <Button 
             size="lg"
-            onClick={onPreOrder}
-            className="w-full md:w-auto text-base md:text-lg px-8 py-6 rounded-full bg-primary text-white hover:bg-primary/90 hover:text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
+            onClick={handleDirectPreOrder}
+            disabled={loading}
+            className="w-full md:w-auto text-base md:text-lg px-8 py-6 rounded-full bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
           >
-            Pre-order Now - $29.99
-            <ArrowRight className="ml-2 h-5 w-5" />
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              <>
+                Pre-order Now - $29.99
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </>
+            )}
           </Button>
           <Button 
             variant="outline"

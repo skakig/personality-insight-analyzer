@@ -5,12 +5,12 @@ import { useLoggedInCheckout } from "./useLoggedInCheckout";
 import { useGuestCheckout } from "./useGuestCheckout";
 import { supabase } from "@/integrations/supabase/client";
 
-export const useCheckoutFlow = (session: any, quizResultId: string | null, finalPrice: number, couponCode?: string) => {
+export const useCheckoutFlow = (session: any, quizResultId: string | null, finalPrice: number, couponCode?: string | null) => {
   const [email, setEmail] = useState("");
   const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
   
   // Initialize checkout methods
-  const { loading: loggedInLoading, handleCheckout: handleLoggedInCheckout } = useLoggedInCheckout(quizResultId, couponCode);
+  const { loading: loggedInLoading, handleCheckout } = useLoggedInCheckout(quizResultId, couponCode);
   const { loading: guestLoading, handleGuestCheckout } = useGuestCheckout(
     quizResultId,
     email, 
@@ -40,7 +40,7 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null, final
       // For logged in users, process directly
       if (session?.user) {
         console.log('Processing as logged in user with ID:', session.user.id);
-        handleLoggedInCheckout();
+        await handleCheckout();
         return;
       }
       
