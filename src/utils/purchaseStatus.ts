@@ -54,3 +54,12 @@ export const shouldShowPurchaseOptions = (result: any): boolean => {
     result.access_method !== 'subscription'
   );
 };
+
+/**
+ * Utility to check if a user has any purchased reports in their assessment history
+ */
+export const hasAnyPurchasedReport = (assessments: any[]): boolean => {
+  if (!assessments || !assessments.length) return false;
+  
+  return assessments.some(assessment => isPurchased(assessment));
+};
