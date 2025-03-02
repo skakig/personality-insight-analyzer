@@ -1,7 +1,7 @@
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from '@supabase/supabase-js'
-import Stripe from 'https://esm.sh/stripe@12.5.0?target=deno'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1"
+import Stripe from "https://esm.sh/stripe@12.5.0?target=deno"
 
 // CORS headers
 const corsHeaders = {
@@ -38,7 +38,7 @@ serve(async (req: Request) => {
   try {
     // Parse request body
     const requestData = await req.json()
-    console.log('Book pre-order request:', requestData)
+    console.log('Book checkout request data:', requestData)
 
     // Initialize Stripe
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
@@ -58,7 +58,7 @@ serve(async (req: Request) => {
     // Check for coupon code
     let couponCode = requestData.couponCode
     let discountAmount = 0
-    let finalPrice = requestData.basePrice || 2999 // Default to $29.99 if no amount provided
+    let finalPrice = requestData.basePrice || 2999 // Default to $29.99 for the book
     
     // Apply coupon if provided
     if (couponCode) {
@@ -133,8 +133,9 @@ serve(async (req: Request) => {
       mode: 'payment',
       success_url: successUrl,
       cancel_url: cancelUrl,
+      customer_email: requestData.email || undefined,
       metadata: {
-        product: 'book',
+        productType: 'book',
         couponCode: couponCode,
         discountAmount: discountAmount,
       },
