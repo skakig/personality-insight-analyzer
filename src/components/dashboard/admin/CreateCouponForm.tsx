@@ -15,21 +15,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
-import { useSession } from "@supabase/auth-helpers-react";
 
 export interface CreateCouponFormProps {
   onCouponCreated: () => void;
 }
 
 export const CreateCouponForm = ({ onCouponCreated }: CreateCouponFormProps) => {
-  const session = useSession();
-  const userId = session?.user?.id;
-  
   const [code, setCode] = useState("");
   const [discountType, setDiscountType] = useState<"percentage" | "fixed">("percentage");
-  const [discountAmount, setDiscountAmount] = useState<number | "">("");
-  const [maxUses, setMaxUses] = useState<number | "">("");
-  const [expiresAt, setExpiresAt] = useState<Date | undefined>(undefined);
+  const [discountAmount, setDiscountAmount] = useState<number | "">();
+  const [maxUses, setMaxUses] = useState<number | "">();
+  const [expiresAt, setExpiresAt] = useState<Date>();
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -51,6 +47,10 @@ export const CreateCouponForm = ({ onCouponCreated }: CreateCouponFormProps) => 
     setSuccess(false);
 
     try {
+      // Get current user session
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+
       if (!code) {
         throw new Error("Coupon code is required");
       }
