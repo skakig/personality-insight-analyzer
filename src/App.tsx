@@ -10,12 +10,16 @@ import {
 import Dashboard from './pages/Dashboard';
 import { PricingSection } from './components/results/PricingSection';
 import { AdminDashboard } from './components/dashboard/admin/AdminDashboard';
+import { supabase } from './integrations/supabase/client';
+import { useAuth } from './hooks/useAuth';
 
 const App = () => {
+  const { session } = useAuth();
+  
   return (
     <Router>
       <Routes>
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard" element={<Dashboard session={session} />} />
         <Route path="/results/:quizResultId" element={<Navigate to="/dashboard" />} />
         <Route path="/pricing/:quizResultId" element={<Navigate to="/dashboard" />} />
         <Route path="/dashboard/admin/*" element={<AdminDashboard />} />

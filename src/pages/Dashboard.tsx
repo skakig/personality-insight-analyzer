@@ -8,7 +8,7 @@ import { DashboardContent } from "@/components/dashboard/DashboardContent";
 import { LoadingState } from "@/components/dashboard/LoadingState";
 import { toast } from "@/hooks/use-toast";
 
-interface DashboardProps {
+export interface DashboardProps {
   session: Session | null;
 }
 

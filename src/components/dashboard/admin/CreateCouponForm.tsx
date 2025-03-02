@@ -12,9 +12,10 @@ import { ExpirationDateSection } from "./form-sections/ExpirationDateSection";
 
 export interface CreateCouponFormProps {
   onCouponCreated: () => void;
+  userId?: string; // Added userId prop
 }
 
-export const CreateCouponForm = ({ onCouponCreated }: CreateCouponFormProps) => {
+export const CreateCouponForm = ({ onCouponCreated, userId }: CreateCouponFormProps) => {
   const [code, setCode] = useState("");
   const [discountType, setDiscountType] = useState<"percentage" | "fixed">("percentage");
   const [discountAmount, setDiscountAmount] = useState<number | "">();
