@@ -1,8 +1,14 @@
+
 import { useState } from "react";
 import { useLoggedInCheckout } from "./useLoggedInCheckout";
 import { useGuestCheckout } from "./useGuestCheckout";
 import { toast } from "@/hooks/use-toast";
-import { validateEmail } from "@/utils/auth";
+
+// Simple email validation function
+const validateEmail = (email: string): boolean => {
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return re.test(email);
+};
 
 export const useCheckoutFlow = (
   session: any,
