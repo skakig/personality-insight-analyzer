@@ -1,110 +1,79 @@
 
-import { useState } from 'react';
 import { useDatabaseUpdateStrategies } from './useDatabaseUpdateStrategies';
-import { useFallbackVerificationStrategies } from './useFallbackVerificationStrategies';
 import { useStandardVerification } from './useStandardVerification';
 
 export const useVerificationCoordinator = () => {
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [verificationComplete, setVerificationComplete] = useState(false);
-  const [verificationSuccess, setVerificationSuccess] = useState(false);
-  
   const databaseStrategies = useDatabaseUpdateStrategies();
-  const fallbackStrategies = useFallbackVerificationStrategies();
   const standardVerification = useStandardVerification();
-
-  // Create aliases for methods we know exist
-  const updateResultForUser = (resultId: string, userId: string) => {
-    return databaseStrategies.updateForCheckoutSuccess(resultId, userId);
+  
+  // Add compatibility methods
+  const updateResultForUser = async (resultId: string, userId: string) => {
+    return await databaseStrategies.updateForCheckoutSuccess(resultId, userId, undefined);
   };
   
-  const updateResultWithSessionId = (resultId: string, sessionId: string) => {
-    return databaseStrategies.updateForCheckoutSuccess(resultId, undefined, sessionId);
+  const updateResultWithSessionId = async (resultId: string, sessionId: string) => {
+    return await databaseStrategies.updateForCheckoutSuccess(resultId, undefined, sessionId);
   };
   
-  const tryFallbackUpdates = (params: { id: string, userId?: string, sessionId?: string, guestEmail?: string }) => {
-    return fallbackStrategies.performStandardVerification(params.id, params.sessionId, params.userId);
+  const tryFallbackUpdates = async ({ id, userId, sessionId, guestEmail }: { 
+    id: string, 
+    userId?: string, 
+    sessionId?: string, 
+    guestEmail?: string 
+  }) => {
+    return await standardVerification.performLastResortVerification(id);
   };
   
-  // Implement standard verification flow
-  const runStandardVerification = async (
+  // Run verification in a sequence of attempts
+  const runVerificationSequence = async (
     resultId: string,
     userId?: string,
     trackingId?: string,
-    sessionId?: string,
+    sessionId?: string, 
     guestToken?: string,
     guestEmail?: string
   ) => {
-    setIsVerifying(true);
-    setVerificationComplete(false);
-    setVerificationSuccess(false);
-    
     try {
-      // Try all available strategies
-      let result = null;
+      console.log('Starting verification sequence for result:', resultId);
       
-      if (userId) {
-        result = await updateResultForUser(resultId, userId);
+      // Try standard verification
+      const result = await standardVerification.performStandardVerification(
+        resultId,
+        userId,
+        trackingId,
+        sessionId,
+        guestToken,
+        guestEmail
+      );
+      
+      if (result) {
+        console.log('Standard verification successful');
+        return result;
       }
       
-      if (!result && sessionId) {
-        result = await updateResultWithSessionId(resultId, sessionId);
+      console.log('Standard verification failed, trying fallback');
+      
+      // Try fallback verification
+      const fallbackResult = await standardVerification.performLastResortVerification(resultId);
+      
+      if (fallbackResult) {
+        console.log('Fallback verification successful');
+        return fallbackResult;
       }
       
-      if (!result) {
-        result = await standardVerification.performStandardVerification(
-          resultId,
-          userId,
-          trackingId,
-          sessionId,
-          guestToken,
-          guestEmail
-        );
-      }
-      
-      setVerificationSuccess(!!result);
-      return result;
-    } catch (error) {
-      console.error('Standard verification error:', error);
+      console.log('All verification attempts failed');
       return null;
-    } finally {
-      setIsVerifying(false);
-      setVerificationComplete(true);
+    } catch (error) {
+      console.error('Verification sequence error:', error);
+      return null;
     }
   };
   
-  // Implement fallback verification
-  const runFallbackVerification = async (resultId: string) => {
-    setIsVerifying(true);
-    setVerificationComplete(false);
-    setVerificationSuccess(false);
-    
-    try {
-      const result = await standardVerification.performLastResortVerification(resultId);
-      setVerificationSuccess(!!result);
-      return result;
-    } catch (error) {
-      console.error('Fallback verification error:', error);
-      return null;
-    } finally {
-      setIsVerifying(false);
-      setVerificationComplete(true);
-    }
-  };
-
   return {
-    // Original methods
+    runVerificationSequence,
     updateResultForUser,
     updateResultWithSessionId,
     tryFallbackUpdates,
-    
-    // New methods
-    runStandardVerification,
-    runFallbackVerification,
-    
-    // State
-    isVerifying,
-    verificationComplete,
-    verificationSuccess
+    ...databaseStrategies
   };
 };

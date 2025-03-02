@@ -10,7 +10,7 @@ export interface Affiliate {
   earnings: number;
   created_at: string;
   updated_at: string;
-  conversions: number; // Required property
+  conversions: number; // Added required property
 }
 
 export interface CommissionTier {
@@ -18,8 +18,8 @@ export interface CommissionTier {
   tier_name: string;
   commission_rate: number;
   min_sales: number;
-  max_sales: number; // Making this required to match other definition
-  is_default: boolean;
+  max_sales: number; // Required property
+  is_default: boolean; // Added required property
   created_at: string;
   updated_at: string;
 }

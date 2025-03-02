@@ -19,13 +19,22 @@ export const useStandardVerification = () => {
       // Try all available strategies
       let result = null;
       
+      // Add compatibility methods
+      const updateResultForUser = async (id: string, userId: string) => {
+        return await databaseStrategies.updateForCheckoutSuccess(id, userId, undefined);
+      };
+      
+      const updateResultWithSessionId = async (id: string, sessionId: string) => {
+        return await databaseStrategies.updateForCheckoutSuccess(id, undefined, sessionId);
+      };
+      
       // Directly use the method we know exists
-      if (userId && databaseStrategies.updateForCheckoutSuccess) {
-        result = await databaseStrategies.updateForCheckoutSuccess(resultId, userId, sessionId);
+      if (userId && userId.length > 0) {
+        result = await updateResultForUser(resultId, userId);
       }
       
-      if (!result && sessionId && databaseStrategies.updateForCheckoutSuccess) {
-        result = await databaseStrategies.updateForCheckoutSuccess(resultId, userId, sessionId);
+      if (!result && sessionId && sessionId.length > 0) {
+        result = await updateResultWithSessionId(resultId, sessionId);
       }
       
       if (!result && fallbackStrategies.performStandardVerification) {
@@ -52,8 +61,22 @@ export const useStandardVerification = () => {
     }
   };
 
+  // Add compatibility methods
+  const tryFallbackUpdates = async ({ id, userId, sessionId, guestEmail }: { 
+    id: string, 
+    userId?: string, 
+    sessionId?: string, 
+    guestEmail?: string 
+  }) => {
+    if (fallbackStrategies.performLastResortVerification) {
+      return await fallbackStrategies.performLastResortVerification(id);
+    }
+    return null;
+  };
+
   return {
     performStandardVerification,
-    performLastResortVerification
+    performLastResortVerification,
+    tryFallbackUpdates // Add compatibility method
   };
 };

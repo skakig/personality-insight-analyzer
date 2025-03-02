@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { QuizResult } from "@/types/quiz";
@@ -65,8 +66,8 @@ export const useAssessmentResult = (resultId: string | null) => {
           personality_type: data.personality_type,
           is_purchased: !!data.is_purchased,
           is_detailed: !!data.is_detailed, 
-          purchase_status: data.purchase_status || null,
-          access_method: data.access_method || null,
+          purchase_status: (data.purchase_status as 'pending' | 'completed' | null) || null,
+          access_method: (data.access_method as 'purchase' | 'free' | 'credit' | 'subscription' | 'forced_update' | null) || null,
           stripe_session_id: data.stripe_session_id || null,
           guest_email: data.guest_email || null,
           guest_access_token: data.guest_access_token || null,
@@ -78,7 +79,7 @@ export const useAssessmentResult = (resultId: string | null) => {
           category_scores: data.category_scores ? 
             typeof data.category_scores === 'object' ? 
               data.category_scores : 
-              JSON.parse(data.category_scores) : 
+              JSON.parse(data.category_scores as string) : 
             null,
           answers: data.answers || null,
           temp_access_token: data.temp_access_token || null,
@@ -109,7 +110,9 @@ export const useAssessmentResult = (resultId: string | null) => {
     window.location.reload();
   };
 
+  // Add additional compatibility fields
   const verifying = verificationFlow.isVerifying;
+  const verificationAttempts = verificationFlow.verificationAttempts || 0;
 
   return {
     result,
@@ -120,7 +123,7 @@ export const useAssessmentResult = (resultId: string | null) => {
     isVerifying: verificationFlow.isVerifying,
     verificationComplete: verificationFlow.verificationComplete,
     verificationSuccess: verificationFlow.verificationSuccess,
-    verificationAttempts: verificationFlow.verificationAttempts || 0,
+    verificationAttempts: verificationAttempts,
     verified: isPurchased(result), 
     refreshPage,
     verifying // For backward compatibility
