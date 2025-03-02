@@ -8,7 +8,7 @@ type FormData = {
   name: string;
   email: string;
   commission_rate: number;
-  status: "active" | "inactive" | "pending";
+  status: string;
 };
 
 type FormErrors = {
@@ -59,7 +59,7 @@ export const useAffiliateForm = (affiliate: Affiliate, onSaved: () => void) => {
   const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setFormData({
       ...formData,
-      status: e.target.value as "active" | "inactive" | "pending"
+      status: e.target.value
     });
   };
 
