@@ -59,7 +59,7 @@ const Dashboard = ({ session }: DashboardProps) => {
         // Convert the raw data to QuizResult type
         const typedAssessments: QuizResult[] = assessments ? assessments.map(assessment => ({
           ...assessment,
-          // Ensure these properties match the QuizResult interface
+          category_scores: assessment.category_scores as Record<string, number> | null,
           purchase_status: assessment.purchase_status,
           access_method: assessment.access_method,
           primary_level: assessment.primary_level
