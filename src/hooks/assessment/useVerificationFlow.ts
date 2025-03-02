@@ -1,104 +1,65 @@
 
-import { useState } from "react";
-import { toast } from "@/hooks/use-toast";
-import { useVerificationState } from "./useVerificationState";
-import { useVerifyPurchase } from "./useVerifyPurchase";
-import { usePreVerificationChecks } from "./usePreVerificationChecks";
-import { usePostPurchaseHandler } from "./usePostPurchaseHandler";
+import { useState, useCallback } from "react";
 import { useVerificationCoordinator } from "./verification/useVerificationCoordinator";
 
 /**
- * Handles the verification flow for purchases
+ * Hook for managing verification flow state and operations
  */
-export const useVerificationFlow = (
-  setLoading: (loading: boolean) => void,
-  setResult: (result: any) => void
-) => {
-  const {
-    verifying,
-    verificationAttempts,
-    startVerification,
-    stopVerification,
-    incrementAttempts
-  } = useVerificationState();
+export const useVerificationFlow = () => {
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationComplete, setVerificationComplete] = useState(false);
+  const [verificationSuccess, setVerificationSuccess] = useState(false);
   
-  const { verifyPurchase } = useVerifyPurchase(
-    setLoading, 
-    setResult, 
-    { 
-      startVerification, 
-      stopVerification, 
-      incrementAttempts,
-      verificationAttempts 
-    }
-  );
-
-  const { checkDirectAccess, showCreateAccountToast } = usePreVerificationChecks();
-  const { handleVerificationFailure } = usePostPurchaseHandler();
-  const { executeVerificationFlow } = useVerificationCoordinator();
-
-  /**
-   * Execute verification flow wrapper function that maintains the same API
-   */
-  const executeVerificationFlowWrapper = async (
-    id: string | undefined, 
-    options: {
-      userId?: string;
-      stripeSessionId?: string;
-      isPostPurchase: boolean;
-      storedResultId?: string;
-      maxRetries: number;
-    }
-  ) => {
+  const coordinator = useVerificationCoordinator();
+  
+  const runVerification = useCallback(async (id: string, sessionId?: string, userId?: string) => {
+    if (!id) return false;
+    
+    setIsVerifying(true);
+    setVerificationComplete(false);
+    
     try {
-      console.log('Starting verification flow for:', { id, options });
+      const success = await coordinator.performStandardVerification(id, sessionId, userId);
       
-      return await executeVerificationFlow(
-        id,
-        options,
-        {
-          verificationAttempts,
-          startVerification,
-          stopVerification
-        }
-      );
+      setVerificationSuccess(success);
+      setVerificationComplete(true);
+      return success;
     } catch (error) {
-      console.error('Verification flow error:', error);
-      
-      // Handle specific database error cases
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      
-      if (errorMsg.includes('infinite recursion') || errorMsg.includes('policy for relation')) {
-        toast({
-          title: "Database Access Error",
-          description: "We're experiencing a temporary database issue. Our team has been notified.",
-          variant: "destructive",
-        });
-      } else if (errorMsg.includes('Edge Function') || errorMsg.includes('non-2xx status')) {
-        toast({
-          title: "Server Error",
-          description: "Our payment verification service is currently unavailable. Please try again later or contact support.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Verification Error",
-          description: "We encountered an error during verification. Please try again or contact support.",
-          variant: "destructive",
-        });
-      }
-      
-      stopVerification();
-      setLoading(false);
-      return null;
+      console.error('Verification error:', error);
+      setVerificationSuccess(false);
+      setVerificationComplete(true);
+      return false;
+    } finally {
+      setIsVerifying(false);
     }
-  };
-
+  }, [coordinator]);
+  
+  const runFallbackVerification = useCallback(async (id: string) => {
+    if (!id) return false;
+    
+    setIsVerifying(true);
+    
+    try {
+      const success = await coordinator.performLastResortVerification(id);
+      
+      setVerificationSuccess(success);
+      setVerificationComplete(true);
+      return success;
+    } catch (error) {
+      console.error('Fallback verification error:', error);
+      setVerificationSuccess(false);
+      setVerificationComplete(true);
+      return false;
+    } finally {
+      setIsVerifying(false);
+    }
+  }, [coordinator]);
+  
   return {
-    verifying,
-    verificationAttempts,
-    checkDirectAccess,
-    showCreateAccountToast,
-    executeVerificationFlow: executeVerificationFlowWrapper
+    isVerifying,
+    verificationComplete,
+    verificationSuccess,
+    runVerification,
+    runFallbackVerification
   };
 };
