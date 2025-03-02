@@ -26,7 +26,7 @@ export default function Navigation() {
             <Link to="/" className="font-semibold text-lg">The Moral Hierarchy</Link>
           </div>
           
-          {/* Desktop Menu - explicitly ensuring it's visible */}
+          {/* Desktop Menu */}
           <div className="hidden md:flex md:items-center md:space-x-6">
             <Link to="/" className={`${isActive("/")} transition`}>Home</Link>
             <Link to="/book" className={`${isActive("/book")} transition`}>Book</Link>
@@ -36,7 +36,7 @@ export default function Navigation() {
                 <Button variant="outline">Dashboard</Button>
               </Link>
             ) : (
-              <Link to="/login">
+              <Link to="/auth">
                 <Button variant="outline">Sign In</Button>
               </Link>
             )}
@@ -86,7 +86,7 @@ export default function Navigation() {
               </Link>
             ) : (
               <Link 
-                to="/login"
+                to="/auth"
                 className="block py-2"
                 onClick={() => setMenuOpen(false)}
               >
