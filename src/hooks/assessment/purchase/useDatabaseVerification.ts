@@ -41,8 +41,24 @@ export const useDatabaseVerification = () => {
     return await databaseAccess.markResultAsPurchased(resultId, options);
   };
   
+  const attemptDirectUpdate = async (resultId: string) => {
+    try {
+      const updated = await databaseAccess.markResultAsPurchased(resultId, {});
+      if (updated) {
+        // Get the updated result
+        const { data: result } = await databaseAccess.fetchUserResult(resultId);
+        return result;
+      }
+      return null;
+    } catch (error) {
+      console.error('Direct update error:', error);
+      return null;
+    }
+  };
+  
   return {
     verifyDatabasePurchase,
-    updatePurchaseStatus
+    updatePurchaseStatus,
+    attemptDirectUpdate
   };
 };

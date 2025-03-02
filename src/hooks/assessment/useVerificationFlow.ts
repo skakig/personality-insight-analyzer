@@ -60,11 +60,6 @@ export const useVerificationFlow = (
           verificationAttempts,
           startVerification,
           stopVerification
-        },
-        {
-          setResult,
-          setLoading,
-          verifyPurchase
         }
       );
     } catch (error) {

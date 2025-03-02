@@ -1,21 +1,21 @@
 
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { useStandardVerification } from "./useStandardVerification";
 import { useStripeReturnHandler } from "./useStripeReturnHandler";
-import { useVerificationFlowProcessor } from "./useVerificationFlowProcessor";
+import { useFallbackVerificationStrategies } from "./useFallbackVerificationStrategies";
 
 /**
- * Coordinates the verification flow processes
+ * Coordinates the verification flow by delegating to specialized hooks
  */
 export const useVerificationCoordinator = () => {
+  const { executeStandardVerification } = useStandardVerification();
   const { handleStripeReturn } = useStripeReturnHandler();
-  const { attemptDirectUpdate, handleMaxRetriesExceeded } = useVerificationFlowProcessor();
-
+  const { executeFallbackVerification } = useFallbackVerificationStrategies();
+  
   /**
-   * Execute the verification flow for a purchase
+   * Main verification flow coordinator
    */
   const executeVerificationFlow = async (
-    id: string | undefined, 
+    id: string | undefined,
     options: {
       userId?: string;
       stripeSessionId?: string;
@@ -27,138 +27,58 @@ export const useVerificationCoordinator = () => {
       verificationAttempts: number;
       startVerification: () => void;
       stopVerification: () => void;
-    },
-    handlers: {
-      setResult: (result: any) => void;
-      setLoading: (loading: boolean) => void;
-      verifyPurchase: (id: string) => Promise<boolean>;
     }
   ) => {
     const { userId, stripeSessionId, isPostPurchase, storedResultId, maxRetries } = options;
     const { verificationAttempts, startVerification, stopVerification } = verificationState;
-    const { setResult, setLoading, verifyPurchase } = handlers;
     
-    console.log('Initiating purchase verification flow', {
-      id,
-      userId,
-      stripeSessionId,
-      isPostPurchase,
-      verificationAttempts
-    });
+    // Start verification process
+    startVerification();
     
-    const verificationId = id || storedResultId;
-    
-    if (!verificationId) {
-      console.error('No result ID available for verification');
-      toast({
-        title: "Verification Error",
-        description: "Missing result ID. Please try accessing your report from the dashboard.",
-        variant: "destructive",
-      });
-      setLoading(false);
-      return null;
-    }
-    
-    // First, try to handle direct return from Stripe
-    if (isPostPurchase || stripeSessionId) {
-      try {
-        const stripeReturnResult = await handleStripeReturn(verificationId, {
-          userId, 
-          sessionId: stripeSessionId
-        });
-        
-        if (stripeReturnResult) {
-          console.log('Successfully processed Stripe return directly');
-          setResult(stripeReturnResult);
-          setLoading(false);
-          return stripeReturnResult;
-        }
-      } catch (error) {
-        console.error('Error handling Stripe return:', error);
-        // Continue to next strategy
-      }
-    }
-    
-    // For logged-in users, attempt direct update
-    if (userId) {
-      try {
-        console.log('Attempting direct database update for logged-in user');
-        
-        const directResult = await attemptDirectUpdate(
-          verificationId, 
-          userId,
-          stripeSessionId
-        );
-        
-        if (directResult) {
-          setResult(directResult);
-          setLoading(false);
-          stopVerification();
-          return directResult;
-        }
-      } catch (error) {
-        console.error('Error during direct update:', error);
-        // Continue to next strategy
-      }
-    }
-    
-    // Maximum retries check
-    if (verificationAttempts >= maxRetries) {
-      try {
-        return await handleMaxRetriesExceeded(verificationId, {
-          stripeSessionId,
-          userId
-        });
-      } catch (error) {
-        console.error('Error handling max retries:', error);
-        // Continue to next strategy
-      }
-    }
-    
-    // Standard verification attempt
     try {
-      let success = await verifyPurchase(verificationId);
+      console.log('Verification coordinator started');
       
-      // If first attempt fails and this is directly after purchase, try again
-      if (!success && isPostPurchase) {
-        console.log('First attempt failed, trying again after short delay');
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        success = await verifyPurchase(verificationId);
-      }
-      
-      // If verification failed, use fallback methods
-      if (!success) {
-        toast({
-          title: "Verification in progress",
-          description: "We're still processing your purchase. Please wait a moment...",
-        });
-        
-        try {
-          console.log('Attempting final direct database update as fallback');
-          const finalResult = await attemptDirectUpdate(
-            verificationId,
-            userId,
-            stripeSessionId
-          );
-          
-          if (finalResult) {
-            console.log('Final direct database update successful!');
-            setResult(finalResult);
-            setLoading(false);
-            stopVerification();
-            return finalResult;
-          }
-        } catch (finalError) {
-          console.error('Final fallback attempt failed:', finalError);
+      // If we're coming back from Stripe, handle that first
+      if (isPostPurchase && stripeSessionId) {
+        console.log('Handling Stripe return case');
+        const stripeResult = await handleStripeReturn(id, stripeSessionId, userId);
+        if (stripeResult) {
+          console.log('Stripe return verification successful');
+          stopVerification();
+          return stripeResult;
         }
       }
+      
+      // Try standard verification
+      console.log('Executing standard verification');
+      const standardResult = await executeStandardVerification(id, userId, stripeSessionId, maxRetries);
+      if (standardResult) {
+        console.log('Standard verification successful');
+        stopVerification();
+        return standardResult;
+      }
+      
+      // As a last resort, try fallback verification
+      if (verificationAttempts >= maxRetries) {
+        console.log('Executing fallback verification after max retries');
+        const fallbackResult = await executeFallbackVerification(id);
+        if (fallbackResult) {
+          console.log('Fallback verification successful');
+          stopVerification();
+          return fallbackResult;
+        }
+      }
+      
+      console.log('All verification strategies failed');
+      stopVerification();
+      return null;
     } catch (error) {
-      console.error('Error during verification process:', error);
+      console.error('Verification coordinator error:', error);
+      stopVerification();
+      throw error;
     }
-    
-    return null;
   };
-
+  
   return {
     executeVerificationFlow
   };

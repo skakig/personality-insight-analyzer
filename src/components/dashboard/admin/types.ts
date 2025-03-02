@@ -30,6 +30,7 @@ export interface Affiliate {
   commission_rate: number;
   total_sales: number;
   earnings: number;
+  conversions: number;
   status: 'active' | 'inactive' | 'pending';
   created_at: string;
   updated_at: string;
