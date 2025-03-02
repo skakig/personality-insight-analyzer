@@ -83,7 +83,7 @@ export const useAssessmentResult = ({
 
   const verifyPurchase = useCallback(async (resultId: string, maxRetries = 3) => {
     try {
-      const verifiedResult = await verificationFlow.verifyPurchase(resultId, maxRetries);
+      const verifiedResult = await verificationFlow.runVerification(resultId);
       
       if (verifiedResult) {
         setResult(verifiedResult as QuizResult);

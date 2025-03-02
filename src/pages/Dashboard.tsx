@@ -19,7 +19,7 @@ const Dashboard = ({ session }: DashboardProps) => {
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [previousAssessments, setPreviousAssessments] = useState<any[]>([]);
+  const [previousAssessments, setPreviousAssessments] = useState<QuizResult[]>([]);
 
   const fetchData = async () => {
     try {
