@@ -3,6 +3,7 @@ import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { storePurchaseData } from "@/utils/purchaseStateUtils";
+import { trackAffiliatePurchase } from "@/utils/purchase/affiliateTracking";
 
 export interface LoggedInCheckoutOptions {
   quizResultId: string | null;
@@ -121,6 +122,9 @@ export const useLoggedInCheckout = () => {
                 userId,
                 discountAmount: data.discountAmount
               });
+              
+              // Track affiliate commission if this is an affiliate coupon
+              await trackAffiliatePurchase(couponCode, priceAmount);
             }
           } catch (couponError) {
             console.error('Error tracking coupon usage:', couponError);

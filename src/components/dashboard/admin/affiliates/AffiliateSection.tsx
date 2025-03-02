@@ -1,11 +1,12 @@
 
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
 import { useAffiliateManagement } from "./useAffiliateManagement";
-import { CreateAffiliateForm } from "./CreateAffiliateForm";
 import { AffiliateList } from "./AffiliateList";
-import { CreateCommissionTierForm } from "./CreateCommissionTierForm";
+import { CreateAffiliateForm } from "./CreateAffiliateForm";
 import { CommissionTierList } from "./CommissionTierList";
+import { CreateCommissionTierForm } from "../affiliates/CreateCommissionTierForm";
 
 export const AffiliateSection = () => {
   const {
@@ -21,48 +22,31 @@ export const AffiliateSection = () => {
   } = useAffiliateManagement();
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Affiliate Marketing</CardTitle>
-        <CardDescription>Manage affiliates and commission tiers</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="flex justify-between">
-          <div className="flex space-x-2">
-            <Button 
-              variant={viewMode === 'affiliates' ? "default" : "outline"}
-              onClick={() => setViewMode('affiliates')}
-            >
-              Affiliates
-            </Button>
-            <Button 
-              variant={viewMode === 'tiers' ? "default" : "outline"}
-              onClick={() => setViewMode('tiers')}
-            >
-              Commission Tiers
-            </Button>
-          </div>
-        </div>
-
-        {viewMode === 'affiliates' ? (
-          <>
-            <CreateAffiliateForm onCreateAffiliate={createAffiliate} />
-            <AffiliateList 
-              affiliates={affiliates} 
-              loading={loading} 
-              onRefresh={fetchAffiliates} 
-            />
-          </>
-        ) : (
-          <>
-            <CreateCommissionTierForm onCreateTier={createCommissionTier} />
-            <CommissionTierList 
-              commissionTiers={commissionTiers} 
-              onRefresh={fetchCommissionTiers} 
-            />
-          </>
-        )}
-      </CardContent>
-    </Card>
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="pt-6">
+          <Tabs defaultValue="affiliates" onValueChange={(value) => setViewMode(value as 'affiliates' | 'tiers')}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="affiliates">Affiliates</TabsTrigger>
+              <TabsTrigger value="tiers">Commission Tiers</TabsTrigger>
+            </TabsList>
+            <TabsContent value="affiliates" className="space-y-4 pt-4">
+              <CreateAffiliateForm onCreateAffiliate={createAffiliate} />
+              <AffiliateList 
+                affiliates={affiliates} 
+                onRefresh={fetchAffiliates} 
+              />
+            </TabsContent>
+            <TabsContent value="tiers" className="space-y-4 pt-4">
+              <CreateCommissionTierForm onCreateTier={createCommissionTier} />
+              <CommissionTierList 
+                commissionTiers={commissionTiers} 
+                onRefresh={fetchCommissionTiers} 
+              />
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+    </div>
   );
 };

@@ -1,138 +1,246 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@12.5.0?target=deno";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import Stripe from 'https://esm.sh/stripe@13.6.0?target=deno';
 
-// Initialize Stripe with the secret key
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || '', {
-  apiVersion: '2022-11-15',
+const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+  apiVersion: "2023-10-16",
   httpClient: Stripe.createFetchHttpClient(),
 });
 
-// Webhook secret for validating webhook events
-const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") || '';
+const supabase = createClient(
+  Deno.env.get("SUPABASE_URL") || "",
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
+);
 
-serve(async (req) => {
-  const signature = req.headers.get("stripe-signature");
-  if (!signature) {
-    console.error("Missing stripe-signature header");
-    return new Response("Missing stripe-signature header", { status: 400 });
-  }
+const endpointSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") || "";
 
-  // Get the raw request body
-  const body = await req.text();
-  let event;
-
+const updateAffiliateSales = async (
+  sessionId: string,
+  purchaseAmount: number
+) => {
   try {
-    // Verify the event with the webhook secret
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    console.log("Tracking affiliate sales for session ID:", sessionId);
+
+    // Get the session to retrieve metadata
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    const couponCode = session?.metadata?.couponCode;
+
+    if (!couponCode) {
+      console.log("No coupon code found in session metadata");
+      return;
+    }
+    
+    console.log("Processing affiliate sale with coupon:", couponCode);
+
+    // First, find the coupon used in this session
+    const { data: coupon, error: couponError } = await supabase
+      .from('coupons')
+      .select('*, affiliates(*)')
+      .eq('code', couponCode)
+      .single();
+
+    if (couponError || !coupon?.affiliate_id) {
+      console.error("Error fetching coupon or not an affiliate coupon:", couponError?.message);
+      return;
+    }
+
+    const affiliate = coupon.affiliates;
+    if (!affiliate) {
+      console.log("Affiliate not found for coupon:", couponCode);
+      return;
+    }
+
+    console.log("Found affiliate for coupon:", affiliate.name);
+
+    // Calculate commission
+    const commissionRate = affiliate.commission_rate;
+    const commissionAmount = purchaseAmount * commissionRate;
+
+    console.log("Calculated commission:", {
+      purchaseAmount,
+      commissionRate,
+      commissionAmount
+    });
+
+    // Update affiliate stats
+    const { error: updateError } = await supabase
+      .from('affiliates')
+      .update({
+        total_sales: affiliate.total_sales + purchaseAmount,
+        earnings: affiliate.earnings + commissionAmount,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', affiliate.id);
+
+    if (updateError) {
+      console.error("Error updating affiliate stats:", updateError);
+      return;
+    }
+
+    console.log("Successfully tracked affiliate purchase for:", affiliate.name);
   } catch (error) {
-    console.error(`Webhook signature verification failed: ${error.message}`);
-    return new Response(`Webhook signature verification failed: ${error.message}`, { status: 400 });
+    console.error("Error in updateAffiliateSales:", error);
   }
+};
 
-  // Create a Supabase client for DB operations
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    { auth: { persistSession: false } }
-  );
-
-  // Store the complete webhook event for debugging
+const handleEvent = async (event: any) => {
   try {
-    await supabaseClient
+    console.log(`Processing event: ${event.type}`);
+    
+    // Log event to database
+    const { data: eventData, error: eventError } = await supabase
       .from('stripe_webhook_events')
       .insert({
         stripe_event_id: event.id,
         event_type: event.type,
         raw_event: event,
-        status: 'received',
+        status: 'processing'
+      })
+      .select()
+      .single();
+      
+    if (eventError) {
+      console.error('Error storing event:', eventError);
+      throw eventError;
+    }
+    
+    // Handle checkout.session.completed
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      console.log('Checkout completed:', session.id);
+      
+      // Extract important metadata
+      const resultId = session.metadata?.resultId;
+      const userId = session.metadata?.userId;
+      const accessToken = session.metadata?.accessToken;
+      const trackingId = session.metadata?.trackingId;
+      
+      console.log('Session metadata:', { 
+        resultId, 
+        userId, 
+        hasAccessToken: !!accessToken,
+        hasTrackingId: !!trackingId
       });
-  } catch (dbError) {
-    console.error('Failed to log webhook event to database:', dbError);
-    // Continue processing the event even if logging fails
-  }
-
-  console.log(`Received event ${event.id} of type ${event.type}`);
-
-  try {
-    // Handle different event types
-    switch (event.type) {
-      case 'checkout.session.completed': {
-        // Payment is successful, update the result in the database
-        const session = event.data.object;
-        const { resultId, userId } = session.metadata;
-        
-        if (!resultId) {
-          throw new Error('Missing resultId in session metadata');
+      
+      // Handle purchase tracking update
+      if (trackingId) {
+        const { error: trackingError } = await supabase
+          .from('purchase_tracking')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString()
+          })
+          .eq('id', trackingId);
+          
+        if (trackingError) {
+          console.error('Error updating tracking:', trackingError);
+        } else {
+          console.log('Updated purchase tracking:', trackingId);
         }
+      }
+      
+      // Check if this involves a quiz result
+      if (resultId) {
+        console.log('Updating quiz result:', resultId);
         
-        console.log(`Processing completed checkout for result: ${resultId}, session: ${session.id}`);
-        
-        // Update the quiz result
-        const { error: resultError } = await supabaseClient
+        // Update quiz result with purchase information
+        const { error: resultError } = await supabase
           .from('quiz_results')
           .update({
             is_purchased: true,
             is_detailed: true,
             purchase_status: 'completed',
             purchase_completed_at: new Date().toISOString(),
-            access_method: 'purchase'
+            access_method: userId ? 'purchase' : 'guest_purchase'
           })
           .eq('id', resultId);
           
         if (resultError) {
           console.error('Error updating quiz result:', resultError);
+        } else {
+          console.log('Successfully updated quiz result:', resultId);
         }
         
-        // Update purchase tracking
-        const { error: trackingError } = await supabaseClient
-          .from('purchase_tracking')
-          .update({
-            status: 'completed',
-            completed_at: new Date().toISOString()
-          })
-          .eq('quiz_result_id', resultId)
-          .eq('stripe_session_id', session.id);
-          
-        if (trackingError) {
-          console.error('Error updating purchase tracking:', trackingError);
+        // Track affiliate commission for this purchase
+        if (session.metadata?.couponCode) {
+          await updateAffiliateSales(
+            session.id,
+            session.amount_total / 100 // Convert from cents to dollars
+          );
         }
-        
-        // Mark webhook event as processed
-        await supabaseClient
-          .from('stripe_webhook_events')
-          .update({
-            status: 'processed',
-            processed_at: new Date().toISOString()
-          })
-          .eq('stripe_event_id', event.id);
-        
-        break;
       }
       
-      // Handle other event types as needed
-      default:
-        console.log(`Unhandled event type ${event.type}`);
+      // Update event record to completed
+      await supabase
+        .from('stripe_webhook_events')
+        .update({
+          status: 'completed',
+          processed_at: new Date().toISOString()
+        })
+        .eq('id', eventData.id);
+        
+      console.log('Webhook processing completed successfully');
     }
-  } catch (error) {
-    console.error(`Error processing Stripe webhook: ${error.message}`);
     
-    // Log the error to the database
-    await supabaseClient
-      .from('stripe_webhook_events')
-      .update({
-        status: 'error',
-        error_message: error.message,
-        processed_at: new Date().toISOString()
-      })
-      .eq('stripe_event_id', event.id);
-      
-    return new Response(`Error processing webhook: ${error.message}`, { status: 500 });
+    return true;
+  } catch (error) {
+    console.error('Error handling webhook event:', error);
+    
+    // Try to update event record with error
+    try {
+      await supabase
+        .from('stripe_webhook_events')
+        .update({
+          status: 'error',
+          error_message: error.message || 'Unknown error'
+        })
+        .eq('stripe_event_id', event.id);
+    } catch (dbError) {
+      console.error('Error updating event record:', dbError);
+    }
+    
+    return false;
   }
+};
 
-  // Return a 200 response to Stripe to acknowledge receipt of the event
-  return new Response(JSON.stringify({ received: true }), {
-    headers: { "Content-Type": "application/json" },
-  });
+serve(async (req) => {
+  const signature = req.headers.get("stripe-signature");
+  
+  if (!signature) {
+    console.error("No signature found in request");
+    return new Response(JSON.stringify({ error: "No signature found" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+  
+  try {
+    const body = await req.text();
+    let event;
+    
+    try {
+      event = stripe.webhooks.constructEvent(body, signature, endpointSecret);
+    } catch (err) {
+      console.error(`Webhook signature verification failed: ${err.message}`);
+      return new Response(JSON.stringify({ error: `Webhook Error: ${err.message}` }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+    
+    // Handle the event
+    await handleEvent(event);
+    
+    return new Response(JSON.stringify({ received: true }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error(`Error handling webhook: ${error.message}`);
+    return new Response(JSON.stringify({ error: `Webhook Error: ${error.message}` }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
 });
