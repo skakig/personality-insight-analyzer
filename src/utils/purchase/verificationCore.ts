@@ -4,15 +4,40 @@ import {
   executeImmediateVerificationStrategies,
   executeRetryVerificationStrategies,
   executeFallbackVerification
-} from "./verificationStrategies";
+} from "./verification/coreStrategies";
 import {
   getStoredPurchaseData,
   storeSessionIdFromUrl,
   getUrlVerificationParams,
-  checkDirectPurchaseStatus,
   logVerificationParameters,
   attemptFastCheckoutVerification
 } from "./helpers";
+
+// Helper function to check direct purchase status
+export const checkDirectPurchaseStatus = async (resultId: string) => {
+  try {
+    // Simple direct fetch to check purchase status
+    const { data, error } = await supabase
+      .from('quiz_results')
+      .select('*')
+      .eq('id', resultId)
+      .maybeSingle();
+    
+    if (error) {
+      console.error('Direct status check error:', error);
+      return null;
+    }
+    
+    if (data && (data.is_purchased || data.purchase_status === 'completed')) {
+      console.log('Result already verified via direct check');
+      return data;
+    }
+  } catch (error) {
+    console.error('Error in direct purchase check:', error);
+  }
+  
+  return null;
+};
 
 /**
  * Core verification function that orchestrates all verification strategies

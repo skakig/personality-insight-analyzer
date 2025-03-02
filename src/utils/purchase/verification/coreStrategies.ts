@@ -1,15 +1,13 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { isPurchased } from "../../purchaseStatus";
-import { checkPurchaseTracking } from "../../purchaseVerification";
 import { 
   verifyWithUserId,
-  verifyWithGuestToken,
+  verifyWithGuestToken, 
   verifyWithGuestEmail,
   verifyWithStripeSession,
   forceUpdatePurchaseStatus
 } from './baseStrategies';
-import { updateResultWithPurchase } from "../../purchaseVerification";
 
 /**
  * Execute immediate verification strategies
@@ -36,40 +34,6 @@ export const executeImmediateVerificationStrategies = async (
     return directResult;
   }
   
-  // Check URL params for success=true
-  if (window.location.search.includes('success=true')) {
-    console.log('Detected success=true in URL, force updating purchase status');
-    const forcedResult = await forceUpdatePurchaseStatus(resultId);
-    if (forcedResult && isPurchased(forcedResult)) {
-      console.log('Successfully forced purchase update from URL success param');
-      
-      // Send confirmation email if we have an email
-      try {
-        const email = guestEmail || (await supabase.auth.getSession()).data.session?.user?.email;
-        if (email && resultId) {
-          await supabase.functions.invoke('send-results', {
-            body: { email, resultId }
-          });
-          console.log('Confirmation email sent to:', email);
-        }
-      } catch (emailError) {
-        console.error('Error sending confirmation email:', emailError);
-      }
-      
-      return forcedResult;
-    }
-  }
-  
-  // Try verification with tracking ID
-  if (trackingId) {
-    console.log('Checking tracking ID:', trackingId);
-    const trackingResult = await checkPurchaseTracking(trackingId, resultId);
-    if (trackingResult) {
-      console.log('Verified via tracking ID');
-      return trackingResult;
-    }
-  }
-  
   // Try verification with user ID
   if (userId) {
     console.log('Checking user ID:', userId);
@@ -87,21 +51,6 @@ export const executeImmediateVerificationStrategies = async (
     if (sessionResult) {
       console.log('Verified via session ID');
       return sessionResult;
-    }
-    
-    // Also try to update with session ID
-    const updated = await updateResultWithPurchase(resultId, sessionId);
-    if (updated) {
-      const { data: updatedResult } = await supabase
-        .from('quiz_results')
-        .select('*')
-        .eq('id', resultId)
-        .maybeSingle();
-        
-      if (updatedResult && isPurchased(updatedResult)) {
-        console.log('Verified via result update with session ID');
-        return updatedResult;
-      }
     }
   }
   

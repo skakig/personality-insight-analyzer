@@ -1,7 +1,7 @@
-
 import { supabase } from "@/integrations/supabase/client";
+import { isPurchased } from "@/utils/purchaseStatus";
+import { clearPurchaseData, getPurchaseData } from "@/utils/purchaseStateUtils";
 import { toast } from "@/hooks/use-toast";
-import { cleanupPurchaseState, getPurchaseState } from "@/utils/purchaseStateUtils";
 
 /**
  * Specialized hook for handling returns from Stripe checkout
@@ -17,7 +17,7 @@ export const useStripeReturnHandler = () => {
     const sessionId = urlParams.get('session_id') || options?.sessionId;
     
     // Get stored data from localStorage
-    const storedData = getPurchaseState();
+    const storedData = getPurchaseData();
     const storedUserId = storedData.userId || options?.userId;
     
     if (!success || !sessionId) {
@@ -105,7 +105,7 @@ export const useStripeReturnHandler = () => {
         });
         
         // Clean up stored purchase data
-        cleanupPurchaseState();
+        clearPurchaseData();
         
         return result;
       }

@@ -47,6 +47,7 @@ export interface QuizResult {
   purchase_date?: string | null;
   purchase_amount?: number | null;
   primary_level?: string | number | null;
+  conversions?: number;
 }
 
 export interface Affiliate {

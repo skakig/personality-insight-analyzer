@@ -1,26 +1,23 @@
 
 /**
- * Entry point for purchase helper utilities
- * Re-exports from specific helper files
+ * Re-export helpers and utilities
  */
 
-// Export from storageHelpers
+// Export from directVerificationHelpers.ts
+export * from './directVerificationHelpers';
+
+// Export specific functions from verificationHelpers.ts
 export {
+  getUrlVerificationParams,
+  logVerificationParameters,
+  getStoredPurchaseData,
+  attemptFastCheckoutVerification
+} from './verificationHelpers';
+
+// Export specific functions from storageHelpers.ts
+export {
+  storeSessionIdFromUrl,
   storePurchaseData,
   getPurchaseState,
   clearPurchaseState
 } from './storageHelpers';
-
-// Export from verificationHelpers
-export {
-  getUrlVerificationParams,
-  logVerificationParameters,
-  getStoredPurchaseData
-} from './verificationHelpers';
-
-// Export from directVerificationHelpers
-export * from './directVerificationHelpers';
-
-// Explicitly export these to avoid ambiguity
-export { storeSessionIdFromUrl } from './storageHelpers';
-export { attemptFastCheckoutVerification } from './verificationHelpers';

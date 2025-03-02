@@ -6,5 +6,5 @@ project_id = "caebnpbdprrptogirxky"
 [api]
 enabled = true
 
-[api.edge_functions.send-results]
-verify_jwt = false
+[functions]
+send-results = { verify_jwt = false }

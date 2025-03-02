@@ -1,53 +1,65 @@
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
-import { QuizResult, UseAssessmentResultProps } from '@/types/quiz';
-import { executeVerification } from '@/utils/purchase';
-import { isPurchased, shouldAllowAccess } from '@/utils/purchaseStatus';
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { QuizResult } from "@/types/quiz";
+import { isPurchased } from "@/utils/purchaseStatus";
+import { storePurchaseData } from "@/utils/purchaseStateUtils";
+import { executeVerification } from "@/utils/purchase";
+
+export interface UseAssessmentResultProps {
+  id?: string;
+  sessionId?: string;
+  email?: string;
+}
 
 export const useAssessmentResult = ({ id, sessionId, email }: UseAssessmentResultProps) => {
   const [result, setResult] = useState<QuizResult | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [verificationAttempted, setVerificationAttempted] = useState<boolean>(false);
-  const [purchaseStatus, setPurchaseStatus] = useState<'none' | 'pending' | 'complete'>('none');
+  const [error, setError] = useState<string>("");
+  const [purchaseStatus, setPurchaseStatus] = useState<"none" | "pending" | "complete">("none");
+  const [allowAccess, setAllowAccess] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchResult = async () => {
-      if (!id) return;
+      if (!id) {
+        setError("No assessment ID provided");
+        setLoading(false);
+        return;
+      }
 
       setLoading(true);
-      try {
-        console.log('Fetching assessment result:', id);
+      setError("");
 
+      try {
+        // Fetch the result
         const { data, error: fetchError } = await supabase
-          .from('quiz_results')
-          .select('*')
-          .eq('id', id)
+          .from("quiz_results")
+          .select("*")
+          .eq("id", id)
           .maybeSingle();
 
         if (fetchError) {
-          console.error('Error fetching result:', fetchError);
-          setError('Failed to load assessment result');
-          return;
+          throw new Error(`Error fetching result: ${fetchError.message}`);
         }
 
         if (!data) {
-          console.log('No result found with ID:', id);
-          setError('Assessment not found');
-          return;
+          throw new Error("Assessment not found");
         }
 
-        // Convert the raw data to a properly typed QuizResult
+        // Store session ID if provided for verification purposes
+        if (sessionId) {
+          storePurchaseData(id, sessionId);
+        }
+
+        // Convert to our QuizResult type with proper types
         const typedResult: QuizResult = {
           id: data.id,
           user_id: data.user_id,
           personality_type: data.personality_type,
-          is_purchased: data.is_purchased || false,
-          is_detailed: data.is_detailed || false,
-          purchase_status: data.purchase_status,
-          access_method: data.access_method,
+          is_purchased: !!data.is_purchased,
+          is_detailed: !!data.is_detailed, 
+          purchase_status: data.purchase_status as string,
+          access_method: data.access_method as string,
           stripe_session_id: data.stripe_session_id,
           guest_email: data.guest_email,
           guest_access_token: data.guest_access_token,
@@ -56,7 +68,7 @@ export const useAssessmentResult = ({ id, sessionId, email }: UseAssessmentResul
           created_at: data.created_at,
           updated_at: data.updated_at || data.created_at,
           detailed_analysis: data.detailed_analysis,
-          category_scores: data.category_scores,
+          category_scores: data.category_scores as Record<string, number> | null,
           answers: data.answers,
           temp_access_token: data.temp_access_token,
           temp_access_expires_at: data.temp_access_expires_at,
@@ -70,64 +82,30 @@ export const useAssessmentResult = ({ id, sessionId, email }: UseAssessmentResul
         
         // Determine purchase status
         if (isPurchased(typedResult)) {
-          setPurchaseStatus('complete');
-        } else if (typedResult.purchase_status === 'pending') {
-          setPurchaseStatus('pending');
-        } else {
-          setPurchaseStatus('none');
+          setPurchaseStatus("complete");
+          setAllowAccess(true);
+        } else if (typedResult.purchase_status === "pending") {
+          setPurchaseStatus("pending");
         }
-      } catch (err: any) {
-        console.error('Error in useAssessmentResult:', err);
-        setError('An error occurred while loading the assessment');
-      } finally {
+
+        setLoading(false);
+      } catch (error: any) {
+        console.error("Error in useAssessmentResult:", error);
+        setError(error.message || "Failed to load assessment");
         setLoading(false);
       }
     };
 
     fetchResult();
-  }, [id]);
-
-  // Verify purchase status when component mounts
-  useEffect(() => {
-    if (!result || verificationAttempted) return;
-
-    const verifyPurchase = async () => {
-      if (shouldAllowAccess(result)) {
-        console.log('Assessment already purchased, skipping verification');
-        return;
-      }
-
-      console.log('Verifying purchase for result:', result.id);
-      setVerificationAttempted(true);
-
-      try {
-        const verifiedResult = await executeVerification(result.id);
-        
-        if (verifiedResult && isPurchased(verifiedResult)) {
-          console.log('Purchase verified successfully');
-          setResult(verifiedResult as QuizResult);
-          setPurchaseStatus('complete');
-          
-          toast({
-            title: "Purchase Verified",
-            description: "Your report is now available for viewing",
-          });
-        } else {
-          console.log('Purchase verification failed or not needed');
-        }
-      } catch (err) {
-        console.error('Error verifying purchase:', err);
-      }
-    };
-
-    verifyPurchase();
-  }, [result, verificationAttempted]);
+  }, [id, sessionId, email]);
 
   return {
-    result,
+    result: result as QuizResult,
     loading,
     error,
     purchaseStatus,
-    allowAccess: result ? shouldAllowAccess(result) : false,
+    allowAccess
   };
 };
+
+export default useAssessmentResult;

@@ -60,3 +60,17 @@ export const clearPurchaseState = () => {
   localStorage.removeItem('checkoutUserId');
   localStorage.removeItem('purchaseInitiatedAt');
 };
+
+/**
+ * Get stored purchase data (for backward compatibility)
+ */
+export const getStoredPurchaseData = () => {
+  return {
+    resultId: localStorage.getItem('purchaseResultId') || localStorage.getItem('checkoutResultId'),
+    sessionId: localStorage.getItem('stripeSessionId') || localStorage.getItem('creditsPurchaseSessionId'),
+    userId: localStorage.getItem('checkoutUserId'),
+    guestEmail: localStorage.getItem('guestEmail'),
+    initiatedAt: localStorage.getItem('purchaseInitiatedAt'),
+    trackingId: localStorage.getItem('purchaseTrackingId')
+  };
+};

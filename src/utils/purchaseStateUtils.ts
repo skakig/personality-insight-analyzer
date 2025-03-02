@@ -48,3 +48,13 @@ export const getPurchaseData = () => {
     trackingId: localStorage.getItem('purchaseTrackingId')
   };
 };
+
+/**
+ * Clean up purchase state (alias for clearPurchaseData for compatibility)
+ */
+export const cleanupPurchaseState = clearPurchaseData;
+
+/**
+ * Get purchase state (alias for getPurchaseData for compatibility)
+ */
+export const getPurchaseState = getPurchaseData;

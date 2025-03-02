@@ -1,77 +1,118 @@
-
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
-import { cleanupPurchaseState, storePurchaseData } from "@/utils/purchaseStateUtils";
+import { isPurchased } from "@/utils/purchaseStatus";
+import { clearPurchaseData, getPurchaseData } from "@/utils/purchaseStateUtils";
 
 /**
- * Handles basic verification strategies for newly returning users from Stripe
+ * Helper function to verify a result using only a session ID
  */
-export const useBasicVerificationStrategies = (
-  setResult: (result: any) => void,
-  setLoading: (loading: boolean) => void,
-  stopVerification: () => void
-) => {
-  /**
-   * Attempt to verify purchase for a logged-in user
-   */
-  const verifyForLoggedInUser = async (id: string, userId: string, sessionId?: string | null) => {
-    console.log('Basic strategy: Verifying for logged-in user', { id, userId });
-    
-    // Try direct database update by user ID
-    const { error: updateError } = await supabase
-      .from('quiz_results')
-      .update({
-        is_purchased: true,
-        is_detailed: true,
-        purchase_status: 'completed',
-        purchase_completed_at: new Date().toISOString(),
-        access_method: 'purchase'
-      })
-      .eq('id', id)
-      .eq('user_id', userId);
-    
-    if (updateError) {
-      console.error('Direct user update failed:', updateError);
-      return false;
+export const verifyResultWithSessionId = async (stripeSessionId: string, resultId: string) => {
+  try {
+    if (!stripeSessionId || !resultId) {
+      console.error('Missing parameters for verification:', { stripeSessionId, resultId });
+      return null;
     }
     
-    // Fetch the updated result
-    const { data: userResult } = await supabase
+    console.log('Verifying result with session ID:', { stripeSessionId, resultId });
+    
+    // Try to update the result
+    const updated = await updateResultWithPurchase(resultId, stripeSessionId);
+    
+    if (updated) {
+      // Fetch the updated result
+      const { data: result } = await supabase
+        .from('quiz_results')
+        .select('*')
+        .eq('id', resultId)
+        .maybeSingle();
+        
+      if (result && isPurchased(result)) {
+        console.log('Purchase verified via session ID');
+        return result;
+      }
+    }
+  } catch (error) {
+    console.error('Error in session verification:', error);
+  }
+  
+  return null;
+};
+
+/**
+ * Attempts to fetch a result directly by ID and session ID
+ */
+export const fetchResultBySessionId = async (resultId: string, stripeSessionId: string) => {
+  try {
+    const { data: result, error } = await supabase
       .from('quiz_results')
       .select('*')
-      .eq('id', id)
-      .eq('user_id', userId)
+      .eq('id', resultId)
+      .eq('stripe_session_id', stripeSessionId)
       .maybeSingle();
-    
-    if (userResult) {
-      console.log('Successfully verified purchase for logged-in user');
-      setResult(userResult);
-      setLoading(false);
-      stopVerification();
-      toast({
-        title: "Purchase verified!",
-        description: "Your detailed report is now available.",
-      });
       
-      if (sessionId) {
-        storePurchaseData(id, sessionId, userId);
-        cleanupPurchaseState();
-      }
-      
-      return true;
+    if (error) {
+      console.error('Error fetching result by session ID:', error);
+      return null;
     }
     
-    return false;
-  };
-  
-  /**
-   * Attempt to verify purchase with session ID
-   */
-  const verifyWithSessionId = async (id: string, sessionId: string, userId?: string) => {
-    console.log('Basic strategy: Verifying with session ID', { id, sessionId });
+    if (result && isPurchased(result)) {
+      console.log('Found purchased result by session ID');
+      return result;
+    }
     
-    // Update result with session ID
-    const { error: updateError } = await supabase
+    console.log('Result not found or not purchased by session ID');
+    return null;
+  } catch (error) {
+    console.error('Error in fetchResultBySessionId:', error);
+    return null;
+  }
+};
+
+/**
+ * Attempts to find any result associated with the given session ID
+ */
+export const findAnyResultBySessionId = async (stripeSessionId: string) => {
+  try {
+    const { data: result, error } = await supabase
+      .from('quiz_results')
+      .select('*')
+      .eq('stripe_session_id', stripeSessionId)
+      .maybeSingle();
+      
+    if (error) {
+      console.error('Error finding any result by session ID:', error);
+      return null;
+    }
+    
+    if (result && isPurchased(result)) {
+      console.log('Found purchased result by session ID');
+      return result;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error in findAnyResultBySessionId:', error);
+    return null;
+  }
+};
+
+/**
+ * Quick verification for users returning from Stripe checkout
+ */
+export const attemptFastCheckoutVerification = async (
+  resultId: string,
+  sessionId?: string | null,
+  userId?: string | null,
+  checkoutUserId?: string | null,
+  guestEmail?: string | null,
+  urlSuccess?: boolean
+) => {
+  if (!urlSuccess) return null;
+  
+  try {
+    console.log('Attempting fast checkout verification with success=true in URL');
+    
+    // If we have success=true in the URL, let's update the result directly
+    const { data, error } = await supabase
       .from('quiz_results')
       .update({
         is_purchased: true,
@@ -79,43 +120,39 @@ export const useBasicVerificationStrategies = (
         purchase_status: 'completed',
         purchase_completed_at: new Date().toISOString(),
         access_method: 'purchase',
-        stripe_session_id: sessionId
+        ...(userId ? { user_id: userId } : {}),
+        ...(guestEmail ? { guest_email: guestEmail } : {})
       })
-      .eq('id', id)
-      .eq('stripe_session_id', sessionId);
-    
-    if (updateError) {
-      console.error('Session ID update failed:', updateError);
-      return false;
-    }
-    
-    // Fetch the updated result
-    const { data: sessionResult } = await supabase
-      .from('quiz_results')
-      .select('*')
-      .eq('id', id)
-      .eq('stripe_session_id', sessionId)
+      .eq('id', resultId)
+      .select()
       .maybeSingle();
-    
-    if (sessionResult) {
-      console.log('Successfully verified purchase with session ID');
-      setResult(sessionResult);
-      setLoading(false);
-      stopVerification();
-      toast({
-        title: "Purchase verified!",
-        description: "Your detailed report is now available.",
-      });
       
-      storePurchaseData(id, sessionId, userId);
-      return true;
+    if (error) {
+      console.error('Fast verification update error:', error);
+      return null;
     }
     
-    return false;
-  };
+    if (data) {
+      console.log('Fast verification successful!');
+      
+      // Send confirmation email
+      try {
+        const email = guestEmail || (await supabase.auth.getSession()).data.session?.user?.email;
+        if (email) {
+          await supabase.functions.invoke('send-results', {
+            body: { email, resultId }
+          });
+          console.log('Confirmation email sent to:', email);
+        }
+      } catch (emailError) {
+        console.error('Error sending confirmation email:', emailError);
+      }
+      
+      return data;
+    }
+  } catch (error) {
+    console.error('Error in fast checkout verification:', error);
+  }
   
-  return {
-    verifyForLoggedInUser,
-    verifyWithSessionId
-  };
+  return null;
 };
