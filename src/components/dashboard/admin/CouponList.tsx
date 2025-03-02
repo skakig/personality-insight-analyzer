@@ -1,162 +1,190 @@
 
 import { useState } from "react";
+import { format, isAfter } from "date-fns";
+import { AlertCircle, Check, Copy, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Loader2, Trash2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/components/ui/use-toast";
-import { format, parseISO } from "date-fns";
-import { Coupon, CouponListProps } from "./types";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Coupon } from "./types";
+
+export interface CouponListProps {
+  coupons: Coupon[];
+  onCouponUpdated: () => void;
+  loading: boolean;
+}
 
 export const CouponList = ({ coupons, onCouponUpdated, loading }: CouponListProps) => {
-  const toggleCouponStatus = async (couponId: string, currentStatus: boolean) => {
-    try {
-      const { error } = await supabase
-        .from('coupons')
-        .update({ is_active: !currentStatus })
-        .eq('id', couponId);
-        
-      if (error) throw error;
-      
-      toast({
-        title: "Success",
-        description: `Coupon ${currentStatus ? 'disabled' : 'enabled'} successfully`,
-      });
-      
-      // Refresh coupons
-      onCouponUpdated();
-    } catch (error: any) {
-      console.error('Error toggling coupon status:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update coupon",
-        variant: "destructive",
-      });
-    }
-  };
+  const [copySuccess, setCopySuccess] = useState<string | null>(null);
 
-  const deleteCoupon = async (couponId: string) => {
-    try {
-      const { error } = await supabase
-        .from('coupons')
-        .delete()
-        .eq('id', couponId);
-        
-      if (error) throw error;
-      
-      toast({
-        title: "Success",
-        description: "Coupon deleted successfully",
-      });
-      
-      // Refresh coupons
-      onCouponUpdated();
-    } catch (error: any) {
-      console.error('Error deleting coupon:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete coupon",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Helper function to show formatted product badges
-  const getProductBadges = (products: string[] | null) => {
-    if (!products || products.length === 0) {
-      return <Badge variant="outline">All Products</Badge>;
-    }
-    
-    const productColors: Record<string, string> = {
-      assessment: "bg-blue-100 text-blue-800",
-      book: "bg-purple-100 text-purple-800",
-      subscription: "bg-green-100 text-green-800",
-      credits: "bg-amber-100 text-amber-800"
-    };
-    
-    return (
-      <div className="flex flex-wrap gap-1 mt-1">
-        {products.map(product => (
-          <Badge key={product} variant="outline" className={productColors[product] || ""}>
-            {product.charAt(0).toUpperCase() + product.slice(1)}
-          </Badge>
-        ))}
-      </div>
+  const copyToClipboard = (code: string) => {
+    navigator.clipboard.writeText(code).then(
+      () => {
+        setCopySuccess(code);
+        toast({
+          title: "Copied!",
+          description: `Coupon code ${code} copied to clipboard.`,
+        });
+        setTimeout(() => setCopySuccess(null), 3000);
+      },
+      (err) => {
+        console.error("Could not copy text: ", err);
+        toast({
+          title: "Failed to copy",
+          description: "Could not copy to clipboard",
+          variant: "destructive",
+        });
+      }
     );
   };
 
+  const toggleCouponStatus = async (coupon: Coupon) => {
+    try {
+      const { error } = await supabase
+        .from('coupons')
+        .update({ is_active: !coupon.is_active })
+        .eq('id', coupon.id);
+
+      if (error) throw error;
+
+      onCouponUpdated();
+
+      toast({
+        title: coupon.is_active ? "Coupon deactivated" : "Coupon activated",
+        description: `Coupon ${coupon.code} has been ${coupon.is_active ? 'deactivated' : 'activated'}.`,
+      });
+    } catch (error: any) {
+      console.error('Error updating coupon status:', error);
+      toast({
+        title: "Error updating coupon status",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (loading) {
+    return <div>Loading coupon data...</div>;
+  }
+
+  if (coupons.length === 0) {
+    return (
+      <div className="text-center p-8 border rounded-lg">
+        <p className="text-muted-foreground">No coupons found. Create your first coupon to get started.</p>
+      </div>
+    );
+  }
+
+  const isExpired = (expireDate: string | null) => {
+    if (!expireDate) return false;
+    return !isAfter(new Date(expireDate), new Date());
+  };
+
   return (
-    <div className="space-y-3">
-      <h3 className="text-lg font-medium">Active Coupons</h3>
-      
-      {loading ? (
-        <div className="flex justify-center p-4">
-          <Loader2 className="h-6 w-6 animate-spin" />
-        </div>
-      ) : coupons.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-4">
-          No coupons found. Create your first coupon above.
-        </p>
-      ) : (
-        <div className="space-y-2">
-          {coupons.map((coupon) => (
-            <div 
-              key={coupon.id} 
-              className={`border rounded-lg p-3 ${!coupon.is_active ? 'bg-muted/20' : ''}`}
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="flex items-center gap-2">
+    <div className="space-y-4">
+      <div className="border rounded-lg overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-muted/50">
+            <tr>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Code
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Discount
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Usage
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Expires
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {coupons.map((coupon) => (
+              <tr key={coupon.id}>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center">
                     <span className="font-medium">{coupon.code}</span>
-                    {!coupon.is_active && (
-                      <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded-full">
-                        Disabled
-                      </span>
-                    )}
-                    {coupon.is_active && coupon.current_uses >= coupon.max_uses && (
-                      <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
-                        Maxed Out
-                      </span>
-                    )}
-                    {coupon.is_active && coupon.expires_at && new Date(coupon.expires_at) < new Date() && (
-                      <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
-                        Expired
-                      </span>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="ml-2 h-8 w-8 p-0"
+                      onClick={() => copyToClipboard(coupon.code)}
+                    >
+                      {copySuccess === coupon.code ? (
+                        <Check className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                      <span className="sr-only">Copy code</span>
+                    </Button>
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    {coupon.discount_type === 'percentage' 
-                      ? `${coupon.discount_amount}% off` 
-                      : `$${(coupon.discount_amount / 100).toFixed(2)} off`}
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Uses: {coupon.current_uses} / {coupon.max_uses} • 
-                    Created: {format(parseISO(coupon.created_at), 'MMM d, yyyy')}
-                    {coupon.expires_at && ` • Expires: ${format(parseISO(coupon.expires_at), 'MMM d, yyyy')}`}
-                  </div>
-                  {getProductBadges(coupon.applicable_products)}
-                </div>
-                <div className="flex gap-2">
-                  <Button 
-                    variant={coupon.is_active ? "outline" : "default"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {coupon.discount_type === "percentage"
+                    ? `${coupon.discount_amount}%`
+                    : `$${coupon.discount_amount.toFixed(2)}`}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {coupon.current_uses || 0} / {coupon.max_uses || "∞"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {coupon.expires_at ? (
+                    <span className={isExpired(coupon.expires_at) ? "text-red-500" : ""}>
+                      {format(new Date(coupon.expires_at), "MMM d, yyyy")}
+                      {isExpired(coupon.expires_at) && (
+                        <AlertCircle className="inline-block ml-1 h-4 w-4 text-red-500" />
+                      )}
+                    </span>
+                  ) : (
+                    "Never"
+                  )}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {isExpired(coupon.expires_at) ? (
+                    <Badge variant="outline" className="text-red-500 border-red-200 bg-red-50">
+                      Expired
+                    </Badge>
+                  ) : coupon.is_active ? (
+                    <Badge variant="outline" className="text-green-500 border-green-200 bg-green-50">
+                      Active
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-gray-500">
+                      Inactive
+                    </Badge>
+                  )}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <Button
+                    variant="ghost"
                     size="sm"
-                    onClick={() => toggleCouponStatus(coupon.id, coupon.is_active)}
+                    onClick={() => toggleCouponStatus(coupon)}
+                    className={coupon.is_active ? "text-red-500 hover:text-red-700" : "text-green-500 hover:text-green-700"}
                   >
-                    {coupon.is_active ? 'Disable' : 'Enable'}
+                    {coupon.is_active ? (
+                      <>
+                        <X className="h-4 w-4 mr-1" /> Deactivate
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4 mr-1" /> Activate
+                      </>
+                    )}
                   </Button>
-                  <Button 
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => deleteCoupon(coupon.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };

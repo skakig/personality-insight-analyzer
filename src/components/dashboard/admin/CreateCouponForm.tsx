@@ -1,236 +1,246 @@
 
-import { useState } from "react";
+import { useState, FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Loader2, PlusCircle } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { CalendarIcon, CheckCircle2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
+import { useSession } from "@supabase/auth-helpers-react";
 
-interface CreateCouponFormProps {
-  userId: string;
+export interface CreateCouponFormProps {
   onCouponCreated: () => void;
 }
 
-export const CreateCouponForm = ({ userId, onCouponCreated }: CreateCouponFormProps) => {
-  const [couponCode, setCouponCode] = useState("");
-  const [discountAmount, setDiscountAmount] = useState("");
-  const [discountType, setDiscountType] = useState("percentage");
-  const [maxUses, setMaxUses] = useState("100");
-  const [expiryDate, setExpiryDate] = useState("");
-  const [creatingCoupon, setCreatingCoupon] = useState(false);
+export const CreateCouponForm = ({ onCouponCreated }: CreateCouponFormProps) => {
+  const session = useSession();
+  const userId = session?.user?.id;
   
-  // Product-specific options
-  const [applicableProducts, setApplicableProducts] = useState<string[]>([]);
-  
-  // Handle product selection
-  const toggleProduct = (product: string) => {
-    setApplicableProducts(current => 
-      current.includes(product)
-        ? current.filter(p => p !== product)
-        : [...current, product]
-    );
+  const [code, setCode] = useState("");
+  const [discountType, setDiscountType] = useState<"percentage" | "fixed">("percentage");
+  const [discountAmount, setDiscountAmount] = useState<number | "">("");
+  const [maxUses, setMaxUses] = useState<number | "">("");
+  const [expiresAt, setExpiresAt] = useState<Date | undefined>(undefined);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const generateCode = () => {
+    setIsGenerating(true);
+    const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let result = "";
+    for (let i = 0; i < 8; i++) {
+      result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    setCode(result);
+    setIsGenerating(false);
   };
 
-  const createCoupon = async () => {
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSuccess(false);
+
     try {
-      setCreatingCoupon(true);
-      
-      // Validate inputs
-      if (!couponCode || !discountAmount) {
-        toast({
-          title: "Error",
-          description: "Please fill in all fields",
-          variant: "destructive",
-        });
-        return;
+      if (!code) {
+        throw new Error("Coupon code is required");
       }
 
-      const amount = parseFloat(discountAmount);
-      if (isNaN(amount) || amount <= 0 || (discountType === 'percentage' && amount > 100)) {
-        toast({
-          title: "Error",
-          description: discountType === 'percentage' 
-            ? "Discount percentage must be between 0 and 100" 
-            : "Discount amount must be greater than 0",
-          variant: "destructive",
-        });
-        return;
+      if (!discountAmount) {
+        throw new Error("Discount amount is required");
       }
 
-      const uses = parseInt(maxUses);
-      if (isNaN(uses) || uses <= 0) {
-        toast({
-          title: "Error",
-          description: "Maximum uses must be a positive number",
-          variant: "destructive",
-        });
-        return;
+      const numericDiscount = Number(discountAmount);
+
+      if (discountType === "percentage" && (numericDiscount <= 0 || numericDiscount > 100)) {
+        throw new Error("Percentage discount must be between 1 and 100");
       }
 
-      // Prepare expiry date if provided
-      let expiryTimestamp = null;
-      if (expiryDate) {
-        expiryTimestamp = new Date(expiryDate).toISOString();
+      if (discountType === "fixed" && numericDiscount <= 0) {
+        throw new Error("Fixed discount must be greater than 0");
       }
 
-      const { error } = await supabase
+      // Insert the coupon into the database
+      const { data, error } = await supabase
         .from('coupons')
-        .insert({
-          code: couponCode.toUpperCase(),
-          discount_type: discountType,
-          discount_amount: amount,
-          max_uses: uses,
-          is_active: true,
-          created_by: userId,
-          expires_at: expiryTimestamp,
-          applicable_products: applicableProducts.length > 0 ? applicableProducts : null
-        });
+        .insert([
+          {
+            code,
+            discount_type: discountType,
+            discount_amount: numericDiscount,
+            max_uses: maxUses || null,
+            expires_at: expiresAt ? expiresAt.toISOString() : null,
+            is_active: true,
+            created_by: userId
+          }
+        ]);
 
       if (error) {
-        console.error('Error creating coupon:', {
-          error,
-          userId,
-          couponCode
-        });
         throw error;
       }
 
-      toast({
-        title: "Success",
-        description: `Coupon ${couponCode.toUpperCase()} created successfully!`,
-      });
-
-      // Reset form
-      setCouponCode("");
-      setDiscountAmount("");
-      setDiscountType("percentage");
-      setMaxUses("100");
-      setExpiryDate("");
-      setApplicableProducts([]);
+      // Show success
+      setSuccess(true);
       
-      // Refresh coupons list
+      // Reset form
+      setCode("");
+      setDiscountType("percentage");
+      setDiscountAmount("");
+      setMaxUses("");
+      setExpiresAt(undefined);
+      
+      // Notify parent component
       onCouponCreated();
+      
+      toast({
+        title: "Coupon created",
+        description: `Coupon code ${code} has been created successfully.`,
+      });
     } catch (error: any) {
       console.error('Error creating coupon:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to create coupon",
+        title: "Error creating coupon",
+        description: error.message,
         variant: "destructive",
       });
     } finally {
-      setCreatingCoupon(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="space-y-3">
-      <h3 className="text-lg font-medium">Create New Coupon</h3>
-      
-      <div className="space-y-2">
-        <Input
-          placeholder="Coupon code (e.g. SAVE50)"
-          value={couponCode}
-          onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-        />
-        
-        <div className="flex gap-2">
-          <Select 
-            value={discountType} 
-            onValueChange={setDiscountType}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Discount Type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="percentage">Percentage (%)</SelectItem>
-              <SelectItem value="fixed">Fixed Amount ($)</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          <Input
-            type="number"
-            placeholder={discountType === 'percentage' ? "Discount percentage (e.g. 50)" : "Discount amount in cents (e.g. 500)"}
-            value={discountAmount}
-            onChange={(e) => setDiscountAmount(e.target.value)}
-          />
+    <div className="space-y-4">
+      {success && (
+        <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-4 flex items-center">
+          <CheckCircle2 className="h-5 w-5 text-green-500 mr-2" />
+          <p className="text-green-700 text-sm">Coupon created successfully!</p>
         </div>
-        
-        <Input
-          type="number"
-          placeholder="Maximum uses"
-          value={maxUses}
-          onChange={(e) => setMaxUses(e.target.value)}
-        />
-        
-        <Input
-          type="date"
-          placeholder="Expiry date (optional)"
-          value={expiryDate}
-          onChange={(e) => setExpiryDate(e.target.value)}
-        />
-        
-        <div className="space-y-2 pt-2">
-          <h4 className="text-sm font-medium">Applicable Products:</h4>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="assessment" 
-                checked={applicableProducts.includes('assessment')}
-                onCheckedChange={() => toggleProduct('assessment')}
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <label htmlFor="code" className="text-sm font-medium">Coupon Code</label>
+            <div className="flex gap-2">
+              <Input
+                id="code"
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                className="flex-1"
+                placeholder="e.g. SUMMER25"
               />
-              <Label htmlFor="assessment">Assessment Reports</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="book" 
-                checked={applicableProducts.includes('book')}
-                onCheckedChange={() => toggleProduct('book')}
-              />
-              <Label htmlFor="book">Book Pre-order</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="subscription" 
-                checked={applicableProducts.includes('subscription')}
-                onCheckedChange={() => toggleProduct('subscription')}
-              />
-              <Label htmlFor="subscription">Subscriptions</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="credits" 
-                checked={applicableProducts.includes('credits')}
-                onCheckedChange={() => toggleProduct('credits')}
-              />
-              <Label htmlFor="credits">Assessment Credits</Label>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={generateCode}
+                disabled={isGenerating}
+              >
+                {isGenerating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Generate"
+                )}
+              </Button>
             </div>
           </div>
-          <p className="text-xs text-muted-foreground pt-1">
-            Leave unchecked to apply to all products
-          </p>
+
+          <div className="space-y-2">
+            <label htmlFor="discount-type" className="text-sm font-medium">Discount Type</label>
+            <Select
+              value={discountType}
+              onValueChange={(value) => setDiscountType(value as "percentage" | "fixed")}
+            >
+              <SelectTrigger id="discount-type">
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="percentage">Percentage (%)</SelectItem>
+                <SelectItem value="fixed">Fixed Amount ($)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        
-        <Button 
-          onClick={createCoupon} 
-          disabled={creatingCoupon}
-          className="w-full"
-        >
-          {creatingCoupon ? (
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="space-y-2">
+            <label htmlFor="discount-amount" className="text-sm font-medium">
+              {discountType === "percentage" ? "Discount Percentage" : "Discount Amount"}
+            </label>
+            <div className="relative">
+              <Input
+                id="discount-amount"
+                type="number"
+                value={discountAmount}
+                onChange={(e) => setDiscountAmount(e.target.value ? Number(e.target.value) : "")}
+                className="pr-8"
+                min="0"
+                max={discountType === "percentage" ? "100" : undefined}
+                step="0.01"
+                placeholder={discountType === "percentage" ? "25" : "10.00"}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
+                {discountType === "percentage" ? "%" : "$"}
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="max-uses" className="text-sm font-medium">Maximum Uses</label>
+            <Input
+              id="max-uses"
+              type="number"
+              value={maxUses}
+              onChange={(e) => setMaxUses(e.target.value ? Number(e.target.value) : "")}
+              min="1"
+              placeholder="Unlimited"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="expires-at" className="text-sm font-medium">Expiration Date</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-left font-normal"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {expiresAt ? format(expiresAt, "PPP") : "Select date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={expiresAt}
+                  onSelect={setExpiresAt}
+                  initialFocus
+                  disabled={(date) => date < new Date()}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+
+        <Button type="submit" disabled={isSubmitting} className="mt-4">
+          {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Creating...
             </>
           ) : (
-            <>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Create Coupon
-            </>
+            "Create Coupon"
           )}
         </Button>
-      </div>
+      </form>
     </div>
   );
 };

@@ -1,48 +1,45 @@
 
+// Admin section types
+export interface AdminSectionProps {
+  userId?: string;
+}
+
+// Coupon types
 export interface Coupon {
   id: string;
   code: string;
-  discount_type: string;
+  discount_type: 'percentage' | 'fixed';
   discount_amount: number;
-  max_uses: number;
-  current_uses: number;
-  is_active: boolean;
+  max_uses: number | null;
+  current_uses: number | null;
   expires_at: string | null;
+  is_active: boolean;
+  created_by: string | null;
   created_at: string;
+  updated_at: string;
+  affiliate_id: string | null;
   applicable_products: string[];
-  affiliate_id?: string | null;
-  created_by?: string | null;
-  updated_at?: string;
 }
 
-export interface AdminSectionProps {
-  userId: string;
-}
-
+// Affiliate types
 export interface Affiliate {
   id: string;
   name: string;
   email: string;
   code: string;
   commission_rate: number;
-  earnings: number;
   total_sales: number;
+  earnings: number;
   status: 'active' | 'inactive' | 'pending';
   created_at: string;
   updated_at: string;
 }
 
-export interface AffiliateCommissionTier {
+export interface CommissionTier {
   id: string;
   min_sales: number;
   max_sales: number | null;
   commission_rate: number;
   created_at: string;
   updated_at: string;
-}
-
-export interface CouponListProps {
-  coupons: Coupon[];
-  onCouponUpdated: () => void;
-  loading: boolean;
 }
