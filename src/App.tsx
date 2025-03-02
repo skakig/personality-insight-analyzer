@@ -22,9 +22,9 @@ function App() {
       <Routes>
         <Route path="/" element={<Index session={session} />} />
         <Route path="/assessment/:id?" element={<Assessment />} />
-        <Route path="/login" element={<Auth mode="signin" />} />
-        <Route path="/signup" element={<Auth mode="signup" />} />
-        <Route path="/forgot-password" element={<Auth mode="reset" />} />
+        <Route path="/login" element={<Auth />} />
+        <Route path="/signup" element={<Auth />} />
+        <Route path="/forgot-password" element={<Auth />} />
         <Route path="/book" element={<BookLanding />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/privacy-policy" element={<Privacy />} />
