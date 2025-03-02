@@ -1,3 +1,4 @@
+
 export interface Assessment {
   id: string;
   personality_type: string;
