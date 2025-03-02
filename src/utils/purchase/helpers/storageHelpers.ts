@@ -1,10 +1,6 @@
 
 /**
- * Helper functions related to localStorage and data storage
- */
-
-/**
- * Gets all stored purchase data from localStorage
+ * Helper functions related to localStorage operations
  */
 export const getStoredPurchaseData = () => {
   return {
@@ -17,9 +13,16 @@ export const getStoredPurchaseData = () => {
   };
 };
 
-/**
- * Stores a session ID from URL parameters if needed
- */
+export const clearPurchaseData = () => {
+  localStorage.removeItem('purchaseTrackingId');
+  localStorage.removeItem('stripeSessionId');
+  localStorage.removeItem('guestAccessToken');
+  localStorage.removeItem('purchaseResultId');
+  localStorage.removeItem('checkoutResultId');
+  localStorage.removeItem('guestEmail'); 
+  localStorage.removeItem('checkoutUserId');
+};
+
 export const storeSessionIdFromUrl = () => {
   const urlParams = new URLSearchParams(window.location.search);
   const urlSessionId = urlParams.get('session_id');
@@ -31,15 +34,4 @@ export const storeSessionIdFromUrl = () => {
   }
   
   return null;
-};
-
-/**
- * Gets URL parameters related to verification
- */
-export const getUrlVerificationParams = () => {
-  const urlParams = new URLSearchParams(window.location.search);
-  return {
-    urlSuccess: urlParams.get('success') === 'true',
-    urlSessionId: urlParams.get('session_id')
-  };
 };

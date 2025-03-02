@@ -1,27 +1,8 @@
 
 /**
- * Gets all stored purchase data from localStorage
+ * This file is now just re-exports to maintain backward compatibility
+ * New code should import from the specific helper files directly
  */
-export const getStoredPurchaseData = () => {
-  return {
-    trackingId: localStorage.getItem('purchaseTrackingId'),
-    stripeSessionId: localStorage.getItem('stripeSessionId'),
-    guestAccessToken: localStorage.getItem('guestAccessToken'),
-    storedResultId: localStorage.getItem('purchaseResultId') || localStorage.getItem('checkoutResultId'),
-    guestEmail: localStorage.getItem('guestEmail'),
-    checkoutUserId: localStorage.getItem('checkoutUserId')
-  };
-};
-
-/**
- * Clears all purchase-related data from localStorage
- */
-export const clearPurchaseData = () => {
-  localStorage.removeItem('purchaseTrackingId');
-  localStorage.removeItem('stripeSessionId');
-  localStorage.removeItem('guestAccessToken');
-  localStorage.removeItem('purchaseResultId');
-  localStorage.removeItem('checkoutResultId');
-  localStorage.removeItem('guestEmail'); 
-  localStorage.removeItem('checkoutUserId');
-};
+export * from './helpers/storageHelpers';
+export * from './helpers/verificationHelpers';
+export * from './helpers/directVerificationHelpers';
