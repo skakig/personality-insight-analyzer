@@ -1,13 +1,17 @@
 
+/**
+ * Verification strategies for logged-in users
+ */
 import { supabase } from "@/integrations/supabase/client";
+import { QuizResult } from "@/types/quiz";
 import { isPurchased } from "../../../purchaseStatus";
 
 /**
  * Verify purchase with user ID
  */
-export const verifyWithUserId = async (resultId: string, userId: string) => {
+export const verifyWithUserId = async (resultId: string, userId: string): Promise<QuizResult | null> => {
   try {
-    console.log('Verifying purchase with user ID:', userId);
+    console.log('[DEBUG] Verifying purchase with user ID:', userId);
     
     // Update the result as purchased
     const { error } = await supabase
@@ -23,7 +27,7 @@ export const verifyWithUserId = async (resultId: string, userId: string) => {
       .eq('user_id', userId);
       
     if (error) {
-      console.error('User verification update error:', error);
+      console.error('[ERROR] User verification update error:', error);
       return null;
     }
     
@@ -36,12 +40,12 @@ export const verifyWithUserId = async (resultId: string, userId: string) => {
       .maybeSingle();
       
     if (result && isPurchased(result)) {
-      return result;
+      return result as QuizResult;
     }
     
     return null;
   } catch (error) {
-    console.error('User verification error:', error);
+    console.error('[ERROR] User verification error:', error);
     return null;
   }
 };

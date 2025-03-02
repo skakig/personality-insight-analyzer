@@ -1,13 +1,17 @@
 
+/**
+ * Verification strategies for guest users
+ */
 import { supabase } from "@/integrations/supabase/client";
+import { QuizResult } from "@/types/quiz";
 import { isPurchased } from "../../../purchaseStatus";
 
 /**
  * Verify purchase with guest token
  */
-export const verifyWithGuestToken = async (resultId: string, accessToken: string) => {
+export const verifyWithGuestToken = async (resultId: string, accessToken: string): Promise<QuizResult | null> => {
   try {
-    console.log('Verifying purchase with guest token');
+    console.log('[DEBUG] Verifying purchase with guest token');
     
     // Update the result as purchased
     const { error } = await supabase
@@ -23,7 +27,7 @@ export const verifyWithGuestToken = async (resultId: string, accessToken: string
       .eq('guest_access_token', accessToken);
       
     if (error) {
-      console.error('Guest token verification error:', error);
+      console.error('[ERROR] Guest token verification error:', error);
       return null;
     }
     
@@ -35,12 +39,12 @@ export const verifyWithGuestToken = async (resultId: string, accessToken: string
       .maybeSingle();
       
     if (result && isPurchased(result)) {
-      return result;
+      return result as QuizResult;
     }
     
     return null;
   } catch (error) {
-    console.error('Guest token verification error:', error);
+    console.error('[ERROR] Guest token verification error:', error);
     return null;
   }
 };
@@ -48,9 +52,9 @@ export const verifyWithGuestToken = async (resultId: string, accessToken: string
 /**
  * Verify purchase with guest email
  */
-export const verifyWithGuestEmail = async (resultId: string, email: string) => {
+export const verifyWithGuestEmail = async (resultId: string, email: string): Promise<QuizResult | null> => {
   try {
-    console.log('Verifying purchase with guest email:', email);
+    console.log('[DEBUG] Verifying purchase with guest email:', email);
     
     // Update the result as purchased
     const { error } = await supabase
@@ -66,7 +70,7 @@ export const verifyWithGuestEmail = async (resultId: string, email: string) => {
       .eq('guest_email', email);
       
     if (error) {
-      console.error('Guest email verification error:', error);
+      console.error('[ERROR] Guest email verification error:', error);
       return null;
     }
     
@@ -79,12 +83,12 @@ export const verifyWithGuestEmail = async (resultId: string, email: string) => {
       .maybeSingle();
       
     if (result && isPurchased(result)) {
-      return result;
+      return result as QuizResult;
     }
     
     return null;
   } catch (error) {
-    console.error('Guest email verification error:', error);
+    console.error('[ERROR] Guest email verification error:', error);
     return null;
   }
 };

@@ -1,13 +1,17 @@
 
+/**
+ * Fallback verification strategies when other methods fail
+ */
 import { supabase } from "@/integrations/supabase/client";
+import { QuizResult } from "@/types/quiz";
 import { isPurchased } from "../../../purchaseStatus";
 
 /**
  * Force update purchase status as a last resort
  */
-export const forceUpdatePurchaseStatus = async (resultId: string) => {
+export const forceUpdatePurchaseStatus = async (resultId: string): Promise<QuizResult | null> => {
   try {
-    console.log('Force updating purchase status for result:', resultId);
+    console.log('[DEBUG] Force updating purchase status for result:', resultId);
     
     const { error } = await supabase
       .from('quiz_results')
@@ -21,7 +25,7 @@ export const forceUpdatePurchaseStatus = async (resultId: string) => {
       .eq('id', resultId);
       
     if (error) {
-      console.error('Force update error:', error);
+      console.error('[ERROR] Force update error:', error);
       return null;
     }
     
@@ -33,12 +37,12 @@ export const forceUpdatePurchaseStatus = async (resultId: string) => {
       .maybeSingle();
       
     if (result && isPurchased(result)) {
-      return result;
+      return result as QuizResult;
     }
     
     return null;
   } catch (error) {
-    console.error('Force update error:', error);
+    console.error('[ERROR] Force update error:', error);
     return null;
   }
 };
