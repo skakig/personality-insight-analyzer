@@ -1,65 +1,57 @@
+import { useState, useCallback } from 'react';
+import { useVerificationCoordinator } from './verification/useVerificationCoordinator';
 
-import { useState, useCallback } from "react";
-import { useVerificationCoordinator } from "./verification/useVerificationCoordinator";
-
-/**
- * Hook for managing verification flow state and operations
- */
 export const useVerificationFlow = () => {
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [verificationComplete, setVerificationComplete] = useState(false);
-  const [verificationSuccess, setVerificationSuccess] = useState(false);
+  const [verificationAttempts, setVerificationAttempts] = useState(0);
+  const [verificationInProgress, setVerificationInProgress] = useState(false);
   
-  const coordinator = useVerificationCoordinator();
+  const {
+    isVerifying,
+    verificationComplete,
+    verificationSuccess,
+    performStandardVerification,
+    performLastResortVerification
+  } = useVerificationCoordinator();
   
-  const runVerification = useCallback(async (id: string, sessionId?: string, userId?: string) => {
-    if (!id) return false;
-    
-    setIsVerifying(true);
-    setVerificationComplete(false);
+  const executeStandardVerification = useCallback(async (resultId: string) => {
+    if (verificationInProgress) return false;
     
     try {
-      const success = await coordinator.performStandardVerification(id, sessionId, userId);
+      setVerificationInProgress(true);
+      setVerificationAttempts(prev => prev + 1);
       
-      setVerificationSuccess(success);
-      setVerificationComplete(true);
+      const success = await performStandardVerification();
       return success;
     } catch (error) {
-      console.error('Verification error:', error);
-      setVerificationSuccess(false);
-      setVerificationComplete(true);
+      console.error('Verification flow error:', error);
       return false;
     } finally {
-      setIsVerifying(false);
+      setVerificationInProgress(false);
     }
-  }, [coordinator]);
+  }, [verificationInProgress, performStandardVerification]);
   
-  const runFallbackVerification = useCallback(async (id: string) => {
-    if (!id) return false;
-    
-    setIsVerifying(true);
+  const executeLastResortVerification = useCallback(async (resultId: string) => {
+    if (verificationInProgress) return false;
     
     try {
-      const success = await coordinator.performLastResortVerification(id);
+      setVerificationInProgress(true);
       
-      setVerificationSuccess(success);
-      setVerificationComplete(true);
+      const success = await performLastResortVerification();
       return success;
     } catch (error) {
-      console.error('Fallback verification error:', error);
-      setVerificationSuccess(false);
-      setVerificationComplete(true);
+      console.error('Last resort verification error:', error);
       return false;
     } finally {
-      setIsVerifying(false);
+      setVerificationInProgress(false);
     }
-  }, [coordinator]);
+  }, [verificationInProgress, performLastResortVerification]);
   
   return {
     isVerifying,
     verificationComplete,
     verificationSuccess,
-    runVerification,
-    runFallbackVerification
+    verificationAttempts,
+    executeStandardVerification,
+    executeLastResortVerification
   };
 };

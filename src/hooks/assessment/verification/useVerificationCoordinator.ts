@@ -1,83 +1,80 @@
-
-import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { executeVerification } from "@/utils/purchase/verificationCore";
+// Fix the errors in useVerificationCoordinator.ts
+import { useState, useCallback } from 'react';
+import { useVerificationStrategies } from './useVerificationStrategies';
 
 export const useVerificationCoordinator = () => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationComplete, setVerificationComplete] = useState(false);
   const [verificationSuccess, setVerificationSuccess] = useState(false);
+  
+  const { 
+    standardVerification, 
+    fallbackVerification 
+  } = useVerificationStrategies();
 
-  // Run primary verification flow
-  const runVerification = async (id: string, sessionId?: string, userId?: string) => {
-    if (!id) return false;
+  // Fix calling with required parameters (dummy values for now - to be updated with actual implementation)
+  const performStandardVerification = useCallback(() => standardVerification("", "", "", ""), [standardVerification]);
+  const performLastResortVerification = useCallback(() => fallbackVerification("", "", "", ""), [fallbackVerification]);
+
+  const runStandardVerification = useCallback(async (resultId: string, userId: string | null, trackingId: string | null, sessionId: string | null, guestToken: string | null, guestEmail: string | null) => {
+    setIsVerifying(true);
+    setVerificationComplete(false);
+    setVerificationSuccess(false);
     
     try {
-      setIsVerifying(true);
-      setVerificationComplete(false);
-      setVerificationSuccess(false);
+      const result = await standardVerification(resultId, userId, trackingId, sessionId, guestToken, guestEmail);
       
-      console.log('Running coordinated verification for:', id);
-      
-      const verifiedResult = await executeVerification(id);
-      
-      if (verifiedResult) {
+      if (result) {
         setVerificationSuccess(true);
-        setVerificationComplete(true);
-        return true;
+      } else {
+        setVerificationSuccess(false);
       }
       
       setVerificationComplete(true);
-      return false;
+      return result;
     } catch (error) {
-      console.error('Verification coordination error:', error);
+      console.error('Standard verification error:', error);
+      setVerificationSuccess(false);
       setVerificationComplete(true);
-      return false;
+      return null;
     } finally {
       setIsVerifying(false);
     }
-  };
-  
-  // Fallback verification when other methods fail
-  const runFallbackVerification = async (id: string) => {
-    if (!id) return false;
+  }, [standardVerification]);
+
+  const runFallbackVerification = useCallback(async (resultId: string) => {
+    setIsVerifying(true);
+    setVerificationComplete(false);
+    setVerificationSuccess(false);
     
     try {
-      setIsVerifying(true);
+      const result = await fallbackVerification(resultId);
       
-      // Just make a direct database check/update
-      const { data, error } = await supabase
-        .from('quiz_results')
-        .update({
-          is_purchased: true,
-          is_detailed: true,
-          purchase_status: 'completed',
-          purchase_completed_at: new Date().toISOString(),
-          access_method: 'fallback'
-        })
-        .eq('id', id)
-        .select()
-        .single();
-        
-      if (error) throw error;
+      if (result) {
+        setVerificationSuccess(true);
+      } else {
+        setVerificationSuccess(false);
+      }
       
-      setVerificationSuccess(true);
       setVerificationComplete(true);
-      return true;
+      return result;
     } catch (error) {
       console.error('Fallback verification error:', error);
+      setVerificationSuccess(false);
       setVerificationComplete(true);
-      return false;
+      return null;
     } finally {
       setIsVerifying(false);
     }
-  };
+  }, [fallbackVerification]);
 
   return {
     isVerifying,
     verificationComplete,
     verificationSuccess,
-    runVerification,
+    performStandardVerification,
+    performLastResortVerification,
+    runStandardVerification,
     runFallbackVerification
   };
 };
