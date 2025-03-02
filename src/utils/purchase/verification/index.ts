@@ -1,22 +1,21 @@
 
 /**
- * Re-export verification strategies and utilities
+ * Export verification strategies with handling for duplicates
  */
 
-// Export from verificationUtils.ts
-export * from './verificationUtils';
+// Export strategies
+export { 
+  verifyWithUserId,
+  verifyWithGuestToken,
+  verifyWithGuestEmail,
+  verifyWithStripeSession
+} from './strategies';
 
-// Export from baseStrategies.ts
-export * from './baseStrategies';
-
-// Export from coreStrategies.ts
-export * from './coreStrategies';
-
-// Re-export from strategies
-export * from './strategies/fallbackVerification';
-export * from './strategies/guestVerification';
-export * from './strategies/userVerification';
-export * from './strategies/stripeVerification';
-
-// Create compatibility export for executeVerification
-export { executeVerification } from '../verificationCore';
+// Export base strategy utilities
+export {
+  verifyWithUserId as userVerification,
+  verifyWithGuestToken as guestTokenVerification,
+  verifyWithGuestEmail as guestEmailVerification,
+  verifyWithStripeSession as stripeVerification,
+  forceUpdatePurchaseStatus
+} from './baseStrategies';
