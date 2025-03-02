@@ -1,152 +1,85 @@
 
 import { useState } from "react";
-import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 import { storePurchaseData } from "@/utils/purchaseStateUtils";
-import { trackAffiliatePurchase } from "@/utils/purchase/affiliateTracking";
 
-export interface LoggedInCheckoutOptions {
-  quizResultId: string | null;
-  userId: string;
-  email: string | null;
-  priceAmount: number;
-  couponCode?: string;
-}
-
-export const useLoggedInCheckout = () => {
+export const useLoggedInCheckout = (quizResultId: string | null, couponCode?: string | null) => {
   const [loading, setLoading] = useState(false);
 
-  const handleCheckout = async ({
-    quizResultId,
-    userId,
-    email,
-    priceAmount,
-    couponCode
-  }: LoggedInCheckoutOptions) => {
+  const handleCheckout = async () => {
     if (!quizResultId) {
+      console.error('No quiz result ID provided for checkout');
       toast({
         title: "Error",
-        description: "No assessment result found. Please try taking the assessment again.",
+        description: "Missing result information. Please try again or contact support.",
         variant: "destructive",
       });
-      return false;
+      return;
     }
-    
+
+    setLoading(true);
+    console.log('Initiating checkout for logged-in user with result:', quizResultId);
+
     try {
-      setLoading(true);
-      
-      console.log('Starting logged-in checkout flow for result:', quizResultId, 'with price:', priceAmount, 'coupon:', couponCode);
-      
-      // Create checkout session via Supabase function
-      const { data, error } = await supabase.functions.invoke(
-        'create-checkout-session',
-        {
-          body: {
+      // Create checkout session via Edge Function
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: {
+          resultId: quizResultId,
+          couponCode,
+          metadata: {
             resultId: quizResultId,
-            userId,
-            email,
-            priceAmount,
             couponCode,
-            metadata: {
-              resultId: quizResultId,
-              userId,
-              couponCode,
-              returnUrl: `/assessment/${quizResultId}?success=true`
-            }
+            returnUrl: `${window.location.origin}/dashboard?success=true`
           }
         }
-      );
-      
+      });
+
       if (error) {
-        console.error('Function error:', error);
-        throw new Error(error.message || 'Error creating checkout session');
+        console.error('Checkout error:', error);
+        throw new Error(error.message || 'Failed to create checkout session');
       }
-      
+
       if (!data?.url) {
         console.error('No checkout URL received:', data);
         throw new Error('No checkout URL received');
       }
-      
+
       console.log('Checkout session created successfully:', {
         hasUrl: !!data.url,
-        hasSessionId: !!data.sessionId,
-        discountApplied: !!data.discountAmount
+        hasSessionId: !!data.sessionId
       });
       
-      // Store information for verification after return
+      // Store data for verification on return
       if (data.sessionId) {
-        // Store purchase data
-        storePurchaseData(quizResultId, data.sessionId, userId);
+        console.log('Storing session data for verification:', {
+          resultId: quizResultId,
+          sessionId: data.sessionId
+        });
         
-        // Update result with session ID
+        storePurchaseData(quizResultId, data.sessionId);
+        
+        // Update quiz result with session ID for tracking
         await supabase
           .from('quiz_results')
-          .update({ 
+          .update({
             stripe_session_id: data.sessionId,
             purchase_initiated_at: new Date().toISOString(),
             purchase_status: 'pending'
           })
           .eq('id', quizResultId);
-
-        // Track coupon usage (if a coupon was applied)
-        if (couponCode) {
-          try {
-            // First get the coupon ID
-            const { data: couponData } = await supabase
-              .from('coupons')
-              .select('id, current_uses')
-              .eq('code', couponCode)
-              .single();
-              
-            if (couponData) {
-              // Increment coupon usage counter
-              await supabase
-                .from('coupons')
-                .update({ 
-                  current_uses: (couponData.current_uses || 0) + 1 
-                })
-                .eq('id', couponData.id);
-              
-              // Record coupon usage
-              await supabase
-                .from('coupon_usage')
-                .insert({
-                  coupon_id: couponData.id,
-                  user_id: userId,
-                  purchase_amount: priceAmount,
-                  discount_amount: data.discountAmount || 0
-                });
-                
-              console.log('Tracked coupon usage:', {
-                couponId: couponData.id,
-                userId,
-                discountAmount: data.discountAmount
-              });
-              
-              // Track affiliate commission if this is an affiliate coupon
-              await trackAffiliatePurchase(couponCode, priceAmount);
-            }
-          } catch (couponError) {
-            console.error('Error tracking coupon usage:', couponError);
-            // Continue with checkout even if coupon tracking fails
-          }
-        }
       }
-      
-      // Redirect to Stripe
-      console.log('Redirecting to Stripe checkout URL:', data.url);
+
+      // Redirect to Stripe Checkout
       window.location.href = data.url;
-      
-      return true;
     } catch (error: any) {
-      console.error('Logged-in checkout error:', error);
+      console.error('Checkout error:', error);
+      setLoading(false);
       toast({
         title: "Checkout Error",
-        description: error.message || "Could not process your checkout. Please try again.",
+        description: error.message || "Failed to initiate checkout. Please try again later.",
         variant: "destructive",
       });
-      setLoading(false);
-      return false;
     }
   };
 

@@ -1,100 +1,114 @@
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Loader2, ChevronRight, FileText, LockOpen } from "lucide-react";
+import { isPurchased } from "@/utils/purchaseStatus";
 import { formatDistanceToNow } from "date-fns";
-import { RecentAssessmentsCardProps } from "@/types/dashboard";
-import { Lock, Unlock, ChevronRight } from "lucide-react";
-import { usePurchaseHandler } from "@/components/assessment/purchase/usePurchaseHandler";
+
+interface RecentAssessmentsCardProps {
+  assessments: any[];
+  onUnlockReport: (reportId: string) => void;
+  purchaseLoading: string | null;
+}
 
 export const RecentAssessmentsCard = ({ 
   assessments,
-  subscription,
-  hasAvailableCredits 
+  onUnlockReport,
+  purchaseLoading
 }: RecentAssessmentsCardProps) => {
   const navigate = useNavigate();
   
-  const getButtonConfig = (assessment: any) => {
-    const isPurchased = assessment.is_purchased || assessment.is_detailed || assessment.access_method === 'purchase';
-    const purchaseHandler = usePurchaseHandler(assessment.id);
-    
-    if (isPurchased) {
-      return {
-        label: "View Full Report",
-        icon: <Unlock className="h-4 w-4 mr-2" />,
-        variant: "default" as const,
-        className: "bg-primary/10 text-primary hover:bg-primary/20 transition-colors",
-        onClick: () => navigate(`/assessment/${assessment.id}`)
-      };
-    }
-    
-    if (subscription?.active && hasAvailableCredits) {
-      return {
-        label: "Unlock Full Report",
-        icon: <Lock className="h-4 w-4 mr-2" />,
-        variant: "outline" as const,
-        className: "border-primary/20 text-primary hover:bg-primary/5 transition-colors",
-        onClick: () => purchaseHandler.handlePurchase()
-      };
-    }
-    
-    return {
-      label: "Purchase Report ($14.99)",
-      icon: <Lock className="h-4 w-4 mr-2" />,
-      variant: "outline" as const,
-      className: "border-gray-200 hover:bg-gray-50/50 transition-colors",
-      onClick: () => purchaseHandler.handlePurchase()
-    };
+  const handleViewReport = (id: string) => {
+    navigate(`/assessment/${id}`);
   };
 
+  if (!assessments.length) {
+    return (
+      <Card className="p-6">
+        <h3 className="text-lg font-medium mb-2">Recent Assessments</h3>
+        <div className="py-10 text-center">
+          <FileText className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+          <p className="text-gray-600">
+            You haven't taken any assessments yet.
+          </p>
+          <Button 
+            onClick={() => navigate('/')} 
+            className="mt-4"
+          >
+            Take Assessment Now
+          </Button>
+        </div>
+      </Card>
+    );
+  }
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Recent Assessments</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {assessments.map((assessment) => {
-          const buttonConfig = getButtonConfig(assessment);
-          const isPurchased = assessment.is_purchased || assessment.is_detailed || assessment.access_method === 'purchase';
-          
-          return (
-            <div
-              key={assessment.id}
-              className="flex items-center justify-between p-4 rounded-lg border bg-card text-card-foreground shadow-sm hover:bg-gray-50/50 transition-colors"
-            >
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <p className="font-medium">
-                    Level {assessment.personality_type}
-                  </p>
-                  {isPurchased && (
-                    <span className="px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary">
-                      Purchased
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-gray-500">
-                  {formatDistanceToNow(new Date(assessment.created_at), { addSuffix: true })}
+    <Card className="p-6">
+      <h3 className="text-lg font-medium mb-4">Recent Assessments</h3>
+      <div className="space-y-4">
+        {assessments.map((assessment) => (
+          <div 
+            key={assessment.id} 
+            className="border rounded-md p-4 hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex justify-between items-start">
+              <div>
+                <h4 className="font-medium text-base">Moral Hierarchy Assessment</h4>
+                <p className="text-sm text-gray-500 mt-1">
+                  Taken {formatDistanceToNow(new Date(assessment.created_at), { addSuffix: true })}
                 </p>
+                {assessment.primary_level && (
+                  <div className="mt-2">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      Level {assessment.primary_level}
+                    </span>
+                  </div>
+                )}
               </div>
-              <Button
-                variant={buttonConfig.variant}
-                size="sm"
-                onClick={buttonConfig.onClick}
-                className={buttonConfig.className}
-              >
-                {buttonConfig.icon}
-                {buttonConfig.label}
-              </Button>
+              <div className="space-x-2 flex">
+                {isPurchased(assessment) ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleViewReport(assessment.id)}
+                  >
+                    View Report
+                    <ChevronRight className="ml-1 h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    onClick={() => onUnlockReport(assessment.id)}
+                    disabled={purchaseLoading === assessment.id}
+                  >
+                    {purchaseLoading === assessment.id ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <LockOpen className="mr-2 h-4 w-4" />
+                        Unlock Report
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
             </div>
-          );
-        })}
-        {assessments.length === 0 && (
-          <div className="text-center py-6">
-            <p className="text-sm text-gray-500">No assessments yet</p>
           </div>
-        )}
-      </CardContent>
+        ))}
+      </div>
+      <div className="mt-4 text-center">
+        <Button
+          variant="outline"
+          onClick={() => navigate('/')}
+        >
+          Take New Assessment
+        </Button>
+      </div>
     </Card>
   );
 };

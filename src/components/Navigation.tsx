@@ -1,13 +1,16 @@
 
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { Menu, X } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Menu, X, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 export default function Navigation() {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { session } = useAuth();
 
   const isActive = (path: string) => {
@@ -16,6 +19,24 @@ export default function Navigation() {
 
   const toggleMenu = () => {
     setMenuOpen(!menuOpen);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      toast({
+        title: "Signed out successfully",
+        description: "You have been signed out of your account.",
+      });
+      navigate('/');
+    } catch (error) {
+      console.error('Sign out error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to sign out. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -32,9 +53,15 @@ export default function Navigation() {
             <Link to="/book" className={`${isActive("/book")} transition`}>Book</Link>
             <Link to="/pricing" className={`${isActive("/pricing")} transition`}>Pricing</Link>
             {session ? (
-              <Link to="/dashboard">
-                <Button variant="outline">Dashboard</Button>
-              </Link>
+              <>
+                <Link to="/dashboard">
+                  <Button variant="outline">Dashboard</Button>
+                </Link>
+                <Button variant="ghost" onClick={handleSignOut} className="flex items-center gap-1">
+                  <LogOut size={16} />
+                  Sign Out
+                </Button>
+              </>
             ) : (
               <Link to="/auth">
                 <Button variant="outline">Sign In</Button>
@@ -77,13 +104,24 @@ export default function Navigation() {
               Pricing
             </Link>
             {session ? (
-              <Link 
-                to="/dashboard"
-                className="block py-2"
-                onClick={() => setMenuOpen(false)}
-              >
-                Dashboard
-              </Link>
+              <>
+                <Link 
+                  to="/dashboard"
+                  className="block py-2"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Dashboard
+                </Link>
+                <button 
+                  onClick={() => {
+                    setMenuOpen(false);
+                    handleSignOut();
+                  }}
+                  className="block py-2 w-full text-left text-gray-700 hover:text-blue-600"
+                >
+                  Sign Out
+                </button>
+              </>
             ) : (
               <Link 
                 to="/auth"

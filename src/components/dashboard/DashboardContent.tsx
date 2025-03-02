@@ -1,104 +1,128 @@
 
-import { useState, useEffect } from "react";
-import { SubscriptionCard } from "./SubscriptionCard";
-import { QuickActionsCard } from "./QuickActionsCard";
+import { useState } from "react";
+import { Session } from "@supabase/supabase-js";
+import { useNavigate } from "react-router-dom";
+import { LoadingState } from "./LoadingState";
 import { RecentAssessmentsCard } from "./RecentAssessmentsCard";
-import { AdminSection } from "./AdminSection";
-import { CouponStats } from "./CouponStats";
-import { Assessment, Subscription } from "@/types/dashboard";
-import { hasAnyPurchasedReport } from "@/utils/purchaseUtils";
+import { QuickActionsCard } from "./QuickActionsCard";
+import { NoSubscriptionCard } from "./subscription/NoSubscriptionCard";
+import { SubscriptionCard } from "./SubscriptionCard";
+import { Button } from "@/components/ui/button";
+import { PurchaseCreditsButton } from "./subscription/PurchaseCreditsButton";
+import { AlertCircle } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface DashboardContentProps {
-  subscription: Subscription | null;
+  subscription: any;
   error: string | null;
-  previousAssessments: Assessment[];
-  session: any;
+  previousAssessments: any[];
+  session: Session | null;
 }
 
-export const DashboardContent = ({ 
-  subscription, 
-  error, 
+export const DashboardContent = ({
+  subscription,
+  error,
   previousAssessments,
   session
 }: DashboardContentProps) => {
-  const [isAdmin, setIsAdmin] = useState(false);
-  const hasPurchasedReport = hasAnyPurchasedReport(previousAssessments);
+  const navigate = useNavigate();
+  const [purchaseLoading, setPurchaseLoading] = useState<string | null>(null);
 
-  const hasAvailableCredits = subscription?.active && 
-    subscription?.assessments_used < subscription?.max_assessments;
+  if (error) {
+    return (
+      <div className="p-6 bg-red-50 border border-red-200 rounded-md text-red-800 flex items-start gap-2">
+        <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+        <div>
+          <h3 className="font-medium">Error loading dashboard</h3>
+          <p className="text-sm mt-1">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
-  // Check if user is admin when component mounts
-  useEffect(() => {
-    if (session?.user?.id) {
-      checkAdminStatus(session.user.id);
-    }
-  }, [session]);
-
-  const checkAdminStatus = async (userId: string) => {
+  const handleUnlockReport = async (reportId: string) => {
+    if (purchaseLoading) return;
+    
+    setPurchaseLoading(reportId);
     try {
-      const { data, error } = await supabase.rpc('is_admin', {
-        user_id: userId
+      console.log('Initiating report unlock for:', reportId);
+      
+      // Create checkout session for this specific report
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: {
+          resultId: reportId,
+          userId: session?.user?.id,
+          email: session?.user?.email,
+          metadata: {
+            resultId: reportId,
+            userId: session?.user?.id,
+            returnUrl: `/dashboard?success=true`
+          }
+        }
       });
       
       if (error) {
-        console.error('Error checking admin status:', error);
-        return;
+        console.error('Error creating checkout session:', error);
+        throw new Error(error.message || 'Failed to create checkout session');
       }
       
-      setIsAdmin(!!data);
-    } catch (error) {
-      console.error('Error checking admin status:', error);
+      if (!data?.url) {
+        throw new Error('No checkout URL received');
+      }
+      
+      // Store session data for verification
+      if (data.sessionId) {
+        localStorage.setItem('purchaseResultId', reportId);
+        localStorage.setItem('stripeSessionId', data.sessionId);
+        
+        // Update result with session ID
+        await supabase
+          .from('quiz_results')
+          .update({ 
+            stripe_session_id: data.sessionId,
+            purchase_initiated_at: new Date().toISOString(),
+            purchase_status: 'pending'
+          })
+          .eq('id', reportId);
+      }
+      
+      // Redirect to Stripe
+      window.location.href = data.url;
+    } catch (error: any) {
+      console.error('Error unlocking report:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to initiate payment. Please try again.",
+        variant: "destructive",
+      });
+      setPurchaseLoading(null);
     }
   };
 
   return (
-    <div className="grid gap-8 md:grid-cols-12">
-      {/* Admin section - only visible for admins */}
-      {isAdmin && (
-        <div className="md:col-span-12 mb-4">
-          <Card className="bg-gray-50 border-primary/20">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center">
-                <span className="bg-primary text-white text-xs px-2 py-0.5 rounded mr-2">Admin</span>
-                Administrator Controls
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Access admin features to manage your platform, including coupons, affiliates, and system settings.
-                  </p>
-                  {session?.user?.id && (
-                    <AdminSection userId={session.user.id} />
-                  )}
-                </div>
-                {isAdmin && <CouponStats />}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-      
-      <div className="md:col-span-8 space-y-8">
-        <SubscriptionCard subscription={subscription} error={error} />
-        {previousAssessments.length > 0 && (
-          <RecentAssessmentsCard 
-            assessments={previousAssessments}
-            subscription={subscription}
-            hasAvailableCredits={hasAvailableCredits}
-          />
-        )}
-      </div>
-      
-      <div className="md:col-span-4 space-y-8">
-        <QuickActionsCard 
-          subscription={subscription} 
-          hasPurchasedReport={hasPurchasedReport}
-          hasAvailableCredits={hasAvailableCredits}
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="lg:col-span-2 space-y-6">
+        <RecentAssessmentsCard 
+          assessments={previousAssessments}
+          onUnlockReport={handleUnlockReport}
+          purchaseLoading={purchaseLoading}
         />
+      </div>
+      <div className="space-y-6">
+        <QuickActionsCard />
+        {subscription ? (
+          <SubscriptionCard subscription={subscription} />
+        ) : (
+          <NoSubscriptionCard />
+        )}
+        <div className="bg-white p-6 rounded-lg border shadow-sm">
+          <h3 className="text-lg font-medium mb-4">Additional Credits</h3>
+          <p className="text-sm text-gray-600 mb-4">
+            Purchase additional assessment credits to unlock detailed reports.
+          </p>
+          <PurchaseCreditsButton />
+        </div>
       </div>
     </div>
   );

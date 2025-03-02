@@ -1,213 +1,118 @@
 
 import { useState } from "react";
-import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { storePurchaseData } from "@/utils/purchaseStateUtils";
-import { trackAffiliatePurchase } from "@/utils/purchase/affiliateTracking";
+import { toast } from "@/hooks/use-toast";
 
-export interface GuestCheckoutOptions {
-  quizResultId: string | null;
-  guestEmail: string;
-  priceAmount: number;
-  couponCode?: string;
-}
-
-export const useGuestCheckout = () => {
+export const useGuestCheckout = (
+  quizResultId: string | null, 
+  email: string,
+  onSuccess: () => void,
+  couponCode?: string | null
+) => {
   const [loading, setLoading] = useState(false);
 
-  const handleCheckout = async ({
-    quizResultId,
-    guestEmail,
-    priceAmount,
-    couponCode
-  }: GuestCheckoutOptions) => {
+  const handleGuestCheckout = async () => {
     if (!quizResultId) {
+      console.error('No quiz result ID provided for guest checkout');
       toast({
         title: "Error",
-        description: "No assessment result found. Please try taking the assessment again.",
+        description: "Missing result information. Please try again or contact support.",
         variant: "destructive",
       });
-      return false;
+      return;
     }
-    
+
+    if (!email || !email.includes('@')) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    console.log('Initiating guest checkout for result:', quizResultId);
+
     try {
-      setLoading(true);
+      // Store email for guest checkout tracking
+      localStorage.setItem('guestEmail', email);
       
-      // Validate email
-      if (!guestEmail || !guestEmail.includes('@')) {
-        toast({
-          title: "Invalid Email",
-          description: "Please enter a valid email address.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return false;
-      }
-      
-      console.log('Starting guest checkout flow for result:', quizResultId, 'with email:', guestEmail, 'price:', priceAmount, 'coupon:', couponCode);
-      
-      // Store email for future use
-      localStorage.setItem('guestEmail', guestEmail);
-      
-      // Create a guest access token
-      const accessToken = crypto.randomUUID();
-      
-      // Update the quiz result with guest email and token
-      await supabase
-        .from('quiz_results')
-        .update({ 
-          guest_email: guestEmail,
-          guest_access_token: accessToken,
-          guest_access_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
-        })
-        .eq('id', quizResultId);
-      
-      // Create purchase tracking record first to ensure we can recover the result ID
-      const { data: trackingData, error: trackingError } = await supabase
-        .from('purchase_tracking')
-        .insert({
-          quiz_result_id: quizResultId,
-          guest_email: guestEmail,
-          status: 'pending',
-          stripe_session_id: null, // Will be updated after checkout creation
-        })
-        .select()
-        .single();
-        
-      if (trackingError) {
-        console.error('Error creating purchase tracking:', trackingError);
-        // Continue anyway - not critical for the main flow
-      } else {
-        console.log('Created purchase tracking record:', trackingData.id);
-      }
-      
-      // Create checkout session
-      const { data, error } = await supabase.functions.invoke(
-        'create-checkout-session',
-        {
-          body: {
+      // Create guest checkout session via Edge Function
+      const { data, error } = await supabase.functions.invoke('create-guest-checkout', {
+        body: {
+          resultId: quizResultId,
+          email,
+          couponCode,
+          metadata: {
             resultId: quizResultId,
-            email: guestEmail,
-            priceAmount,
+            email,
             couponCode,
-            metadata: {
-              resultId: quizResultId,
-              email: guestEmail,
-              accessToken,
-              couponCode,
-              trackingId: trackingData?.id, // Include tracking ID if available
-              returnUrl: `/assessment/${quizResultId}?success=true`
-            }
+            isGuest: true,
+            returnUrl: `${window.location.origin}/assessment/${quizResultId}?success=true`
           }
         }
-      );
-      
+      });
+
       if (error) {
-        console.error('Function error:', error);
-        throw new Error(error.message || 'Error creating checkout session');
+        console.error('Guest checkout error:', error);
+        throw new Error(error.message || 'Failed to create checkout session');
       }
-      
+
       if (!data?.url) {
-        console.error('No checkout URL received:', data);
+        console.error('No checkout URL received for guest:', data);
         throw new Error('No checkout URL received');
       }
-      
-      console.log('Checkout session created successfully:', {
+
+      console.log('Guest checkout session created successfully:', {
         hasUrl: !!data.url,
         hasSessionId: !!data.sessionId,
-        discountApplied: !!data.discountAmount
+        hasTrackingId: !!data.trackingId
       });
       
-      // Store information for verification after return
+      // Store tracking information
       if (data.sessionId) {
-        // Store purchase data
-        storePurchaseData(quizResultId, data.sessionId);
-        localStorage.setItem('guestAccessToken', accessToken);
-        
-        // Update tracking information
-        if (trackingData?.id) {
-          await supabase
-            .from('purchase_tracking')
-            .update({ stripe_session_id: data.sessionId })
-            .eq('id', trackingData.id);
-            
-          console.log('Updated purchase tracking with session ID');
-        }
-        
-        // Update quiz result with session ID
+        localStorage.setItem('stripeSessionId', data.sessionId);
+        localStorage.setItem('purchaseResultId', quizResultId);
+      }
+      
+      if (data.trackingId) {
+        localStorage.setItem('purchaseTrackingId', data.trackingId);
+      }
+      
+      // Update quiz result with tracking information
+      try {
         await supabase
           .from('quiz_results')
-          .update({ 
+          .update({
+            guest_email: email,
             stripe_session_id: data.sessionId,
             purchase_initiated_at: new Date().toISOString(),
             purchase_status: 'pending'
           })
           .eq('id', quizResultId);
-
-        // Track coupon usage (if a coupon was applied)
-        if (couponCode) {
-          try {
-            // First get the coupon ID
-            const { data: couponData } = await supabase
-              .from('coupons')
-              .select('id, current_uses')
-              .eq('code', couponCode)
-              .single();
-              
-            if (couponData) {
-              // Increment coupon usage counter
-              await supabase
-                .from('coupons')
-                .update({ 
-                  current_uses: (couponData.current_uses || 0) + 1 
-                })
-                .eq('id', couponData.id);
-              
-              // Record coupon usage
-              await supabase
-                .from('coupon_usage')
-                .insert({
-                  coupon_id: couponData.id,
-                  guest_email: guestEmail,
-                  purchase_amount: priceAmount,
-                  discount_amount: data.discountAmount || 0
-                });
-                
-              console.log('Tracked coupon usage:', {
-                couponId: couponData.id,
-                guestEmail,
-                discountAmount: data.discountAmount
-              });
-              
-              // Track affiliate commission if this is an affiliate coupon
-              await trackAffiliatePurchase(couponCode, priceAmount);
-            }
-          } catch (couponError) {
-            console.error('Error tracking coupon usage:', couponError);
-            // Continue with checkout even if coupon tracking fails
-          }
-        }
+          
+        console.log('Updated quiz result with guest checkout info');
+      } catch (updateError) {
+        console.error('Error updating quiz result:', updateError);
+        // Continue anyway, this is not critical
       }
-      
-      // Redirect to Stripe
-      console.log('Redirecting to Stripe checkout URL:', data.url);
+
+      // Redirect to Stripe Checkout
       window.location.href = data.url;
-      return true;
-      
     } catch (error: any) {
       console.error('Guest checkout error:', error);
+      setLoading(false);
       toast({
         title: "Checkout Error",
-        description: error.message || "Could not process your checkout. Please try again.",
+        description: error.message || "Failed to initiate checkout. Please try again later.",
         variant: "destructive",
       });
-      setLoading(false);
-      return false;
     }
   };
 
   return {
     loading,
-    handleCheckout
+    handleGuestCheckout
   };
 };
