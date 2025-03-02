@@ -1,81 +1,102 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
-import { useVerifyPurchase } from './assessment/useVerifyPurchase';
-import { QuizResultType } from '@/types/quiz'; // Use QuizResultType instead of QuizResult
-import { useAuth } from './useAuth';
-import { useToast } from './use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
-export const useAssessmentResult = () => {
-  const { id } = useParams<{ id: string }>();
-  const { toast } = useToast();
-  const { 
-    isVerifying, 
-    verificationComplete, 
-    verificationSuccess,
-    runVerification,
-    runFallbackVerification 
-  } = useVerifyPurchase();
-  
-  const { session } = useAuth(); // Use session instead of user
-  const [result, setResult] = useState<QuizResultType | null>(null);
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useVerifyPurchase } from "./assessment/useVerifyPurchase";
+import { QuizResult } from "@/types/quiz"; // Updated import
+import { toast } from "./use-toast";
+import { useAuth } from "./useAuth";
+
+export const useAssessmentResult = (id?: string) => {
+  const [result, setResult] = useState<QuizResult | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const { session } = useAuth(); // Updated to use session instead of user
 
-  // Add properties expected by the consuming components to match the existing interface
-  const verifying = isVerifying;
-  const verificationAttempts = 0; // Placeholder value
-  const checkDirectAccess = useCallback(() => Promise.resolve(false), []); // Placeholder function
-  const showCreateAccountToast = useCallback(() => {}, []); // Placeholder function
-  const executeVerificationFlow = useCallback(() => Promise.resolve(false), []); // Placeholder function
+  const {
+    loading: verifying,
+    verified: verificationComplete,
+    error: verificationError,
+    verifyPurchase
+  } = useVerifyPurchase();
 
-  // Fix the runVerification call to match expected signature
-  const verifyResult = useCallback(() => {
-    if (id) {
-      return runVerification(id);
-    }
-    return Promise.resolve(false);
-  }, [id, runVerification]);
+  // Derived state for UI components
+  const verificationSuccess = verificationComplete && !verificationError;
+  const verificationAttempts = 0; // This can be managed in state if needed
 
+  // Load the assessment result
   useEffect(() => {
+    if (!id) {
+      setLoading(false);
+      setError("No assessment ID provided");
+      return;
+    }
+
     const fetchResult = async () => {
-      setLoading(true);
-      setError(null);
-      
       try {
-        if (!id) {
-          throw new Error("Assessment ID is missing.");
-        }
+        setLoading(true);
         
-        const { data, error } = await supabase
-          .from('quiz_results')
-          .select('*')
-          .eq('id', id)
+        const { data, error: fetchError } = await supabase
+          .from("quiz_results")
+          .select("*")
+          .eq("id", id)
           .maybeSingle();
-        
-        if (error) {
-          throw new Error(error.message);
+
+        if (fetchError) {
+          throw fetchError;
         }
+
+        if (!data) {
+          setError("Assessment not found");
+          return;
+        }
+
+        setResult(data);
         
-        if (data) {
-          setResult(data);
-        } else {
-          setError("Result not found.");
+        // If result indicates purchase in progress, verify it
+        if (data.purchase_status === 'pending' || data.stripe_session_id) {
+          await verifyResult();
         }
       } catch (err: any) {
-        setError(err.message);
-        toast({
-          title: "Error",
-          description: `Failed to fetch assessment result: ${err.message}`,
-          variant: "destructive",
-        });
+        console.error("Error fetching assessment:", err);
+        setError(err.message || "Failed to load assessment");
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchResult();
-  }, [id, session, toast]);
+  }, [id]);
+
+  // Verification functions
+  const verifyResult = useCallback(() => {
+    if (!id) return null;
+    return verifyPurchase(id);
+  }, [id, verifyPurchase]);
+  
+  const checkDirectAccess = async () => {
+    // Implementation can be added if needed
+    return false;
+  };
+
+  const showCreateAccountToast = () => {
+    toast({
+      title: "Create an account",
+      description: "Sign up to save your results and access them anytime.",
+    });
+  };
+
+  const executeVerificationFlow = async () => {
+    return verifyResult();
+  };
+
+  const runFallbackVerification = async () => {
+    // Implementation can be added if needed
+    return false;
+  };
+
+  const refreshPage = () => {
+    window.location.reload();
+  };
 
   return {
     result,
@@ -90,5 +111,6 @@ export const useAssessmentResult = () => {
     executeVerificationFlow,
     verifyResult,
     runFallbackVerification,
+    refreshPage
   };
 };

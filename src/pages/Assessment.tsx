@@ -36,7 +36,7 @@ const Assessment = () => {
       <AssessmentLoading
         verifying={verifying}
         verificationAttempts={verificationAttempts}
-        onRefresh={refreshPage}
+        onRefresh={() => refreshPage()}
       />
     );
   }

@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { useVerificationCoordinator } from './verification/useVerificationCoordinator';
 
@@ -9,8 +10,8 @@ export const useVerificationFlow = () => {
     isVerifying,
     verificationComplete,
     verificationSuccess,
-    performStandardVerification,
-    performLastResortVerification
+    runVerification,
+    runFallbackVerification
   } = useVerificationCoordinator();
   
   const executeStandardVerification = useCallback(async (resultId: string) => {
@@ -20,7 +21,7 @@ export const useVerificationFlow = () => {
       setVerificationInProgress(true);
       setVerificationAttempts(prev => prev + 1);
       
-      const success = await performStandardVerification();
+      const success = await runVerification(resultId);
       return success;
     } catch (error) {
       console.error('Verification flow error:', error);
@@ -28,7 +29,7 @@ export const useVerificationFlow = () => {
     } finally {
       setVerificationInProgress(false);
     }
-  }, [verificationInProgress, performStandardVerification]);
+  }, [verificationInProgress, runVerification]);
   
   const executeLastResortVerification = useCallback(async (resultId: string) => {
     if (verificationInProgress) return false;
@@ -36,7 +37,7 @@ export const useVerificationFlow = () => {
     try {
       setVerificationInProgress(true);
       
-      const success = await performLastResortVerification();
+      const success = await runFallbackVerification(resultId);
       return success;
     } catch (error) {
       console.error('Last resort verification error:', error);
@@ -44,7 +45,7 @@ export const useVerificationFlow = () => {
     } finally {
       setVerificationInProgress(false);
     }
-  }, [verificationInProgress, performLastResortVerification]);
+  }, [verificationInProgress, runFallbackVerification]);
   
   return {
     isVerifying,
