@@ -2,28 +2,61 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Affiliate, AffiliateCommissionTier } from "../types";
+import { Affiliate, AffiliateCommissionTier, AffiliateMonthlyPerformance } from "../types";
 
 export const useAffiliateManagement = () => {
   const [affiliates, setAffiliates] = useState<Affiliate[]>([]);
   const [commissionTiers, setCommissionTiers] = useState<AffiliateCommissionTier[]>([]);
+  const [monthlyPerformance, setMonthlyPerformance] = useState<AffiliateMonthlyPerformance[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'affiliates' | 'tiers'>('affiliates');
+  const [viewMode, setViewMode] = useState<'affiliates' | 'tiers' | 'performance'>('affiliates');
+  
+  // Pagination and search for affiliates
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalAffiliates, setTotalAffiliates] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'pending'>('all');
 
   useEffect(() => {
     fetchAffiliates();
     fetchCommissionTiers();
-  }, []);
+    fetchMonthlyPerformance();
+  }, [page, pageSize, searchQuery, statusFilter]);
 
   const fetchAffiliates = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // Build query with filters and pagination
+      let query = supabase
         .from('affiliates')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*', { count: 'exact' });
+      
+      // Apply search if provided
+      if (searchQuery) {
+        query = query.or(`name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,code.ilike.%${searchQuery}%`);
+      }
+      
+      // Apply status filter
+      if (statusFilter !== 'all') {
+        query = query.eq('status', statusFilter);
+      }
+      
+      // Apply pagination
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+      
+      const { data, error, count } = await query
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
       if (error) throw error;
+      
+      // Save total count for pagination
+      if (count !== null) {
+        setTotalAffiliates(count);
+      }
       
       setAffiliates(data as Affiliate[]);
     } catch (error: any) {
@@ -51,6 +84,38 @@ export const useAffiliateManagement = () => {
     } catch (error: any) {
       console.error('Error fetching commission tiers:', error);
     }
+  };
+
+  const fetchMonthlyPerformance = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('affiliate_monthly_performance')
+        .select('*')
+        .order('month', { ascending: false });
+
+      if (error) throw error;
+      
+      setMonthlyPerformance(data as AffiliateMonthlyPerformance[]);
+    } catch (error: any) {
+      console.error('Error fetching monthly performance:', error);
+    }
+  };
+
+  const calculateCommissionRate = (sales: number): number => {
+    if (!commissionTiers || commissionTiers.length === 0) {
+      return 0.10; // Default 10% if no tiers
+    }
+    
+    // Find the appropriate tier based on sales amount
+    for (let i = commissionTiers.length - 1; i >= 0; i--) {
+      const tier = commissionTiers[i];
+      if (sales >= tier.min_sales && (tier.max_sales === null || sales <= tier.max_sales)) {
+        return tier.commission_rate;
+      }
+    }
+    
+    // Default to base rate if no matching tier
+    return commissionTiers[0].commission_rate;
   };
 
   const createAffiliate = async (name: string, email: string) => {
@@ -81,7 +146,9 @@ export const useAffiliateManagement = () => {
           commission_rate: getBaseCommissionRate(),
           status: 'active',
           earnings: 0,
-          total_sales: 0
+          total_sales: 0,
+          current_month_sales: 0,
+          previous_month_sales: 0
         })
         .select()
         .single();
@@ -156,6 +223,35 @@ export const useAffiliateManagement = () => {
     }
   };
 
+  const updateAffiliateStatus = async (affiliateId: string, status: 'active' | 'inactive' | 'pending') => {
+    try {
+      const { error } = await supabase
+        .from('affiliates')
+        .update({ 
+          status: status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', affiliateId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Affiliate status updated to ${status}`,
+      });
+
+      // Refresh list
+      fetchAffiliates();
+    } catch (error: any) {
+      console.error('Error updating affiliate status:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update affiliate status",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getBaseCommissionRate = () => {
     // Find the lowest tier commission rate
     if (commissionTiers.length > 0) {
@@ -166,15 +262,79 @@ export const useAffiliateManagement = () => {
     return 0.10; // Default 10% if no tiers defined
   };
 
+  const recalculateAllCommissionRates = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch all affiliates without pagination
+      const { data: allAffiliates, error: fetchError } = await supabase
+        .from('affiliates')
+        .select('*');
+      
+      if (fetchError) throw fetchError;
+      
+      // For each affiliate, recalculate commission rate based on current month's sales
+      for (const affiliate of allAffiliates) {
+        const newRate = calculateCommissionRate(affiliate.current_month_sales);
+        
+        // Only update if rate has changed
+        if (newRate !== affiliate.commission_rate) {
+          const { error: updateError } = await supabase
+            .from('affiliates')
+            .update({ 
+              commission_rate: newRate,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', affiliate.id);
+            
+          if (updateError) {
+            console.error(`Error updating rate for affiliate ${affiliate.id}:`, updateError);
+          }
+        }
+      }
+      
+      toast({
+        title: "Success",
+        description: "All affiliate commission rates recalculated based on current performance",
+      });
+      
+      // Refresh data
+      fetchAffiliates();
+    } catch (error: any) {
+      console.error('Error recalculating commission rates:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to recalculate commission rates",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     affiliates,
     commissionTiers,
+    monthlyPerformance,
     loading,
     viewMode,
     setViewMode,
+    page,
+    pageSize,
+    totalAffiliates,
+    searchQuery,
+    statusFilter,
+    setPage,
+    setPageSize,
+    setSearchQuery,
+    setStatusFilter,
     fetchAffiliates,
     fetchCommissionTiers,
+    fetchMonthlyPerformance,
     createAffiliate,
-    createCommissionTier
+    createCommissionTier,
+    updateAffiliateStatus,
+    calculateCommissionRate,
+    recalculateAllCommissionRates
   };
 };

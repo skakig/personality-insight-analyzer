@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Loader2, PlusCircle } from "lucide-react";
+import { Loader2, PlusCircle, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
+import { format } from "date-fns";
 
 interface CreateCouponFormProps {
   userId: string;
@@ -19,6 +20,7 @@ export const CreateCouponForm = ({ userId, onCouponCreated }: CreateCouponFormPr
   const [discountAmount, setDiscountAmount] = useState("");
   const [discountType, setDiscountType] = useState("percentage");
   const [maxUses, setMaxUses] = useState("100");
+  const [startDate, setStartDate] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [creatingCoupon, setCreatingCoupon] = useState(false);
   
@@ -34,6 +36,13 @@ export const CreateCouponForm = ({ userId, onCouponCreated }: CreateCouponFormPr
     );
   };
 
+  const generateRandomCode = () => {
+    const prefix = "TMH";
+    const randomChars = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const randomNumbers = Math.floor(1000 + Math.random() * 9000);
+    setCouponCode(`${prefix}${randomChars}${randomNumbers}`);
+  };
+
   const createCoupon = async () => {
     try {
       setCreatingCoupon(true);
@@ -42,7 +51,7 @@ export const CreateCouponForm = ({ userId, onCouponCreated }: CreateCouponFormPr
       if (!couponCode || !discountAmount) {
         toast({
           title: "Error",
-          description: "Please fill in all fields",
+          description: "Please fill in all required fields",
           variant: "destructive",
         });
         return;
@@ -70,7 +79,12 @@ export const CreateCouponForm = ({ userId, onCouponCreated }: CreateCouponFormPr
         return;
       }
 
-      // Prepare expiry date if provided
+      // Prepare date values if provided
+      let startTimestamp = null;
+      if (startDate) {
+        startTimestamp = new Date(startDate).toISOString();
+      }
+      
       let expiryTimestamp = null;
       if (expiryDate) {
         expiryTimestamp = new Date(expiryDate).toISOString();
@@ -85,6 +99,7 @@ export const CreateCouponForm = ({ userId, onCouponCreated }: CreateCouponFormPr
           max_uses: uses,
           is_active: true,
           created_by: userId,
+          starts_at: startTimestamp,
           expires_at: expiryTimestamp,
           applicable_products: applicableProducts.length > 0 ? applicableProducts : null
         });
@@ -108,6 +123,7 @@ export const CreateCouponForm = ({ userId, onCouponCreated }: CreateCouponFormPr
       setDiscountAmount("");
       setDiscountType("percentage");
       setMaxUses("100");
+      setStartDate("");
       setExpiryDate("");
       setApplicableProducts([]);
       
@@ -129,20 +145,30 @@ export const CreateCouponForm = ({ userId, onCouponCreated }: CreateCouponFormPr
     <div className="space-y-3">
       <h3 className="text-lg font-medium">Create New Coupon</h3>
       
-      <div className="space-y-2">
-        <Input
-          placeholder="Coupon code (e.g. SAVE50)"
-          value={couponCode}
-          onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-        />
+      <div className="space-y-2 bg-gray-50 p-4 rounded-md">
+        <div className="flex gap-2">
+          <Input
+            placeholder="Coupon code (e.g. SAVE50)"
+            value={couponCode}
+            onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+            className="flex-1"
+          />
+          <Button
+            variant="outline"
+            onClick={generateRandomCode}
+            type="button"
+          >
+            Generate
+          </Button>
+        </div>
         
         <div className="flex gap-2">
           <Select 
             value={discountType} 
             onValueChange={setDiscountType}
           >
-            <SelectTrigger>
-              <SelectValue placeholder="Discount Type" />
+            <SelectTrigger className="w-1/3">
+              <SelectValue placeholder="Type" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="percentage">Percentage (%)</SelectItem>
@@ -152,9 +178,10 @@ export const CreateCouponForm = ({ userId, onCouponCreated }: CreateCouponFormPr
           
           <Input
             type="number"
-            placeholder={discountType === 'percentage' ? "Discount percentage (e.g. 50)" : "Discount amount in cents (e.g. 500)"}
+            placeholder={discountType === 'percentage' ? "Discount %" : "Discount amount (cents)"}
             value={discountAmount}
             onChange={(e) => setDiscountAmount(e.target.value)}
+            className="flex-1"
           />
         </div>
         
@@ -165,12 +192,39 @@ export const CreateCouponForm = ({ userId, onCouponCreated }: CreateCouponFormPr
           onChange={(e) => setMaxUses(e.target.value)}
         />
         
-        <Input
-          type="date"
-          placeholder="Expiry date (optional)"
-          value={expiryDate}
-          onChange={(e) => setExpiryDate(e.target.value)}
-        />
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <Label htmlFor="startDate" className="text-xs font-medium">
+              Start Date (Optional)
+            </Label>
+            <div className="relative">
+              <Calendar className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="startDate"
+                type="date"
+                className="pl-8"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+          </div>
+          
+          <div className="space-y-1">
+            <Label htmlFor="expiryDate" className="text-xs font-medium">
+              Expiry Date (Optional)
+            </Label>
+            <div className="relative">
+              <Calendar className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="expiryDate"
+                type="date"
+                className="pl-8"
+                value={expiryDate}
+                onChange={(e) => setExpiryDate(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
         
         <div className="space-y-2 pt-2">
           <h4 className="text-sm font-medium">Applicable Products:</h4>
@@ -216,7 +270,7 @@ export const CreateCouponForm = ({ userId, onCouponCreated }: CreateCouponFormPr
         <Button 
           onClick={createCoupon} 
           disabled={creatingCoupon}
-          className="w-full"
+          className="w-full mt-2"
         >
           {creatingCoupon ? (
             <>
