@@ -48,20 +48,20 @@ export const fetchLatestResult = async (resultId: string): Promise<QuizResult | 
       purchase_initiated_at: data.purchase_initiated_at,
       purchase_completed_at: data.purchase_completed_at,
       created_at: data.created_at,
-      updated_at: data.updated_at ?? null,
+      updated_at: data.updated_at || null,
       detailed_analysis: data.detailed_analysis,
       // Handle category_scores properly to avoid type issues
       category_scores: typeof data.category_scores === 'string' 
         ? JSON.parse(data.category_scores) 
-        : data.category_scores as Record<string, number> | null,
+        : (data.category_scores as Record<string, number> | null),
       answers: data.answers,
       temp_access_token: data.temp_access_token,
       temp_access_expires_at: data.temp_access_expires_at,
       guest_access_expires_at: data.guest_access_expires_at,
       purchase_date: data.purchase_date,
       purchase_amount: data.purchase_amount,
-      primary_level: data.primary_level ?? null,
-      conversions: data.conversions ?? 0
+      primary_level: data.primary_level || null,
+      conversions: data.conversions || 0
     };
     
     console.log('[DEBUG] Successfully fetched and processed result');
