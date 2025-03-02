@@ -40,3 +40,4 @@ export interface CreateCommissionTierData {
   min_sales: number;
   max_sales: number;
 }
+

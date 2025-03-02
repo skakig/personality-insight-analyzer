@@ -23,3 +23,4 @@ export const logVerificationParameters = (params: {
 }) => {
   console.log('Verification parameters:', params);
 };
+
