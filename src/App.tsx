@@ -1,4 +1,3 @@
-
 import { Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import { Assessment } from "./pages/Assessment";
@@ -13,6 +12,7 @@ import { AffiliateDetails } from "./components/dashboard/admin/affiliates/Affili
 import { PurchaseNotification } from "./components/notifications/PurchaseNotification";
 import { useAuth } from "@/hooks/useAuth";
 import { Layout } from "./components/layout/Layout";
+import AffiliateSignup from './pages/AffiliateSignup';
 
 function App() {
   const { session } = useAuth();
@@ -31,7 +31,7 @@ function App() {
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/privacy-policy" element={<Privacy />} />
           <Route path="/terms-of-service" element={<Terms />} />
-
+          <Route path="/affiliate-signup" element={<AffiliateSignup />} />
           <Route path="/dashboard/*" element={<Dashboard session={session} />} />
 
           <Route path="*" element={<Index session={session} />} />
