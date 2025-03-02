@@ -1,7 +1,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from '@supabase/supabase-js'
-import Stripe from 'stripe'
+import Stripe from 'https://esm.sh/stripe@12.5.0?target=deno'
 
 // CORS headers
 const corsHeaders = {
@@ -59,7 +59,7 @@ serve(async (req: Request) => {
     // Check for coupon code
     let couponCode = requestData.couponCode
     let discountAmount = 0
-    let finalPrice = requestData.priceAmount || 1499 // Default to $14.99 if no amount provided
+    let finalPrice = requestData.priceAmount || requestData.basePrice || 1499 // Default to $14.99 if no amount provided
     
     // Apply coupon if provided
     if (couponCode) {
@@ -70,21 +70,44 @@ serve(async (req: Request) => {
           .select('*')
           .eq('code', couponCode)
           .eq('is_active', true)
-          .lt('current_uses', 'max_uses')
           .single()
         
         if (couponError || !couponData) {
           console.error('Coupon not found or invalid:', couponError)
         } else {
-          // Calculate discount
-          if (couponData.discount_type === 'percentage') {
-            discountAmount = Math.round(finalPrice * (couponData.discount_amount / 100))
-          } else {
-            discountAmount = couponData.discount_amount
+          // Check if coupon has reached max uses
+          if (couponData.max_uses && couponData.current_uses >= couponData.max_uses) {
+            console.log('Coupon has reached max uses:', {
+              max: couponData.max_uses,
+              current: couponData.current_uses
+            })
+          } 
+          // Check if coupon is expired
+          else if (couponData.expires_at && new Date(couponData.expires_at) < new Date()) {
+            console.log('Coupon has expired:', couponData.expires_at)
           }
-          
-          finalPrice = Math.max(0, finalPrice - discountAmount)
-          console.log(`Applied coupon ${couponCode}: ${discountAmount} discount, final price: ${finalPrice}`)
+          else {
+            // Calculate discount
+            if (couponData.discount_type === 'percentage') {
+              discountAmount = Math.round(finalPrice * (couponData.discount_amount / 100))
+            } else {
+              discountAmount = couponData.discount_amount
+            }
+            
+            finalPrice = Math.max(0, finalPrice - discountAmount)
+            console.log(`Applied coupon ${couponCode}: ${discountAmount} discount, final price: ${finalPrice}`)
+            
+            // Increment coupon usage
+            try {
+              await supabase
+                .from('coupons')
+                .update({ current_uses: (couponData.current_uses || 0) + 1 })
+                .eq('id', couponData.id)
+              console.log('Incremented coupon usage count')
+            } catch (err) {
+              console.error('Failed to increment coupon usage:', err)
+            }
+          }
         }
       } catch (couponErr) {
         console.error('Error applying coupon:', couponErr)
@@ -100,11 +123,11 @@ serve(async (req: Request) => {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: requestData.productType === 'credits' 
-                ? 'Assessment Credits' 
+              name: requestData.productType === 'book' 
+                ? 'The Moral Hierarchy: Pre-Order'
                 : 'Moral Hierarchy Detailed Report',
-              description: requestData.productType === 'credits'
-                ? 'Credits for taking personality assessments'
+              description: requestData.productType === 'book'
+                ? 'Pre-order of The Moral Hierarchy book'
                 : 'Personalized detailed analysis of your moral hierarchy level',
             },
             unit_amount: finalPrice,
@@ -123,6 +146,7 @@ serve(async (req: Request) => {
         accessToken: requestData.metadata?.accessToken,
         couponCode: couponCode,
         discountAmount: discountAmount,
+        productType: requestData.productType || 'report',
         ...requestData.metadata,
       },
     })
