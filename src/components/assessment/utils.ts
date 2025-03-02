@@ -1,3 +1,4 @@
+
 export const getLevelDescription = (level: string): string => {
   const descriptions: Record<string, string> = {
     "1": "Self-Preservation: Focused on meeting basic needs and survival instincts. This level is characterized by reactive decision-making and strong self-preservation tendencies.",
