@@ -97,7 +97,7 @@ export const fetchLatestResult = async (resultId: string): Promise<QuizResult | 
     
     if (!data) return null;
     
-    // Cast the data to the QuizResult type with proper typing
+    // Cast the data to the QuizResult type with proper type handling
     const result: QuizResult = {
       id: data.id,
       user_id: data.user_id,
