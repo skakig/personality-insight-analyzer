@@ -2,9 +2,10 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, PlusCircle,  } from "lucide-react";
+import { Loader2, PlusCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
+import { Label } from "@/components/ui/label";
 
 interface CreateAffiliateFormProps {
   onCreateAffiliate: (name: string, email: string) => Promise<void>;
@@ -63,7 +64,7 @@ export const CreateAffiliateForm = ({ onCreateAffiliate }: CreateAffiliateFormPr
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 bg-white p-6 rounded-lg border">
       <div className="space-y-2">
         <h3 className="text-lg font-medium">Create New Affiliate</h3>
         <p className="text-sm text-gray-500">
@@ -73,10 +74,10 @@ export const CreateAffiliateForm = ({ onCreateAffiliate }: CreateAffiliateFormPr
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <label htmlFor="name" className="text-sm font-medium">
+          <Label htmlFor="name" className="text-sm font-medium">
             Affiliate Name
-            <span className="text-red-500">*</span>
-          </label>
+            <span className="text-red-500 ml-1">*</span>
+          </Label>
           <Input
             id="name"
             placeholder="Enter full name"
@@ -84,13 +85,14 @@ export const CreateAffiliateForm = ({ onCreateAffiliate }: CreateAffiliateFormPr
             onChange={(e) => setName(e.target.value)}
             disabled={creating}
           />
+          <p className="text-xs text-gray-500">The full name of your affiliate partner or organization</p>
         </div>
         
         <div className="space-y-2">
-          <label htmlFor="email" className="text-sm font-medium">
+          <Label htmlFor="email" className="text-sm font-medium">
             Email Address
-            <span className="text-red-500">*</span>
-          </label>
+            <span className="text-red-500 ml-1">*</span>
+          </Label>
           <Input
             id="email"
             type="email"
@@ -99,12 +101,13 @@ export const CreateAffiliateForm = ({ onCreateAffiliate }: CreateAffiliateFormPr
             onChange={(e) => setEmail(e.target.value)}
             disabled={creating}
           />
+          <p className="text-xs text-gray-500">Used for account access and commission notifications</p>
         </div>
         
         <div className="space-y-2">
-          <label htmlFor="status" className="text-sm font-medium">
+          <Label htmlFor="status" className="text-sm font-medium">
             Status
-          </label>
+          </Label>
           <Select 
             value={status} 
             onValueChange={setStatus}
@@ -119,13 +122,14 @@ export const CreateAffiliateForm = ({ onCreateAffiliate }: CreateAffiliateFormPr
               <SelectItem value="inactive">Inactive</SelectItem>
             </SelectContent>
           </Select>
+          <p className="text-xs text-gray-500">Determines whether the affiliate can generate commissions</p>
         </div>
         
-        <div className="space-y-2 flex items-end">
+        <div className="space-y-2 flex flex-col justify-end">
           <Button 
             onClick={handleSubmit} 
             disabled={creating || !name || !email}
-            className="w-full h-10"
+            className="w-full h-10 mt-auto"
           >
             {creating ? (
               <>
@@ -142,7 +146,7 @@ export const CreateAffiliateForm = ({ onCreateAffiliate }: CreateAffiliateFormPr
         </div>
       </div>
       
-      <div className="text-sm text-gray-500 mt-4">
+      <div className="text-sm text-gray-500 mt-4 bg-blue-50 p-3 rounded border border-blue-100">
         <p>
           <span className="font-medium">Note:</span> New affiliates will be automatically assigned a unique referral code and commission rate based on your program settings.
         </p>
