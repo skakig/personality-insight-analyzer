@@ -25,12 +25,14 @@ export const useVerificationFlow = () => {
     setVerificationAttempts(prev => prev + 1);
     
     try {
-      return await runStandardVerification(
+      const result = await runStandardVerification(
         resultId,
         userId,
         undefined,
         sessionId
       );
+      
+      return result as QuizResult;
     } catch (error) {
       console.error('Verification error:', error);
       return null;
@@ -49,11 +51,12 @@ export const useVerificationFlow = () => {
       const standardResult = await runStandardVerification(resultId);
       
       if (standardResult) {
-        return standardResult;
+        return standardResult as QuizResult;
       }
       
       // If standard verification fails, try fallback
-      return await runFallbackVerification(resultId);
+      const fallbackResult = await runFallbackVerification(resultId);
+      return fallbackResult as QuizResult;
     } catch (error) {
       console.error('Purchase verification error:', error);
       return null;

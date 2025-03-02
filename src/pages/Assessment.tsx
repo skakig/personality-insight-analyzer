@@ -20,7 +20,7 @@ const Assessment = () => {
     verificationAttempts,
     refreshPage,
     runVerification
-  } = useAssessmentResult(id ? { id } : {});
+  } = useAssessmentResult({ id });
   const [showVerificationSuccess, setShowVerificationSuccess] = useState(false);
   
   useEffect(() => {

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,7 +9,7 @@ import { CommissionTierList } from "./CommissionTierList";
 import { CreateCommissionTierForm } from "./CreateCommissionTierForm";
 import { AffiliatePerformanceCard } from "./AffiliatePerformanceCard";
 import { toast } from "@/hooks/use-toast";
-import { Affiliate, CommissionTier } from "./types";
+import { Affiliate, CommissionTier } from "@/types/quiz";
 import { Plus } from "lucide-react";
 
 export function AffiliateSection() {
@@ -32,11 +31,11 @@ export function AffiliateSection() {
       
       const typedAffiliates = affiliatesData?.map(affiliate => ({
         ...affiliate,
-        status: affiliate.status as "active" | "inactive" | "pending",
+        status: affiliate.status as string,
         conversions: affiliate.conversions || 0 // Set default value for conversions
       })) || [];
       
-      setAffiliates(typedAffiliates);
+      setAffiliates(typedAffiliates as Affiliate[]);
       
       const { data: tiersData, error: tiersError } = await supabase
         .from('affiliate_commission_tiers')
@@ -52,7 +51,7 @@ export function AffiliateSection() {
         max_sales: tier.max_sales || Number.MAX_SAFE_INTEGER // Ensure max_sales is always defined
       })) || [];
       
-      setCommissionTiers(typedTiers);
+      setCommissionTiers(typedTiers as CommissionTier[]);
     } catch (error) {
       console.error("Error fetching affiliate data:", error);
       toast({

@@ -1,22 +1,17 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { QuizResult } from "@/types/quiz";
+import { QuizResult, UseAssessmentResultProps } from "@/types/quiz";
 import { isPurchased } from "@/utils/purchaseStatus";
 import { useVerificationFlow } from "./assessment/useVerificationFlow";
 import { toast } from "./use-toast";
 
-interface UseAssessmentResultProps {
-  resultId: string | null;
-  initialResult?: QuizResult | null;
-  autoVerify?: boolean;
-}
-
 export const useAssessmentResult = ({
-  resultId,
-  initialResult = null,
-  autoVerify = true
+  id,
+  sessionId,
+  email
 }: UseAssessmentResultProps) => {
-  const [result, setResult] = useState<QuizResult | null>(initialResult);
+  const [result, setResult] = useState<QuizResult | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
   const [verified, setVerified] = useState<boolean>(false);
@@ -30,13 +25,13 @@ export const useAssessmentResult = ({
     runVerification 
   } = verificationFlow;
 
-  const fetchResult = useCallback(async (id: string) => {
+  const fetchResult = useCallback(async (resultId: string) => {
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from("quiz_results")
         .select("*")
-        .eq("id", id)
+        .eq("id", resultId)
         .maybeSingle();
 
       if (error) {
@@ -60,13 +55,14 @@ export const useAssessmentResult = ({
           created_at: data.created_at,
           updated_at: data.updated_at || data.created_at,
           detailed_analysis: data.detailed_analysis,
-          category_scores: data.category_scores,
+          category_scores: data.category_scores as Record<string, number> | null,
           answers: data.answers,
           temp_access_token: data.temp_access_token,
           temp_access_expires_at: data.temp_access_expires_at,
           guest_access_expires_at: data.guest_access_expires_at,
           purchase_date: data.purchase_date,
-          purchase_amount: data.purchase_amount
+          purchase_amount: data.purchase_amount,
+          primary_level: data.primary_level
         };
 
         setResult(typedResult);
@@ -85,12 +81,12 @@ export const useAssessmentResult = ({
     }
   }, []);
 
-  const verifyPurchase = useCallback(async (id: string, maxRetries = 3) => {
+  const verifyPurchase = useCallback(async (resultId: string, maxRetries = 3) => {
     try {
-      const verifiedResult = await verificationFlow.verifyPurchase(id, maxRetries);
+      const verifiedResult = await verificationFlow.verifyPurchase(resultId, maxRetries);
       
       if (verifiedResult) {
-        setResult(verifiedResult);
+        setResult(verifiedResult as QuizResult);
         setVerified(true);
         return verifiedResult;
       }
@@ -103,34 +99,34 @@ export const useAssessmentResult = ({
   }, [verificationFlow]);
 
   const refreshPage = useCallback(() => {
-    if (resultId) {
-      fetchResult(resultId);
+    if (id) {
+      fetchResult(id);
     }
-  }, [resultId, fetchResult]);
+  }, [id, fetchResult]);
 
-  const handleVerification = useCallback(async (id: string) => {
-    if (!id) return;
+  const handleVerification = useCallback(async (resultId: string) => {
+    if (!resultId) return;
     
     try {
       const urlParams = new URLSearchParams(window.location.search);
-      const sessionId = urlParams.get('session_id');
+      const stripeSessionId = urlParams.get('session_id');
       const success = urlParams.get('success') === 'true';
       
-      if (success && sessionId) {
+      if (success && stripeSessionId) {
         const { data: { session } } = await supabase.auth.getSession();
         const userId = session?.user?.id;
         
         console.log('Running verification after Stripe success', {
-          sessionId,
+          sessionId: stripeSessionId,
           userId,
-          resultId: id
+          resultId
         });
         
-        const verifiedResult = await runVerification(id, sessionId, userId);
+        const verifiedResult = await runVerification(resultId, stripeSessionId, userId);
         
         if (verifiedResult) {
           console.log('Stripe return verification successful');
-          setResult(verifiedResult);
+          setResult(verifiedResult as QuizResult);
           setVerified(true);
           toast({
             title: "Purchase verified",
@@ -155,7 +151,7 @@ export const useAssessmentResult = ({
         return;
       }
       
-      await fetchResult(id);
+      await fetchResult(resultId);
       
     } catch (error) {
       console.error('Verification process error:', error);
@@ -163,21 +159,21 @@ export const useAssessmentResult = ({
   }, [fetchResult, runVerification, isVerifying, verificationComplete, verificationSuccess]);
 
   useEffect(() => {
-    if (resultId) {
-      fetchResult(resultId);
+    if (id) {
+      fetchResult(id);
     }
-  }, [resultId, fetchResult]);
+  }, [id, fetchResult]);
 
   useEffect(() => {
-    if (resultId && autoVerify && result && !verified && !isVerifying) {
+    if (id && result && !verified && !isVerifying) {
       const urlParams = new URLSearchParams(window.location.search);
       const success = urlParams.get('success') === 'true';
       
       if (success || verificationAttempts === 0) {
-        handleVerification(resultId);
+        handleVerification(id);
       }
     }
-  }, [resultId, autoVerify, result, verified, isVerifying, verificationAttempts, handleVerification]);
+  }, [id, result, verified, isVerifying, verificationAttempts, handleVerification]);
 
   return {
     result,
@@ -190,6 +186,6 @@ export const useAssessmentResult = ({
     verificationAttempts,
     verified,
     refreshPage,
-    ...verificationFlow
+    runVerification: verificationFlow.runVerification
   };
 };

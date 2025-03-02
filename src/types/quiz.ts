@@ -66,6 +66,7 @@ export interface Affiliate {
 
 export interface CommissionTier {
   id: string;
+  tier_name?: string;
   commission_rate: number;
   min_sales: number;
   max_sales: number | null;
