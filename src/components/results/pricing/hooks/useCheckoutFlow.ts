@@ -4,6 +4,8 @@ import { toast } from "@/hooks/use-toast";
 import { useLoggedInCheckout } from "./useLoggedInCheckout";
 import { useGuestCheckout } from "./useGuestCheckout";
 import { supabase } from "@/integrations/supabase/client";
+import { getStoredPurchaseData, storePurchaseData } from "@/utils/purchaseStateUtils";
+import { updatePurchaseStatusDirectly } from "@/utils/purchase/verification/helpers/verificationCoordinator";
 
 export const useCheckoutFlow = (session: any, quizResultId: string | null, finalPrice: number, couponCode?: string | null) => {
   const [email, setEmail] = useState("");
@@ -31,66 +33,66 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null, final
       }
     }
     
-    // Store result ID in localStorage for guest users
-    if (quizResultId && !session?.user) {
+    // Store result ID in localStorage for all users
+    if (quizResultId) {
+      console.log('[DEBUG] Storing quiz result ID in localStorage:', quizResultId);
       localStorage.setItem('guestQuizResultId', quizResultId);
+      
+      if (session?.user?.id) {
+        localStorage.setItem('checkoutUserId', session.user.id);
+      }
     }
     
     // Check for success parameter in URL
     const urlParams = new URLSearchParams(window.location.search);
     const success = urlParams.get('success');
+    const sessionId = urlParams.get('session_id');
     
-    if (success === 'true' && quizResultId) {
-      console.log('[DEBUG] Detected success=true in URL, checking purchase status for:', quizResultId);
+    if (success === 'true') {
+      // Determine which result ID to use
+      const storedData = getStoredPurchaseData();
+      const resultIdToUse = quizResultId || storedData.resultId;
+      const sessionIdToUse = sessionId || storedData.sessionId;
       
-      // Attempt to directly fetch and check the result
-      const checkPurchaseStatus = async () => {
-        try {
-          const { data: result } = await supabase
-            .from('quiz_results')
-            .select('*')
-            .eq('id', quizResultId)
-            .maybeSingle();
-            
-          console.log('[DEBUG] Current result status:', {
-            id: result?.id,
-            is_purchased: result?.is_purchased,
-            purchase_status: result?.purchase_status,
-            hasSessionId: !!result?.stripe_session_id
-          });
-          
-          // If not purchased, try to update it
-          if (result && !result.is_purchased) {
-            const sessionId = urlParams.get('session_id') || localStorage.getItem('stripeSessionId');
-            
-            if (sessionId) {
-              console.log('[DEBUG] Updating purchase with session ID:', sessionId);
+      console.log('[DEBUG] Detected success=true in URL, checking purchase status for:', {
+        resultId: resultIdToUse,
+        sessionId: sessionIdToUse
+      });
+      
+      if (resultIdToUse && sessionIdToUse) {
+        // Store the current result and session IDs
+        storePurchaseData(resultIdToUse, sessionIdToUse, session?.user?.id);
+        
+        // Attempt to directly fetch and update the result
+        updatePurchaseStatusDirectly(resultIdToUse, sessionIdToUse)
+          .then(result => {
+            if (result) {
+              console.log('[DEBUG] Successfully updated purchase status, reloading page');
+              toast({
+                title: "Purchase complete!",
+                description: "Your detailed report is now available.",
+              });
               
-              const { error: updateError } = await supabase
-                .from('quiz_results')
-                .update({
-                  is_purchased: true,
-                  is_detailed: true,
-                  purchase_status: 'completed',
-                  purchase_completed_at: new Date().toISOString(),
-                  access_method: 'purchase'
-                })
-                .eq('id', quizResultId);
-                
-              if (updateError) {
-                console.error('[ERROR] Error updating purchase status:', updateError);
-              } else {
-                console.log('[DEBUG] Successfully updated purchase status');
-                window.location.reload(); // Refresh to show updated UI
-              }
+              // Give a moment for the state to update
+              setTimeout(() => {
+                window.location.href = `/dashboard?resultId=${resultIdToUse}`;
+              }, 500);
+            } else {
+              console.error('[ERROR] Failed to update purchase status directly');
+              toast({
+                title: "Verification in progress",
+                description: "Please wait while we verify your purchase.",
+              });
             }
-          }
-        } catch (error) {
-          console.error('[ERROR] Error checking purchase status:', error);
-        }
-      };
-      
-      checkPurchaseStatus();
+          });
+      } else {
+        console.error('[ERROR] Missing result ID or session ID for verification');
+        toast({
+          title: "Verification error",
+          description: "Could not verify your purchase. Please contact support.",
+          variant: "destructive",
+        });
+      }
     }
   }, [session, quizResultId]);
 
@@ -112,9 +114,15 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null, final
         return;
       }
       
+      // Store result ID in localStorage for all users
+      localStorage.setItem('guestQuizResultId', quizResultId);
+      localStorage.setItem('purchaseResultId', quizResultId);
+      localStorage.setItem('checkoutResultId', quizResultId);
+      
       // For logged in users, process directly
       if (session?.user) {
         console.log('[DEBUG] Processing as logged in user with ID:', session.user.id);
+        localStorage.setItem('checkoutUserId', session.user.id);
         await handleCheckout();
         return;
       }
@@ -149,6 +157,13 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null, final
     
     // Store the email for later use
     localStorage.setItem('guestEmail', email);
+    
+    // Ensure quiz result ID is stored
+    if (quizResultId) {
+      localStorage.setItem('guestQuizResultId', quizResultId);
+      localStorage.setItem('purchaseResultId', quizResultId);
+      localStorage.setItem('checkoutResultId', quizResultId);
+    }
     
     console.log('[DEBUG] Processing guest checkout with email:', email);
     await handleGuestCheckout();

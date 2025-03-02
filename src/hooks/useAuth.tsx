@@ -25,9 +25,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         const { data, error } = await supabase.auth.getSession();
         if (error) throw error;
-        setSession(data.session);
+        
+        if (data.session) {
+          console.log('[INFO] Auth state changed:', {
+            event: "INITIAL_SESSION",
+            userEmail: data.session?.user?.email,
+            timestamp: new Date().toISOString()
+          });
+          
+          setSession(data.session);
+        }
       } catch (error) {
-        console.error('Error getting auth session:', error);
+        console.error('[ERROR] Error getting auth session:', error);
       } finally {
         setLoading(false);
       }
@@ -37,9 +46,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
-      console.log('Auth state changed:', event, newSession);
+      console.log('[INFO] Auth state changed:', {
+        event,
+        userEmail: newSession?.user?.email,
+        timestamp: new Date().toISOString()
+      });
+      
       setSession(newSession);
       setLoading(false);
+      
+      // Store user ID in localStorage for purchase tracking if logged in
+      if (newSession?.user) {
+        localStorage.setItem('checkoutUserId', newSession.user.id);
+      }
     });
 
     return () => {

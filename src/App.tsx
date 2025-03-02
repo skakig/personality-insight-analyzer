@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Route,
   Routes,
@@ -16,9 +16,39 @@ import Pricing from './pages/Pricing';
 import BookLanding from './pages/BookLanding';
 import Auth from './pages/Auth';
 import AffiliateSignup from './pages/AffiliateSignup';
+import { supabase } from './integrations/supabase/client';
 
 const App = () => {
   const { session } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+  
+  useEffect(() => {
+    // Check if user is an admin
+    const checkAdminStatus = async () => {
+      if (session?.user?.id) {
+        try {
+          const { data, error } = await supabase
+            .from('admins')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .maybeSingle();
+            
+          if (data && !error) {
+            console.log('[DEBUG] User is admin:', data);
+            setIsAdmin(true);
+          } else {
+            console.log('[DEBUG] User is not admin or error occurred:', error);
+            setIsAdmin(false);
+          }
+        } catch (err) {
+          console.error('[ERROR] Error checking admin status:', err);
+          setIsAdmin(false);
+        }
+      }
+    };
+    
+    checkAdminStatus();
+  }, [session]);
   
   return (
     <div className="flex flex-col min-h-screen">
@@ -28,7 +58,10 @@ const App = () => {
           <Route path="/dashboard" element={<Dashboard session={session} />} />
           <Route path="/results/:quizResultId" element={<Navigate to="/dashboard" />} />
           <Route path="/pricing/:quizResultId" element={<Navigate to="/dashboard" />} />
-          <Route path="/dashboard/admin/*" element={<AdminDashboard />} />
+          <Route 
+            path="/dashboard/admin/*" 
+            element={isAdmin ? <AdminDashboard /> : <Navigate to="/dashboard" />} 
+          />
           <Route path="/affiliates" element={<Navigate to="/dashboard/admin/affiliates" />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/book" element={<BookLanding />} />

@@ -11,7 +11,7 @@ export const storePurchaseData = (
   sessionId: string,
   userId?: string
 ) => {
-  console.log('Storing purchase data:', { resultId, sessionId, userId });
+  console.log('[DEBUG] Storing purchase data:', { resultId, sessionId, userId });
   
   localStorage.setItem('purchaseResultId', resultId);
   localStorage.setItem('stripeSessionId', sessionId);
@@ -20,12 +20,20 @@ export const storePurchaseData = (
   if (userId) {
     localStorage.setItem('checkoutUserId', userId);
   }
+  
+  // Store in alternative locations for backwards compatibility
+  localStorage.setItem('checkoutResultId', resultId);
+  if (sessionId) {
+    localStorage.setItem('creditsPurchaseSessionId', sessionId);
+  }
 };
 
 /**
  * Clear purchase data from localStorage
  */
 export const clearPurchaseData = () => {
+  console.log('[DEBUG] Clearing all purchase data from localStorage');
+  
   localStorage.removeItem('purchaseResultId');
   localStorage.removeItem('checkoutResultId');
   localStorage.removeItem('stripeSessionId');
@@ -33,15 +41,29 @@ export const clearPurchaseData = () => {
   localStorage.removeItem('checkoutUserId');
   localStorage.removeItem('purchaseInitiatedAt');
   localStorage.removeItem('purchaseTrackingId');
+  localStorage.removeItem('guestQuizResultId');
 };
 
 /**
  * Get purchase data from localStorage
  */
 export const getPurchaseData = () => {
+  const resultId = localStorage.getItem('purchaseResultId') || 
+                  localStorage.getItem('checkoutResultId') || 
+                  localStorage.getItem('guestQuizResultId');
+                  
+  const sessionId = localStorage.getItem('stripeSessionId') || 
+                   localStorage.getItem('creditsPurchaseSessionId');
+                   
+  console.log('[DEBUG] Retrieved purchase data:', { 
+    resultId, 
+    sessionId, 
+    userId: localStorage.getItem('checkoutUserId') 
+  });
+  
   return {
-    resultId: localStorage.getItem('purchaseResultId') || localStorage.getItem('checkoutResultId'),
-    sessionId: localStorage.getItem('stripeSessionId') || localStorage.getItem('creditsPurchaseSessionId'),
+    resultId,
+    sessionId,
     userId: localStorage.getItem('checkoutUserId'),
     guestEmail: localStorage.getItem('guestEmail'),
     initiatedAt: localStorage.getItem('purchaseInitiatedAt'),
@@ -64,8 +86,11 @@ export const getPurchaseState = getPurchaseData;
  */
 export const getStoredPurchaseData = () => {
   return {
-    resultId: localStorage.getItem('purchaseResultId') || localStorage.getItem('checkoutResultId') || localStorage.getItem('guestQuizResultId'),
-    sessionId: localStorage.getItem('stripeSessionId') || localStorage.getItem('creditsPurchaseSessionId'),
+    resultId: localStorage.getItem('purchaseResultId') || 
+             localStorage.getItem('checkoutResultId') || 
+             localStorage.getItem('guestQuizResultId'),
+    sessionId: localStorage.getItem('stripeSessionId') || 
+              localStorage.getItem('creditsPurchaseSessionId'),
     userId: localStorage.getItem('checkoutUserId'),
     guestEmail: localStorage.getItem('guestEmail'),
     initiatedAt: localStorage.getItem('purchaseInitiatedAt'),
