@@ -1,4 +1,3 @@
-
 export interface QuizQuestion {
   id: string;
   question: string;
@@ -25,27 +24,27 @@ export interface QuizState {
 
 export interface QuizResult {
   id: string;
-  user_id?: string | null;
+  user_id: string;
   personality_type: string;
   is_purchased: boolean;
   is_detailed: boolean;
-  purchase_status?: 'pending' | 'completed' | string | null;
-  access_method?: 'purchase' | 'free' | 'credit' | 'subscription' | 'forced_update' | string | null;
-  stripe_session_id?: string | null;
-  guest_email?: string | null;
-  guest_access_token?: string | null;
-  purchase_initiated_at?: string | null;
-  purchase_completed_at?: string | null;
+  purchase_status: string;
+  access_method: string;
+  stripe_session_id?: string;
+  guest_email?: string;
+  guest_access_token?: string;
+  purchase_initiated_at?: string;
+  purchase_completed_at?: string;
   created_at: string;
-  updated_at?: string | null;
-  detailed_analysis?: any;
+  updated_at?: string;
+  detailed_analysis?: string;
   category_scores?: Record<string, number> | null;
   answers?: any;
-  temp_access_token?: string | null;
-  temp_access_expires_at?: string | null;
-  guest_access_expires_at?: string | null;
-  purchase_date?: string | null;
-  purchase_amount?: number | null;
+  temp_access_token?: string;
+  temp_access_expires_at?: string;
+  guest_access_expires_at?: string;
+  purchase_date?: string;
+  purchase_amount?: number;
   primary_level?: string | number | null;
   conversions?: number;
 }
