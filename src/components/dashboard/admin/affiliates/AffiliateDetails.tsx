@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,7 +44,7 @@ export const AffiliateDetails = () => {
         name: data.name,
         email: data.email,
         commission_rate: data.commission_rate * 100, // Convert to percentage for display
-        status: data.status
+        status: data.status as "active" | "inactive" | "pending"
       });
     } catch (error) {
       console.error("Error fetching affiliate details:", error);
@@ -134,7 +133,7 @@ export const AffiliateDetails = () => {
     return (
       <div className="text-center py-8">
         <p className="text-muted-foreground">Affiliate not found</p>
-        <Button variant="outline" className="mt-4" onClick={() => navigate('/dashboard/admin/affiliates')}>
+        <Button variant="outline" className="mt-4" onClick={() => navigate('/dashboard/admin')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Affiliates
         </Button>
@@ -145,7 +144,7 @@ export const AffiliateDetails = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <Button variant="outline" onClick={() => navigate('/dashboard/admin/affiliates')}>
+        <Button variant="outline" onClick={() => navigate('/dashboard/admin')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Affiliates
         </Button>
