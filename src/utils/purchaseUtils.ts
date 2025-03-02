@@ -30,7 +30,7 @@ export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 5) 
     }
     
     // Dynamic import to avoid circular dependencies
-    const { executeVerification } = await import('./purchase/verificationCore');
+    const { executeVerification } = await import('./purchase/verification');
     
     const result = await executeVerification(resultId, maxRetries);
     

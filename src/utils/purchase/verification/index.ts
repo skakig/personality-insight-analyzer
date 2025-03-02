@@ -1,21 +1,19 @@
 
 /**
- * Export verification strategies with handling for duplicates
+ * Central export point for verification functionality
  */
 
-// Export strategies
+// Re-export strategies
 export { 
   verifyWithUserId,
-  verifyWithGuestToken,
+  verifyWithGuestToken, 
   verifyWithGuestEmail,
-  verifyWithStripeSession
+  verifyWithStripeSession,
+  forceUpdatePurchaseStatus
 } from './strategies';
 
-// Export base strategy utilities
-export {
-  verifyWithUserId as userVerification,
-  verifyWithGuestToken as guestTokenVerification,
-  verifyWithGuestEmail as guestEmailVerification,
-  verifyWithStripeSession as stripeVerification,
-  forceUpdatePurchaseStatus
-} from './baseStrategies';
+// Export verification executor
+export { executeVerification } from './verificationExecutor';
+
+// Export result fetcher
+export { fetchLatestResult } from './resultFetcher';
