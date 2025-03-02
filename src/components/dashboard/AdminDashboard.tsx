@@ -15,11 +15,11 @@ import {
   ChevronRight,
   List
 } from "lucide-react";
-import { CreateCouponForm } from "./CreateCouponForm";
-import { CouponList } from "./CouponList";
-import { AffiliateSection } from "./affiliates/AffiliateSection";
-import { SchemaUpdater } from "./SchemaUpdater";
-import { useAdminOperations } from "./useAdminOperations";
+import { CreateCouponForm } from "@/components/dashboard/admin/CreateCouponForm";
+import { CouponList } from "@/components/dashboard/admin/CouponList";
+import { AffiliateSection } from "@/components/dashboard/admin/affiliates/AffiliateSection";
+import { SchemaUpdater } from "@/components/dashboard/admin/SchemaUpdater";
+import { useAdminOperations } from "@/components/dashboard/admin/useAdminOperations";
 import { Input } from "@/components/ui/input";
 
 interface AdminDashboardProps {
@@ -33,11 +33,9 @@ export const AdminDashboard = ({ userId }: AdminDashboardProps) => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   
-  // For pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   
-  // Handle initial path
   useEffect(() => {
     const path = location.pathname;
     if (path.includes('/coupons')) {
@@ -57,7 +55,6 @@ export const AdminDashboard = ({ userId }: AdminDashboardProps) => {
     }
   }, [location.pathname]);
   
-  // Handle tab change
   const handleTabChange = (value: string) => {
     setActiveTab(value);
     navigate(`/dashboard/admin/${value}`);
@@ -75,12 +72,10 @@ export const AdminDashboard = ({ userId }: AdminDashboardProps) => {
     return null;
   }
   
-  // Filter coupons based on search term
   const filteredCoupons = coupons.filter(coupon => 
     coupon.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
-  // Paginate coupons
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentCoupons = filteredCoupons.slice(indexOfFirstItem, indexOfLastItem);
@@ -89,7 +84,6 @@ export const AdminDashboard = ({ userId }: AdminDashboardProps) => {
   return (
     <div className="bg-gray-50/50 min-h-screen">
       <div className="grid md:grid-cols-[240px_1fr]">
-        {/* Admin Sidebar */}
         <div className="hidden md:flex flex-col border-r bg-white shadow-sm h-screen sticky top-0">
           <div className="p-4 border-b">
             <h2 className="font-semibold text-lg">Admin Dashboard</h2>
@@ -160,7 +154,6 @@ export const AdminDashboard = ({ userId }: AdminDashboardProps) => {
           </div>
         </div>
 
-        {/* Content Area */}
         <div className="p-6">
           <Tabs defaultValue="coupons" value={activeTab} onValueChange={handleTabChange}>
             <div className="flex items-center justify-between mb-6">
@@ -213,7 +206,6 @@ export const AdminDashboard = ({ userId }: AdminDashboardProps) => {
                     loading={loadingCoupons} 
                   />
                   
-                  {/* Pagination */}
                   {filteredCoupons.length > 0 && (
                     <div className="flex items-center justify-between">
                       <div className="text-sm text-gray-500">
@@ -282,7 +274,6 @@ export const AdminDashboard = ({ userId }: AdminDashboardProps) => {
               </Card>
             </TabsContent>
             
-            {/* Placeholder tabs for other sections */}
             <TabsContent value="analytics">
               <Card>
                 <div className="p-6">
