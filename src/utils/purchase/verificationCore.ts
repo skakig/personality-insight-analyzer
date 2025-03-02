@@ -114,7 +114,9 @@ export const fetchLatestResult = async (resultId: string): Promise<QuizResult | 
       created_at: data.created_at,
       updated_at: data.updated_at || data.created_at,
       detailed_analysis: data.detailed_analysis,
-      category_scores: data.category_scores as Record<string, number> | null,
+      category_scores: typeof data.category_scores === 'string' 
+        ? JSON.parse(data.category_scores) as Record<string, number> 
+        : data.category_scores as Record<string, number> | null,
       answers: data.answers,
       temp_access_token: data.temp_access_token,
       temp_access_expires_at: data.temp_access_expires_at,
