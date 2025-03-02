@@ -6,7 +6,6 @@ import { PreOrderBenefits } from "@/components/book/PreOrderBenefits";
 import { PreOrderCTA } from "@/components/book/PreOrderCTA";
 import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 
 const BookLanding = () => {
   const [searchParams] = useSearchParams();
@@ -26,31 +25,9 @@ const BookLanding = () => {
     }
   }, [searchParams]);
 
-  const handlePreOrder = async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke('create-book-checkout', {
-        method: 'POST',
-      });
-      
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (data?.url) {
-        window.location.href = data.url;
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to initiate checkout. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white overflow-x-hidden">
-      <HeroSection onPreOrder={handlePreOrder} />
+      <HeroSection />
       <MoralLevelsSection />
       <PreOrderBenefits />
       <PreOrderCTA />

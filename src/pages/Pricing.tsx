@@ -63,13 +63,14 @@ const Pricing = () => {
       
       // Use different endpoints for one-time payments vs subscriptions
       if (paymentType === "payment") {
+        console.log('Creating one-time payment checkout for:', { priceId, paymentType });
         response = await supabase.functions.invoke('create-checkout-session', {
           body: { 
             resultId: null, // No specific result ID for general purchase
             mode: 'payment',
             priceAmount: 1499,
             metadata: {
-              isGuest: true
+              isGeneral: true
             }
           }
         });
@@ -80,7 +81,7 @@ const Pricing = () => {
             priceId,
             mode: paymentType,
             metadata: {
-              isGuest: true
+              isGeneral: true
             }
           }
         });
@@ -120,7 +121,7 @@ const Pricing = () => {
           <PricingPlan
             key={plan.name}
             {...plan}
-            loading={loading}
+            loading={loading === plan.priceId}
             onSubscribe={() => handleSubscribe(plan.priceId, plan.paymentType)}
           />
         ))}

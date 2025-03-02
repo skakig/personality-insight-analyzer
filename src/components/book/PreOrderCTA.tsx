@@ -35,26 +35,35 @@ export const PreOrderCTA = () => {
   const handlePreOrder = async () => {
     try {
       setLoading(true);
+      console.log('Starting pre-order process with coupon:', appliedCoupon?.code);
       
       const { data, error } = await supabase.functions.invoke('create-book-checkout', {
-        method: 'POST',
         body: {
-          couponCode: appliedCoupon?.code,
-          basePrice: basePrice
+          basePrice: basePrice,
+          couponCode: appliedCoupon?.code || null,
+          returnUrl: window.location.origin + '/book?success=true',
+          cancelUrl: window.location.origin + '/book?canceled=true'
         }
       });
       
       if (error) {
-        throw new Error(error.message);
+        console.error('Pre-order error:', error);
+        throw new Error(error.message || 'Failed to initiate checkout');
       }
 
-      if (data?.url) {
-        window.location.href = data.url;
+      if (!data?.url) {
+        console.error('No checkout URL received:', data);
+        throw new Error('No checkout URL received');
       }
-    } catch (error) {
+      
+      console.log('Redirecting to checkout:', data.url);
+      window.location.href = data.url;
+      
+    } catch (error: any) {
+      console.error('Checkout error:', error);
       toast({
         title: "Error",
-        description: "Failed to initiate checkout. Please try again.",
+        description: error.message || "Failed to initiate checkout. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -64,15 +73,25 @@ export const PreOrderCTA = () => {
   
   // Coupon handlers
   const handleCouponApplied = (discount: number, code: string, discountType: string) => {
+    console.log('Coupon applied:', { discount, code, discountType });
     setAppliedCoupon({
       discount,
       code,
       type: discountType
     });
+    
+    toast({
+      title: "Coupon Applied",
+      description: `${discountType === 'percentage' ? `${discount}% off` : `$${(discount / 100).toFixed(2)} off`} has been applied to your order`,
+    });
   };
   
   const handleCouponRemoved = () => {
     setAppliedCoupon(null);
+    toast({
+      title: "Coupon Removed",
+      description: "Discount has been removed from your order",
+    });
   };
 
   return (
