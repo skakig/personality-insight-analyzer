@@ -4,7 +4,12 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { storePurchaseData } from "@/utils/purchaseStateUtils";
 
-export const useCheckoutFlow = (session: any, quizResultId: string | null) => {
+export const useCheckoutFlow = (
+  session: any, 
+  quizResultId: string | null, 
+  priceAmount: number = 1499, 
+  couponCode?: string
+) => {
   const [email, setEmail] = useState("");
   const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -33,7 +38,7 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null) => {
     try {
       setLoading(true);
       
-      console.log('Starting logged-in checkout flow for result:', quizResultId);
+      console.log('Starting logged-in checkout flow for result:', quizResultId, 'with price:', priceAmount);
       
       // Create checkout session via Supabase function
       const { data, error } = await supabase.functions.invoke(
@@ -43,10 +48,12 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null) => {
             resultId: quizResultId,
             userId,
             email: session?.user?.email,
-            priceAmount: 1499,
+            priceAmount: priceAmount,
+            couponCode: couponCode,
             metadata: {
               resultId: quizResultId,
               userId,
+              couponCode,
               returnUrl: `/assessment/${quizResultId}?success=true`
             }
           }
@@ -77,6 +84,42 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null) => {
             purchase_status: 'pending'
           })
           .eq('id', quizResultId);
+
+        // Track coupon usage (if a coupon was applied)
+        if (couponCode) {
+          try {
+            // First get the coupon ID
+            const { data: couponData } = await supabase
+              .from('coupons')
+              .select('id, current_uses')
+              .eq('code', couponCode)
+              .single();
+              
+            if (couponData) {
+              // Increment coupon usage counter
+              await supabase
+                .from('coupons')
+                .update({ 
+                  current_uses: (couponData.current_uses || 0) + 1 
+                })
+                .eq('id', couponData.id);
+              
+              // Record coupon usage
+              await supabase
+                .from('coupon_usage')
+                .insert({
+                  coupon_id: couponData.id,
+                  user_id: userId || null,
+                  guest_email: !userId ? session?.user?.email || email : null,
+                  purchase_amount: priceAmount,
+                  discount_amount: data.discountAmount || 0
+                });
+            }
+          } catch (couponError) {
+            console.error('Error tracking coupon usage:', couponError);
+            // Continue with checkout even if coupon tracking fails
+          }
+        }
       }
       
       // Redirect to Stripe
@@ -119,7 +162,7 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null) => {
         return false;
       }
       
-      console.log('Starting guest checkout flow for result:', quizResultId, 'with email:', guestEmail);
+      console.log('Starting guest checkout flow for result:', quizResultId, 'with email:', guestEmail, 'price:', priceAmount);
       
       // Store email for future use
       localStorage.setItem('guestEmail', guestEmail);
@@ -161,11 +204,13 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null) => {
           body: {
             resultId: quizResultId,
             email: guestEmail,
-            priceAmount: 1499,
+            priceAmount: priceAmount,
+            couponCode: couponCode,
             metadata: {
               resultId: quizResultId,
               email: guestEmail,
               accessToken,
+              couponCode,
               trackingId: trackingData?.id, // Include tracking ID if available
               returnUrl: `/assessment/${quizResultId}?success=true`
             }
@@ -206,6 +251,42 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null) => {
             purchase_status: 'pending'
           })
           .eq('id', quizResultId);
+
+        // Track coupon usage (if a coupon was applied)
+        if (couponCode) {
+          try {
+            // First get the coupon ID
+            const { data: couponData } = await supabase
+              .from('coupons')
+              .select('id, current_uses')
+              .eq('code', couponCode)
+              .single();
+              
+            if (couponData) {
+              // Increment coupon usage counter
+              await supabase
+                .from('coupons')
+                .update({ 
+                  current_uses: (couponData.current_uses || 0) + 1 
+                })
+                .eq('id', couponData.id);
+              
+              // Record coupon usage
+              await supabase
+                .from('coupon_usage')
+                .insert({
+                  coupon_id: couponData.id,
+                  user_id: null,
+                  guest_email: guestEmail,
+                  purchase_amount: priceAmount,
+                  discount_amount: data.discountAmount || 0
+                });
+            }
+          } catch (couponError) {
+            console.error('Error tracking coupon usage:', couponError);
+            // Continue with checkout even if coupon tracking fails
+          }
+        }
       }
       
       // Redirect to Stripe
@@ -239,7 +320,8 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null) => {
       console.log('Get detailed results clicked:', {
         isLoggedIn: !!session?.user,
         userId: session?.user?.id || 'guest',
-        quizResultId
+        quizResultId,
+        priceAmount
       });
 
       // Double-check authentication status
