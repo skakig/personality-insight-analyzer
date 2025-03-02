@@ -86,6 +86,7 @@ export const useAssessmentResult = ({ id, sessionId, email }: UseAssessmentResul
         purchase_date: data.purchase_date,
         purchase_amount: data.purchase_amount,
         primary_level: data.primary_level || null, // Set default if missing
+        conversions: data.conversions
       };
       
       setResult(typedResult);

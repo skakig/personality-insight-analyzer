@@ -28,9 +28,9 @@ const App = () => {
       if (session?.user?.id) {
         try {
           const { data, error } = await supabase
-            .from('admins')
+            .from('admin_users')
             .select('*')
-            .eq('user_id', session.user.id)
+            .eq('id', session.user.id)
             .maybeSingle();
             
           if (data && !error) {
