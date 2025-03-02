@@ -107,6 +107,14 @@ const Dashboard = ({ session }: DashboardProps) => {
       if (resultId && sessionId && session?.user?.id) {
         console.log('Confirming purchase for result:', resultId);
         
+        // First check if the result already exists and is linked to this user
+        const { data: existingResult } = await supabase
+          .from('quiz_results')
+          .select('*')
+          .eq('id', resultId)
+          .eq('user_id', session.user.id)
+          .maybeSingle();
+          
         // Update the result to mark it as purchased
         await supabase
           .from('quiz_results')
@@ -116,7 +124,8 @@ const Dashboard = ({ session }: DashboardProps) => {
             purchase_status: 'completed',
             purchase_completed_at: new Date().toISOString(),
             access_method: 'purchase',
-            user_id: session.user.id // Ensure the user ID is set
+            user_id: session.user.id, // Ensure the user ID is set
+            stripe_session_id: sessionId // Make sure the session ID is set
           })
           .eq('id', resultId);
           
@@ -128,8 +137,16 @@ const Dashboard = ({ session }: DashboardProps) => {
           description: "Your full report is now available for viewing.",
         });
         
+        // Clean up localStorage
+        localStorage.removeItem('purchaseResultId');
+        localStorage.removeItem('checkoutResultId');
+        localStorage.removeItem('stripeSessionId');
+        localStorage.removeItem('creditsPurchaseSessionId');
+        
         // Refresh data to show updated purchases
         await fetchData();
+      } else {
+        console.log('Missing information for purchase confirmation:', { resultId, sessionId, userId: session?.user?.id });
       }
     } catch (error) {
       console.error('Error confirming purchase:', error);

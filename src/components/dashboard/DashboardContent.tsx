@@ -53,6 +53,9 @@ export const DashboardContent = ({
   const hasAvailableCredits = subscription ? 
     subscription.assessments_used < subscription.max_assessments : false;
 
+  // Check if user is admin to show admin panel
+  const isAdmin = session?.user?.id === '32adf500-c102-4b14-a6a4-f8aa38f337c6';
+
   const handleUnlockReport = async (reportId: string) => {
     if (purchaseLoading) return;
     
@@ -62,6 +65,19 @@ export const DashboardContent = ({
       
       if (!session?.user?.id) {
         throw new Error('You must be logged in to purchase reports');
+      }
+      
+      // Ensure the report is associated with the user
+      const { error: updateError } = await supabase
+        .from('quiz_results')
+        .update({ 
+          user_id: session.user.id,
+          purchase_status: 'pending'
+        })
+        .eq('id', reportId);
+        
+      if (updateError) {
+        console.error('Error linking report to user:', updateError);
       }
       
       // Create checkout session for this specific report
@@ -76,7 +92,7 @@ export const DashboardContent = ({
             userId: session.user.id,
             email: session.user.email,
             newsletterOptIn: localStorage.getItem('newsletterOptIn') === 'true',
-            returnUrl: `${window.location.origin}/assessment/${reportId}?success=true`
+            returnUrl: `${window.location.origin}/dashboard?success=true`
           }
         }
       });
@@ -92,7 +108,8 @@ export const DashboardContent = ({
       
       // Store session data for verification
       if (data.sessionId) {
-        storePurchaseData(reportId, data.sessionId, session.user.id);
+        localStorage.setItem('purchaseResultId', reportId);
+        localStorage.setItem('stripeSessionId', data.sessionId);
         
         // Update result with session ID
         await supabase
@@ -104,6 +121,12 @@ export const DashboardContent = ({
             purchase_status: 'pending'
           })
           .eq('id', reportId);
+          
+        console.log('Stored purchase data:', { 
+          reportId, 
+          sessionId: data.sessionId,
+          userId: session.user.id
+        });
       }
       
       // Redirect to Stripe
@@ -127,6 +150,23 @@ export const DashboardContent = ({
           onUnlockReport={handleUnlockReport}
           purchaseLoading={purchaseLoading}
         />
+        
+        {/* Show admin panel if user is admin */}
+        {isAdmin && (
+          <div className="bg-white p-6 rounded-lg border shadow-sm">
+            <h3 className="text-lg font-medium mb-4">Admin Tools</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Access administrative tools and settings.
+            </p>
+            <Button
+              onClick={() => navigate('/admin')}
+              className="w-full"
+              variant="outline"
+            >
+              Go to Admin Panel
+            </Button>
+          </div>
+        )}
       </div>
       <div className="space-y-6">
         <QuickActionsCard 

@@ -1,5 +1,45 @@
 
-export interface Affiliate {
+import { Affiliate, CommissionTier } from "@/types/quiz";
+
+export interface AffiliateFormValues {
+  id?: string;
+  name: string;
+  email: string;
+  code: string;
+  commission_rate: number;
+  status: string;
+}
+
+export interface AffiliateDetailsProps {
+  affiliate: Affiliate;
+  onClose: () => void;
+  onRefresh: () => void;
+}
+
+export interface AffiliateListProps {
+  affiliates: Affiliate[];
+  onSelect: (affiliate: Affiliate) => void;
+  onRefresh: () => void;
+}
+
+export interface CommissionTierListProps {
+  tiers: CommissionTier[];
+  onRefresh: () => void;
+}
+
+export interface CreateCommissionTierFormProps {
+  onSuccess: () => void;
+}
+
+export interface AffiliatePerformanceCardProps {
+  affiliate: Affiliate;
+}
+
+export interface CreateAffiliateFormProps {
+  onSuccess: () => void;
+}
+
+export interface AffiliateResult {
   id: string;
   name: string;
   email: string;
@@ -11,15 +51,4 @@ export interface Affiliate {
   created_at: string;
   updated_at: string;
   conversions: number;
-}
-
-export interface CommissionTier {
-  id: string;
-  tier_name?: string;
-  commission_rate: number;
-  min_sales: number;
-  max_sales: number | null;
-  is_default: boolean;
-  created_at: string | null;
-  updated_at: string | null;
 }

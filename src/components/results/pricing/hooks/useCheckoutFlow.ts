@@ -31,6 +31,11 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null, final
       }
     }
     
+    // Store result ID in localStorage for guest users
+    if (quizResultId && !session?.user) {
+      localStorage.setItem('guestQuizResultId', quizResultId);
+    }
+    
     // Check for success parameter in URL
     const urlParams = new URLSearchParams(window.location.search);
     const success = urlParams.get('success');
@@ -94,7 +99,18 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null, final
    */
   const handleGetDetailedResults = async () => {
     try {
-      console.log('[DEBUG] Starting checkout process');
+      console.log('[DEBUG] Starting checkout process with quiz result ID:', quizResultId);
+      
+      // Ensure we have a valid quiz result ID
+      if (!quizResultId) {
+        console.error('[ERROR] No quiz result ID available for checkout');
+        toast({
+          title: "Error",
+          description: "Cannot process checkout - missing result information",
+          variant: "destructive",
+        });
+        return;
+      }
       
       // For logged in users, process directly
       if (session?.user) {
@@ -130,6 +146,9 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null, final
       });
       return;
     }
+    
+    // Store the email for later use
+    localStorage.setItem('guestEmail', email);
     
     console.log('[DEBUG] Processing guest checkout with email:', email);
     await handleGuestCheckout();

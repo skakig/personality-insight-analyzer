@@ -1,54 +1,59 @@
 
 /**
- * Coordinator for verification processes
+ * Helper functions for coordinating the verification process
  */
-import { supabase } from "@/integrations/supabase/client";
 import { QuizResult } from "@/types/quiz";
+import { supabase } from "@/integrations/supabase/client";
+import { isPurchased } from "@/utils/purchaseStatus";
 import { fetchLatestResult } from "../resultFetcher";
 
 /**
- * Get URL parameters relevant to verification
+ * Log verification attempt
+ */
+export const logVerificationAttempt = (resultId: string, currentRetry: number, maxRetries: number) => {
+  console.log(`[DEBUG] Verification attempt ${currentRetry}/${maxRetries} for result: ${resultId}`);
+};
+
+/**
+ * Get verification parameters from URL
  */
 export const getVerificationUrlParams = () => {
   const urlParams = new URLSearchParams(window.location.search);
-  return {
-    success: urlParams.get('success'),
-    sessionId: urlParams.get('session_id')
-  };
+  const success = urlParams.get('success') === 'true';
+  const sessionId = urlParams.get('session_id');
+  
+  return { success, sessionId };
 };
 
 /**
- * Log verification parameters for debugging
- */
-export const logVerificationAttempt = (
-  resultId: string, 
-  attemptNumber: number, 
-  maxRetries: number, 
-  additionalData?: Record<string, any>
-) => {
-  console.log(`[DEBUG] Attempting verification for result ${resultId} (attempt ${attemptNumber}/${maxRetries})`, additionalData || {});
-};
-
-/**
- * Check if result is already purchased to avoid unnecessary verification
+ * Check if the result is already marked as purchased
  */
 export const checkIfAlreadyPurchased = async (resultId: string): Promise<QuizResult | null> => {
-  if (!resultId) return null;
-  
-  const currentResult = await fetchLatestResult(resultId);
-  if (currentResult?.is_purchased) {
-    console.log('[DEBUG] Result already marked as purchased, skipping verification');
-    return currentResult;
+  try {
+    console.log(`[DEBUG] Checking if result ${resultId} is already purchased`);
+    
+    const result = await fetchLatestResult(resultId);
+    
+    if (result && isPurchased(result)) {
+      console.log('[DEBUG] Result is already marked as purchased');
+      return result;
+    }
+    
+    console.log('[DEBUG] Result is not purchased yet');
+    return null;
+  } catch (error) {
+    console.error('[ERROR] Error checking purchase status:', error);
+    return null;
   }
-  
-  return null;
 };
 
 /**
- * Handle delay between verification attempts with exponential backoff
+ * Handle verification delay with exponential backoff
  */
-export const handleVerificationDelay = async (currentRetry: number): Promise<void> => {
-  const delay = Math.pow(2, currentRetry) * 1000; // Exponential backoff
-  console.log(`[DEBUG] No verification methods succeeded, retrying in ${delay}ms`);
+export const handleVerificationDelay = async (currentRetry: number) => {
+  const delay = Math.pow(2, currentRetry) * 1000;
+  
+  console.log(`[DEBUG] Waiting ${delay}ms before next verification attempt`);
+  
   await new Promise(resolve => setTimeout(resolve, delay));
 };

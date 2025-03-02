@@ -64,7 +64,7 @@ export const getPurchaseState = getPurchaseData;
  */
 export const getStoredPurchaseData = () => {
   return {
-    resultId: localStorage.getItem('purchaseResultId') || localStorage.getItem('checkoutResultId'),
+    resultId: localStorage.getItem('purchaseResultId') || localStorage.getItem('checkoutResultId') || localStorage.getItem('guestQuizResultId'),
     sessionId: localStorage.getItem('stripeSessionId') || localStorage.getItem('creditsPurchaseSessionId'),
     userId: localStorage.getItem('checkoutUserId'),
     guestEmail: localStorage.getItem('guestEmail'),
@@ -73,6 +73,7 @@ export const getStoredPurchaseData = () => {
     guestAccessToken: localStorage.getItem('guestAccessToken'),
     checkoutResultId: localStorage.getItem('checkoutResultId'),
     checkoutUserId: localStorage.getItem('checkoutUserId'),
-    stripeSessionId: localStorage.getItem('stripeSessionId')
+    stripeSessionId: localStorage.getItem('stripeSessionId'),
+    guestQuizResultId: localStorage.getItem('guestQuizResultId')
   };
 };
