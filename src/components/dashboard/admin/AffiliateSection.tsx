@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, PlusCircle, RefreshCw } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
@@ -39,7 +38,8 @@ export const AffiliateSection = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setAffiliates(data || []);
+      
+      setAffiliates(data as Affiliate[]);
     } catch (error: any) {
       console.error('Error fetching affiliates:', error);
       toast({
@@ -60,7 +60,8 @@ export const AffiliateSection = () => {
         .order('min_sales', { ascending: true });
 
       if (error) throw error;
-      setCommissionTiers(data || []);
+      
+      setCommissionTiers(data as AffiliateCommissionTier[]);
     } catch (error: any) {
       console.error('Error fetching commission tiers:', error);
     }
@@ -112,7 +113,8 @@ export const AffiliateSection = () => {
           discount_amount: 10, // Default 10% discount
           max_uses: 1000,
           is_active: true,
-          affiliate_id: data.id
+          affiliate_id: data.id,
+          applicable_products: ['report'] // Default to apply to reports
         });
 
       toast({
@@ -152,9 +154,9 @@ export const AffiliateSection = () => {
       const { error } = await supabase
         .from('affiliate_commission_tiers')
         .insert({
-          min_sales: parseInt(minSales),
-          max_sales: maxSales ? parseInt(maxSales) : null,
-          commission_rate: parseFloat(commissionRate)
+          min_sales: parseFloat(minSales),
+          max_sales: maxSales ? parseFloat(maxSales) : null,
+          commission_rate: parseFloat(commissionRate) / 100 // Convert from percentage to decimal
         });
 
       if (error) throw error;
@@ -285,8 +287,8 @@ export const AffiliateSection = () => {
                           <TableCell className="font-medium">{affiliate.name}</TableCell>
                           <TableCell>{affiliate.code}</TableCell>
                           <TableCell>{(affiliate.commission_rate * 100).toFixed(0)}%</TableCell>
-                          <TableCell className="text-right">${(affiliate.total_sales / 100).toFixed(2)}</TableCell>
-                          <TableCell className="text-right">${(affiliate.earnings / 100).toFixed(2)}</TableCell>
+                          <TableCell className="text-right">${(affiliate.total_sales).toFixed(2)}</TableCell>
+                          <TableCell className="text-right">${(affiliate.earnings).toFixed(2)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -358,8 +360,8 @@ export const AffiliateSection = () => {
                     <TableBody>
                       {commissionTiers.map((tier) => (
                         <TableRow key={tier.id}>
-                          <TableCell>${(tier.min_sales / 100).toFixed(2)}</TableCell>
-                          <TableCell>{tier.max_sales ? `$${(tier.max_sales / 100).toFixed(2)}` : 'No limit'}</TableCell>
+                          <TableCell>${(tier.min_sales).toFixed(2)}</TableCell>
+                          <TableCell>{tier.max_sales ? `$${(tier.max_sales).toFixed(2)}` : 'No limit'}</TableCell>
                           <TableCell>{(tier.commission_rate * 100).toFixed(0)}%</TableCell>
                         </TableRow>
                       ))}
