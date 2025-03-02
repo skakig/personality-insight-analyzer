@@ -8,7 +8,7 @@ interface EmailDialogProps {
   onOpenChange: (open: boolean) => void;
   email: string;
   onEmailChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onSubmit: () => void;
+  onSubmit: (e: React.FormEvent) => void;  // Updated to accept a FormEvent parameter
   loading: boolean;
 }
 
@@ -20,13 +20,18 @@ export const EmailDialog = ({
   onSubmit, 
   loading 
 }: EmailDialogProps) => {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(e);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Enter your email to continue</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-4">
+        <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <Input
             type="email"
             placeholder="Email address"
@@ -34,13 +39,13 @@ export const EmailDialog = ({
             onChange={onEmailChange}
           />
           <Button 
-            onClick={onSubmit}
+            type="submit"
             className="w-full"
             disabled={loading}
           >
             {loading ? "Processing..." : "Continue to Checkout"}
           </Button>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
