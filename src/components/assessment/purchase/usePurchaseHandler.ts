@@ -53,7 +53,15 @@ export const usePurchaseHandler = (resultId: string) => {
         
         if (error) {
           console.error('Error creating checkout session:', error);
-          throw new Error(error.message || 'Failed to create checkout session');
+          
+          // Check for specific error types
+          if (error.message?.includes('Edge Function') || error.status === 500) {
+            throw new Error('Payment service is currently unavailable. Please try again later.');
+          } else if (error.message?.includes('policy for relation') || error.message?.includes('infinite recursion')) {
+            throw new Error('Database access error. Our team has been notified.');
+          } else {
+            throw new Error(error.message || 'Failed to create checkout session');
+          }
         }
         
         if (!data?.url) {
@@ -125,21 +133,21 @@ export const usePurchaseHandler = (resultId: string) => {
         
         // Redirect to Stripe
         window.location.href = data.url;
-      } catch (error) {
+      } catch (error: any) {
         console.error('Purchase error:', error);
         setLoading(false);
         toast({
-          title: "Error",
-          description: "Failed to process your payment. Please try again later.",
+          title: "Checkout Error",
+          description: error.message || "Failed to process your payment. Please try again later.",
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Purchase error:', error);
       setLoading(false);
       toast({
         title: "Error",
-        description: "Failed to start checkout process. Please try again.",
+        description: error.message || "Failed to start checkout process. Please try again.",
         variant: "destructive",
       });
     }

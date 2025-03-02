@@ -2,56 +2,64 @@
 import { supabase } from "@/integrations/supabase/client";
 
 /**
- * Helper function to find and update a purchase tracking record by session ID
+ * Finds and updates a purchase tracking record 
  */
 export const findAndUpdateTrackingRecord = async (stripeSessionId: string) => {
   try {
     if (!stripeSessionId) {
-      console.log('Missing session ID for tracking lookup');
+      console.error('Missing session ID for tracking record lookup');
       return null;
     }
     
-    console.log('Looking up tracking record for session ID:', stripeSessionId);
+    console.log('Looking for tracking record with session ID:', stripeSessionId);
     
-    const { data: trackingData, error: trackingError } = await supabase
-      .from('purchase_tracking')
-      .select('*')
-      .eq('stripe_session_id', stripeSessionId)
-      .maybeSingle();
-      
-    if (trackingError) {
-      console.error('Error fetching tracking record:', trackingError);
-      return null;
-    }
-    
-    if (!trackingData) {
-      console.log('No tracking record found for session ID:', stripeSessionId);
-      return null;
-    }
-    
-    console.log('Found tracking record:', trackingData);
-    
-    // Update tracking status if needed
-    if (trackingData.status !== 'completed') {
-      await supabase
+    try {
+      // First check if the record exists
+      const { data: trackingData, error: trackingError } = await supabase
         .from('purchase_tracking')
-        .update({
-          status: 'completed',
-          completed_at: new Date().toISOString()
-        })
-        .eq('id', trackingData.id);
+        .select('*')
+        .eq('stripe_session_id', stripeSessionId)
+        .maybeSingle();
       
-      console.log('Updated tracking record status to completed');
+      if (trackingError) {
+        if (trackingError.message?.includes('infinite recursion') || 
+            trackingError.message?.includes('policy for relation')) {
+          console.error('Database policy error in tracking lookup:', trackingError);
+          throw new Error('Database access policy error');
+        } else {
+          console.error('Error finding tracking record:', trackingError);
+          return null;
+        }
+      }
+      
+      // If the record exists but isn't completed, update it
+      if (trackingData && trackingData.status !== 'completed') {
+        try {
+          const { error: updateError } = await supabase
+            .from('purchase_tracking')
+            .update({
+              status: 'completed',
+              completed_at: new Date().toISOString()
+            })
+            .eq('id', trackingData.id);
+          
+          if (updateError) {
+            console.error('Error updating tracking record:', updateError);
+          } else {
+            console.log('Successfully updated tracking record to completed');
+          }
+        } catch (updateError) {
+          console.error('Exception during tracking record update:', updateError);
+        }
+      }
+      
+      return trackingData;
+    } catch (error) {
+      console.error('Error in tracking record lookup:', error);
+      return null;
     }
-    
-    // Store guest email if available
-    if (trackingData.guest_email) {
-      localStorage.setItem('guestEmail', trackingData.guest_email);
-    }
-    
-    return trackingData;
   } catch (error) {
-    console.error('Error processing tracking record:', error);
+    console.error('Error in findAndUpdateTrackingRecord:', error);
     return null;
   }
 };

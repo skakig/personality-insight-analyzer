@@ -49,11 +49,27 @@ export const PurchaseCreditsButton = () => {
       }
     } catch (error: any) {
       console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to initiate credit purchase. Please try again.",
-        variant: "destructive",
-      });
+      
+      // Improved error messaging based on error type
+      if (error.message?.includes('Edge Function') || error.status === 500) {
+        toast({
+          title: "Server Error",
+          description: "Our payment service is temporarily unavailable. Please try again later.",
+          variant: "destructive",
+        });
+      } else if (error.message?.includes('policy for relation') || error.message?.includes('infinite recursion')) {
+        toast({
+          title: "Database Error",
+          description: "We're experiencing a temporary database issue. Please try again later.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to initiate credit purchase. Please try again.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }

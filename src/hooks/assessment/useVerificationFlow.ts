@@ -51,6 +51,8 @@ export const useVerificationFlow = (
     }
   ) => {
     try {
+      console.log('Starting verification flow for:', { id, options });
+      
       return await executeVerificationFlow(
         id,
         options,
@@ -67,11 +69,30 @@ export const useVerificationFlow = (
       );
     } catch (error) {
       console.error('Verification flow error:', error);
-      toast({
-        title: "Verification Error",
-        description: "We encountered an error during verification. Please try again or contact support.",
-        variant: "destructive",
-      });
+      
+      // Handle specific database error cases
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      
+      if (errorMsg.includes('infinite recursion') || errorMsg.includes('policy for relation')) {
+        toast({
+          title: "Database Access Error",
+          description: "We're experiencing a temporary database issue. Our team has been notified.",
+          variant: "destructive",
+        });
+      } else if (errorMsg.includes('Edge Function') || errorMsg.includes('non-2xx status')) {
+        toast({
+          title: "Server Error",
+          description: "Our payment verification service is currently unavailable. Please try again later or contact support.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Verification Error",
+          description: "We encountered an error during verification. Please try again or contact support.",
+          variant: "destructive",
+        });
+      }
+      
       stopVerification();
       setLoading(false);
       return null;
