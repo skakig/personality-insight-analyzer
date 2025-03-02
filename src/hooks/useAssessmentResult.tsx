@@ -1,131 +1,195 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { QuizResult } from "@/types/quiz";
 import { isPurchased } from "@/utils/purchaseStatus";
 import { useVerificationFlow } from "./assessment/useVerificationFlow";
+import { toast } from "./use-toast";
 
-interface Json {
-  [key: string]: any;
+interface UseAssessmentResultProps {
+  resultId: string | null;
+  initialResult?: QuizResult | null;
+  autoVerify?: boolean;
 }
 
-export const useAssessmentResult = (resultId: string | null) => {
-  const [result, setResult] = useState<QuizResult | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+export const useAssessmentResult = ({
+  resultId,
+  initialResult = null,
+  autoVerify = true
+}: UseAssessmentResultProps) => {
+  const [result, setResult] = useState<QuizResult | null>(initialResult);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>("");
+  const [verified, setVerified] = useState<boolean>(false);
+  
   const verificationFlow = useVerificationFlow();
+  const { 
+    isVerifying, 
+    verificationComplete, 
+    verificationSuccess,
+    verificationAttempts,
+    runVerification 
+  } = verificationFlow;
+
+  const fetchResult = useCallback(async (id: string) => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("quiz_results")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+
+      if (data) {
+        const typedResult: QuizResult = {
+          id: data.id,
+          user_id: data.user_id,
+          personality_type: data.personality_type,
+          is_purchased: data.is_purchased || false,
+          is_detailed: data.is_detailed || false,
+          purchase_status: data.purchase_status as 'pending' | 'completed' | null,
+          access_method: data.access_method as 'purchase' | 'free' | 'credit' | 'subscription' | 'forced_update' | null,
+          stripe_session_id: data.stripe_session_id,
+          guest_email: data.guest_email,
+          guest_access_token: data.guest_access_token,
+          purchase_initiated_at: data.purchase_initiated_at,
+          purchase_completed_at: data.purchase_completed_at,
+          created_at: data.created_at,
+          updated_at: data.updated_at || data.created_at,
+          detailed_analysis: data.detailed_analysis,
+          category_scores: data.category_scores,
+          answers: data.answers,
+          temp_access_token: data.temp_access_token,
+          temp_access_expires_at: data.temp_access_expires_at,
+          guest_access_expires_at: data.guest_access_expires_at,
+          purchase_date: data.purchase_date,
+          purchase_amount: data.purchase_amount
+        };
+
+        setResult(typedResult);
+        
+        if (isPurchased(typedResult)) {
+          setVerified(true);
+        }
+      } else {
+        setError("Result not found");
+      }
+    } catch (err: any) {
+      console.error("Error fetching result:", err);
+      setError(err.message || "Failed to load assessment result");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const verifyPurchase = useCallback(async (id: string, maxRetries = 3) => {
+    try {
+      const verifiedResult = await verificationFlow.verifyPurchase(id, maxRetries);
+      
+      if (verifiedResult) {
+        setResult(verifiedResult);
+        setVerified(true);
+        return verifiedResult;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error("Verification error:", error);
+      return null;
+    }
+  }, [verificationFlow]);
+
+  const refreshPage = useCallback(() => {
+    if (resultId) {
+      fetchResult(resultId);
+    }
+  }, [resultId, fetchResult]);
+
+  const handleVerification = useCallback(async (id: string) => {
+    if (!id) return;
+    
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionId = urlParams.get('session_id');
+      const success = urlParams.get('success') === 'true';
+      
+      if (success && sessionId) {
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id;
+        
+        console.log('Running verification after Stripe success', {
+          sessionId,
+          userId,
+          resultId: id
+        });
+        
+        const verifiedResult = await runVerification(id, sessionId, userId);
+        
+        if (verifiedResult) {
+          console.log('Stripe return verification successful');
+          setResult(verifiedResult);
+          setVerified(true);
+          toast({
+            title: "Purchase verified",
+            description: "Your purchase has been verified successfully."
+          });
+          return;
+        }
+      }
+      
+      if (isVerifying) {
+        console.log('Verification already in progress');
+        return;
+      }
+      
+      if (verificationComplete) {
+        if (verificationSuccess) {
+          console.log('Verification already completed successfully');
+          setVerified(true);
+        } else {
+          console.log('Verification already completed with failure');
+        }
+        return;
+      }
+      
+      await fetchResult(id);
+      
+    } catch (error) {
+      console.error('Verification process error:', error);
+    }
+  }, [fetchResult, runVerification, isVerifying, verificationComplete, verificationSuccess]);
 
   useEffect(() => {
     if (resultId) {
       fetchResult(resultId);
     }
-  }, [resultId]);
+  }, [resultId, fetchResult]);
 
-  const verifyPurchase = async (id: string, maxRetries: number = 3) => {
-    setLoading(true);
-    setError("");
-    try {
-      // Await the verification process
-      const verifiedResult = await verificationFlow.runVerification(id);
+  useEffect(() => {
+    if (resultId && autoVerify && result && !verified && !isVerifying) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const success = urlParams.get('success') === 'true';
       
-      if (verifiedResult) {
-        setResult(verifiedResult);
-      } else {
-        console.error("Purchase verification failed after multiple retries.");
-        setError("Purchase verification failed. Please contact support.");
+      if (success || verificationAttempts === 0) {
+        handleVerification(resultId);
       }
-    } catch (err: any) {
-      console.error("Error during purchase verification:", err);
-      setError(err.message || "Failed to verify purchase");
-    } finally {
-      setLoading(false);
     }
-  };
-
-  // In the fetching result part, fix the updated_at issue
-  const fetchResult = async (resultId: string) => {
-    setLoading(true);
-    setError("");
-    
-    try {
-      const { data, error } = await supabase
-        .from('quiz_results')
-        .select('*')
-        .eq('id', resultId)
-        .maybeSingle();
-        
-      if (error) {
-        throw error;
-      }
-      
-      if (data) {
-        // Ensure all required properties exist with proper types
-        const processedResult: QuizResult = {
-          id: data.id,
-          user_id: data.user_id || null,
-          personality_type: data.personality_type,
-          is_purchased: !!data.is_purchased,
-          is_detailed: !!data.is_detailed, 
-          purchase_status: (data.purchase_status as 'pending' | 'completed' | null) || null,
-          access_method: (data.access_method as 'purchase' | 'free' | 'credit' | 'subscription' | 'forced_update' | null) || null,
-          stripe_session_id: data.stripe_session_id || null,
-          guest_email: data.guest_email || null,
-          guest_access_token: data.guest_access_token || null,
-          purchase_initiated_at: data.purchase_initiated_at || null,
-          purchase_completed_at: data.purchase_completed_at || null,
-          created_at: data.created_at,
-          updated_at: data.updated_at || null,
-          detailed_analysis: data.detailed_analysis || null,
-          category_scores: data.category_scores ? 
-            typeof data.category_scores === 'object' ? 
-              data.category_scores : 
-              JSON.parse(data.category_scores as string) : 
-            null,
-          answers: data.answers || null,
-          temp_access_token: data.temp_access_token || null,
-          temp_access_expires_at: data.temp_access_expires_at || null,
-          guest_access_expires_at: data.guest_access_expires_at || null,
-          purchase_date: data.purchase_date || null,
-          purchase_amount: data.purchase_amount || null
-        };
-        
-        setResult(processedResult);
-        return processedResult;
-      } else {
-        setResult(null);
-        setError("Assessment not found");
-        return null;
-      }
-    } catch (err: any) {
-      console.error("Error fetching assessment result:", err);
-      setError(err.message || "Failed to load assessment");
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Add missing properties for compatibility
-  const refreshPage = () => {
-    window.location.reload();
-  };
-
-  // Add additional compatibility fields
-  const verifying = verificationFlow.isVerifying;
-  const verificationAttempts = verificationFlow.verificationAttempts || 0;
+  }, [resultId, autoVerify, result, verified, isVerifying, verificationAttempts, handleVerification]);
 
   return {
     result,
     loading,
     error,
     verifyPurchase,
-    runVerification: verificationFlow.runVerification,
-    isVerifying: verificationFlow.isVerifying,
-    verificationComplete: verificationFlow.verificationComplete,
-    verificationSuccess: verificationFlow.verificationSuccess,
-    verificationAttempts: verificationAttempts,
-    verified: isPurchased(result), 
+    isVerifying,
+    verificationComplete,
+    verificationSuccess,
+    verificationAttempts,
+    verified,
     refreshPage,
-    verifying // For backward compatibility
+    ...verificationFlow
   };
 };

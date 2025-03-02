@@ -1,82 +1,144 @@
 
-import { useDatabaseUpdateStrategies } from './useDatabaseUpdateStrategies';
-import { useFallbackVerificationStrategies } from './useFallbackVerificationStrategies';
+import { supabase } from "@/integrations/supabase/client";
+import { isPurchased } from "@/utils/purchaseStatus";
+import { useDatabaseUpdateStrategies } from "./useDatabaseUpdateStrategies";
 
 export const useStandardVerification = () => {
+  // Use database strategies for updates
   const databaseStrategies = useDatabaseUpdateStrategies();
-  const fallbackStrategies = useFallbackVerificationStrategies();
   
-  // Implement standard verification flow
+  // Function to perform standard verification with all available parameters
   const performStandardVerification = async (
     resultId: string,
     userId?: string,
     trackingId?: string,
     sessionId?: string,
-    guestToken?: string,
+    guestToken?: string, 
     guestEmail?: string
   ) => {
     try {
-      // Try all available strategies
-      let result = null;
+      console.log('Running standard verification with params:', { 
+        resultId, userId, trackingId, sessionId, guestToken, guestEmail 
+      });
       
-      // Add compatibility methods
-      const updateResultForUser = async (id: string, userId: string) => {
-        return await databaseStrategies.updateForCheckoutSuccess(id, userId, undefined);
-      };
-      
-      const updateResultWithSessionId = async (id: string, sessionId: string) => {
-        return await databaseStrategies.updateForCheckoutSuccess(id, undefined, sessionId);
-      };
-      
-      // Directly use the method we know exists
-      if (userId && userId.length > 0) {
-        result = await updateResultForUser(resultId, userId);
+      // First check if result already purchased
+      const { data: result } = await supabase
+        .from('quiz_results')
+        .select('*')
+        .eq('id', resultId)
+        .maybeSingle();
+        
+      if (result && isPurchased(result)) {
+        console.log('Result already purchased');
+        return result;
       }
       
-      if (!result && sessionId && sessionId.length > 0) {
-        result = await updateResultWithSessionId(resultId, sessionId);
+      // Try with user ID if available
+      if (userId) {
+        const success = await databaseStrategies.updateForCheckoutSuccess(resultId, userId);
+        if (success) {
+          console.log('User ID verification successful');
+          return await fetchVerifiedResult(resultId);
+        }
       }
       
-      if (!result && fallbackStrategies.performStandardVerification) {
-        result = await fallbackStrategies.performStandardVerification(resultId, sessionId, userId);
+      // Try with session ID if available
+      if (sessionId) {
+        const success = await databaseStrategies.updateForCheckoutSuccess(resultId, undefined, sessionId);
+        if (success) {
+          console.log('Session ID verification successful');
+          return await fetchVerifiedResult(resultId);
+        }
       }
       
-      return result;
+      // If we have a guest token, try to update with that
+      if (guestToken) {
+        const { error } = await supabase
+          .from('quiz_results')
+          .update({
+            is_purchased: true,
+            is_detailed: true,
+            purchase_status: 'completed',
+            purchase_completed_at: new Date().toISOString(),
+            access_method: 'purchase'
+          })
+          .eq('id', resultId)
+          .eq('guest_access_token', guestToken);
+          
+        if (!error) {
+          console.log('Guest token verification successful');
+          return await fetchVerifiedResult(resultId);
+        }
+      }
+      
+      // If we have a guest email, try to update with that
+      if (guestEmail) {
+        const { error } = await supabase
+          .from('quiz_results')
+          .update({
+            is_purchased: true,
+            is_detailed: true,
+            purchase_status: 'completed',
+            purchase_completed_at: new Date().toISOString(),
+            access_method: 'purchase'
+          })
+          .eq('id', resultId)
+          .eq('guest_email', guestEmail);
+          
+        if (!error) {
+          console.log('Guest email verification successful');
+          return await fetchVerifiedResult(resultId);
+        }
+      }
+      
+      return null;
     } catch (error) {
       console.error('Standard verification error:', error);
       return null;
     }
   };
   
-  // Implement fallback verification
+  // Helper to fetch the result after verification
+  const fetchVerifiedResult = async (resultId: string) => {
+    const { data: result } = await supabase
+      .from('quiz_results')
+      .select('*')
+      .eq('id', resultId)
+      .maybeSingle();
+      
+    return result;
+  };
+  
+  // Last resort verification (force update)
   const performLastResortVerification = async (resultId: string) => {
     try {
-      if (fallbackStrategies.performLastResortVerification) {
-        return await fallbackStrategies.performLastResortVerification(resultId);
+      console.log('Performing last resort verification for result:', resultId);
+      
+      const { error } = await supabase
+        .from('quiz_results')
+        .update({
+          is_purchased: true,
+          is_detailed: true,
+          purchase_status: 'completed',
+          purchase_completed_at: new Date().toISOString(),
+          access_method: 'forced_update'
+        })
+        .eq('id', resultId);
+        
+      if (error) {
+        console.error('Last resort verification error:', error);
+        return null;
       }
-      return null;
+      
+      return await fetchVerifiedResult(resultId);
     } catch (error) {
-      console.error('Fallback verification error:', error);
+      console.error('Last resort verification error:', error);
       return null;
     }
   };
-
-  // Add compatibility methods
-  const tryFallbackUpdates = async ({ id, userId, sessionId, guestEmail }: { 
-    id: string, 
-    userId?: string, 
-    sessionId?: string, 
-    guestEmail?: string 
-  }) => {
-    if (fallbackStrategies.performLastResortVerification) {
-      return await fallbackStrategies.performLastResortVerification(id);
-    }
-    return null;
-  };
-
+  
   return {
     performStandardVerification,
-    performLastResortVerification,
-    tryFallbackUpdates // Add compatibility method
+    performLastResortVerification
   };
 };
