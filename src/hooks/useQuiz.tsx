@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { QuizQuestion, QuizState } from "@/types/quiz";
 import { supabase } from "@/integrations/supabase/client";
