@@ -1,61 +1,83 @@
 
-import { useDatabaseUpdateStrategies } from "./useDatabaseUpdateStrategies";
+import { supabase } from "@/integrations/supabase/client";
 import { useResultFetchingStrategies } from "./useResultFetchingStrategies";
-import { usePurchaseTrackingUpdates } from "./usePurchaseTrackingUpdates";
 
 /**
- * Coordinates database access during verification process
+ * Hook that provides database access functionality for verification
  */
 export const useVerificationDatabaseAccess = () => {
-  const { updateForCheckoutSuccess } = useDatabaseUpdateStrategies();
-  const { fetchResult } = useResultFetchingStrategies();
-  const { updatePurchaseTracking } = usePurchaseTrackingUpdates();
+  const resultFetchers = useResultFetchingStrategies();
   
   /**
-   * Attempts to directly update a result record in the database
+   * Updates a result as purchased
    */
-  const attemptDirectUpdate = async (
-    verificationId: string,
-    userId?: string,
-    stripeSessionId?: string | null
-  ) => {
-    if (!verificationId) {
-      console.log('Direct update skipped - missing verification ID');
-      return null;
-    }
-    
+  const markResultAsPurchased = async (resultId: string, options?: {
+    userId?: string;
+    sessionId?: string;
+    guestToken?: string;
+    guestEmail?: string;
+  }) => {
     try {
-      console.log('Attempting direct database update for verification', {
-        verificationId,
-        userId,
-        hasSessionId: !!stripeSessionId
-      });
+      const { userId, sessionId, guestToken, guestEmail } = options || {};
+      console.log('Marking result as purchased:', { resultId, userId, sessionId });
       
-      // Try to update the record
-      const success = await updateForCheckoutSuccess(
-        verificationId, 
-        userId, 
-        stripeSessionId
-      );
+      // Start with base query
+      let query = supabase
+        .from('quiz_results')
+        .update({
+          is_purchased: true,
+          is_detailed: true,
+          purchase_status: 'completed',
+          purchase_completed_at: new Date().toISOString(),
+          access_method: 'purchase'
+        })
+        .eq('id', resultId);
       
-      if (success) {
-        // Update purchase tracking if applicable
-        if (stripeSessionId) {
-          await updatePurchaseTracking(verificationId, stripeSessionId);
-        }
-        
-        // Fetch the updated result
-        const result = await fetchResult(verificationId, userId, stripeSessionId);
-        return result;
+      // Add filters if available
+      if (userId) {
+        query = query.eq('user_id', userId);
+      } else if (sessionId) {
+        query = query.eq('stripe_session_id', sessionId);
+      } else if (guestToken) {
+        query = query.eq('guest_access_token', guestToken);
+      } else if (guestEmail) {
+        query = query.eq('guest_email', guestEmail);
       }
+      
+      const { error } = await query;
+      
+      if (error) {
+        console.error('Error marking result as purchased:', error);
+        return false;
+      }
+      
+      return true;
     } catch (error) {
-      console.error('Final manual update failed:', error);
+      console.error('Exception marking result as purchased:', error);
+      return false;
     }
-    
-    return null;
   };
-
+  
+  /**
+   * Links a result to a user
+   */
+  const linkResultToUser = async (resultId: string, userId: string) => {
+    try {
+      const { error } = await supabase
+        .from('quiz_results')
+        .update({ user_id: userId })
+        .eq('id', resultId);
+        
+      return !error;
+    } catch (error) {
+      console.error('Error linking result to user:', error);
+      return false;
+    }
+  };
+  
   return {
-    attemptDirectUpdate
+    ...resultFetchers,
+    markResultAsPurchased,
+    linkResultToUser
   };
 };
