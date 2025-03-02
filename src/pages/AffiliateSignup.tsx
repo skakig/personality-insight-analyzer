@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -43,35 +42,17 @@ const AffiliateSignup = () => {
     setLoading(true);
     
     try {
-      // Check if user already exists in affiliate_applications
-      const { data: existingApplication } = await supabase
-        .from('affiliate_applications')
-        .select('id')
-        .eq('email', values.email)
-        .maybeSingle();
-        
-      if (existingApplication) {
-        toast({
-          title: "Application already exists",
-          description: "You have already submitted an application with this email address.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-      
-      // Submit application
+      // Store application details directly in the affiliates table
+      // with pending status until admin approves
       const { error } = await supabase
-        .from('affiliate_applications')
+        .from('affiliates')
         .insert([
           {
             name: values.name,
             email: values.email,
-            website: values.website || null,
-            social_media: values.socialMedia || null,
-            experience: values.experience,
-            referral_source: values.referralSource || null,
-            status: 'pending'
+            code: `${values.name.substring(0, 3).toUpperCase()}${Math.floor(Math.random() * 1000)}`,
+            status: 'pending',
+            // Other fields have default values in the table definition
           }
         ]);
         

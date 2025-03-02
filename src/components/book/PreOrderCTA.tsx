@@ -49,18 +49,19 @@ export function PreOrderCTA() {
           <Button 
             onClick={handlePreOrder} 
             className="w-full px-8 py-6 text-lg bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white"
+            size="lg"
             disabled={loading}
           >
             {loading ? (
-              <>
+              <span className="flex items-center justify-center">
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 Processing...
-              </>
+              </span>
             ) : (
-              <>
+              <span className="flex items-center justify-center">
                 <Book className="mr-2 h-5 w-5" />
                 Pre-Order Now - $24.99
-              </>
+              </span>
             )}
           </Button>
           <p className="mt-4 text-sm text-gray-500">

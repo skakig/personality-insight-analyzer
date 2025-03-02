@@ -1,155 +1,209 @@
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 import { AffiliateList } from "./AffiliateList";
 import { CreateAffiliateForm } from "./CreateAffiliateForm";
 import { CommissionTierList } from "./CommissionTierList";
 import { CreateCommissionTierForm } from "./CreateCommissionTierForm";
-import { toast } from "@/hooks/use-toast";
-import { Users, DollarSign, TrendingUp, Percent } from "lucide-react";
+import { AffiliatePerformanceCard } from "./AffiliatePerformanceCard";
 
 export const AffiliateSection = () => {
-  const [stats, setStats] = useState({
-    totalAffiliates: 0,
-    activeAffiliates: 0,
-    totalCommission: 0,
-    conversionRate: 0
-  });
-  
-  const fetchAffiliateStats = async () => {
+  const [activeTab, setActiveTab] = useState("overview");
+  const [affiliates, setAffiliates] = useState<any[]>([]);
+  const [commissionTiers, setCommissionTiers] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    
     try {
-      // Fetch affiliate count
-      const { data: affiliates, error: affiliateError } = await supabase
-        .from('affiliate_partners')
-        .select('id, status');
+      // Fetch affiliates data
+      const { data: affiliatesData, error: affiliatesError } = await supabase
+        .from('affiliates')
+        .select('*')
+        .order('created_at', { ascending: false });
         
-      if (affiliateError) throw affiliateError;
+      if (affiliatesError) throw affiliatesError;
       
-      // Fetch commissions
-      const { data: commissions, error: commissionError } = await supabase
-        .from('affiliate_commissions')
-        .select('amount');
+      // Fetch commission tiers
+      const { data: tiersData, error: tiersError } = await supabase
+        .from('affiliate_commission_tiers')
+        .select('*')
+        .order('min_sales', { ascending: true });
         
-      if (commissionError) throw commissionError;
+      if (tiersError) throw tiersError;
       
-      // Fetch referrals and conversions
-      const { data: referrals, error: referralError } = await supabase
-        .from('affiliate_referrals')
-        .select('id, converted');
-        
-      if (referralError) throw referralError;
-      
-      const totalAffiliates = affiliates?.length || 0;
-      const activeAffiliates = affiliates?.filter(a => a.status === 'active').length || 0;
-      const totalCommission = commissions?.reduce((sum, item) => sum + (item.amount || 0), 0) || 0;
-      
-      const totalReferrals = referrals?.length || 0;
-      const conversions = referrals?.filter(r => r.converted).length || 0;
-      const conversionRate = totalReferrals > 0 ? (conversions / totalReferrals) * 100 : 0;
-      
-      setStats({
-        totalAffiliates,
-        activeAffiliates,
-        totalCommission,
-        conversionRate
-      });
-      
+      setAffiliates(affiliatesData || []);
+      setCommissionTiers(tiersData || []);
     } catch (error) {
-      console.error('Error fetching affiliate stats:', error);
+      console.error("Error fetching affiliate data:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
-  
+
   useEffect(() => {
-    fetchAffiliateStats();
+    fetchData();
   }, []);
 
+  // Calculate some basic statistics
+  const totalAffiliates = affiliates.length;
+  const activeAffiliates = affiliates.filter(a => a.status === 'active').length;
+  const totalEarnings = affiliates.reduce((sum, a) => sum + (a.earnings || 0), 0);
+  
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Affiliate Program</h2>
-      
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Total Affiliates</p>
-              <p className="text-2xl font-bold">{stats.totalAffiliates}</p>
-            </div>
-            <div className="bg-blue-100 p-3 rounded-full">
-              <Users className="h-6 w-6 text-blue-600" />
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Active Affiliates</p>
-              <p className="text-2xl font-bold">{stats.activeAffiliates}</p>
-            </div>
-            <div className="bg-green-100 p-3 rounded-full">
-              <Users className="h-6 w-6 text-green-600" />
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Total Commission</p>
-              <p className="text-2xl font-bold">${(stats.totalCommission / 100).toFixed(2)}</p>
-            </div>
-            <div className="bg-purple-100 p-3 rounded-full">
-              <DollarSign className="h-6 w-6 text-purple-600" />
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Conversion Rate</p>
-              <p className="text-2xl font-bold">{stats.conversionRate.toFixed(1)}%</p>
-            </div>
-            <div className="bg-amber-100 p-3 rounded-full">
-              <TrendingUp className="h-6 w-6 text-amber-600" />
-            </div>
-          </div>
-        </Card>
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-semibold">Affiliate Program</h2>
       </div>
-      
-      <Tabs defaultValue="affiliates" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <AffiliatePerformanceCard
+          title="Total Affiliates"
+          value={totalAffiliates.toString()}
+          description="Total number of registered affiliates"
+          icon="users"
+        />
+        <AffiliatePerformanceCard
+          title="Active Affiliates"
+          value={activeAffiliates.toString()}
+          description="Number of currently active affiliates"
+          icon="userCheck"
+        />
+        <AffiliatePerformanceCard
+          title="Total Commissions"
+          value={`$${totalEarnings.toFixed(2)}`}
+          description="Total commissions paid to affiliates"
+          icon="dollarSign"
+        />
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="mb-6">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="affiliates">Affiliates</TabsTrigger>
           <TabsTrigger value="commission-tiers">Commission Tiers</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="affiliates" className="mt-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Create New Affiliate</h3>
-              <CreateAffiliateForm onSuccess={fetchAffiliateStats} />
-            </div>
+        <TabsContent value="overview">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Affiliates</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <p>Loading...</p>
+                ) : affiliates.length > 0 ? (
+                  <ul className="space-y-2">
+                    {affiliates.slice(0, 5).map(affiliate => (
+                      <li key={affiliate.id} className="flex justify-between items-center p-2 bg-gray-50 rounded-md">
+                        <span>{affiliate.name}</span>
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          affiliate.status === 'active' ? 'bg-green-100 text-green-800' : 
+                          affiliate.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {affiliate.status}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>No affiliates found</p>
+                )}
+                <Button 
+                  variant="ghost" 
+                  className="mt-4 w-full" 
+                  onClick={() => setActiveTab("affiliates")}
+                >
+                  View All Affiliates
+                </Button>
+              </CardContent>
+            </Card>
             
+            <Card>
+              <CardHeader>
+                <CardTitle>Commission Tiers</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <p>Loading...</p>
+                ) : commissionTiers.length > 0 ? (
+                  <ul className="space-y-2">
+                    {commissionTiers.map(tier => (
+                      <li key={tier.id} className="flex justify-between items-center p-2 bg-gray-50 rounded-md">
+                        <span>
+                          {tier.min_sales} - {tier.max_sales || 'Unlimited'} Sales
+                        </span>
+                        <span className="font-medium">{(tier.commission_rate * 100).toFixed(0)}%</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>No commission tiers defined</p>
+                )}
+                <Button 
+                  variant="ghost" 
+                  className="mt-4 w-full" 
+                  onClick={() => setActiveTab("commission-tiers")}
+                >
+                  Manage Commission Tiers
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="affiliates">
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="md:col-span-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Manage Affiliates</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <AffiliateList />
+                </CardContent>
+              </Card>
+            </div>
             <div>
-              <h3 className="text-lg font-semibold mb-4">Affiliate List</h3>
-              <AffiliateList onAffiliateUpdated={fetchAffiliateStats} />
+              <Card>
+                <CardHeader>
+                  <CardTitle>Add New Affiliate</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CreateAffiliateForm />
+                </CardContent>
+              </Card>
             </div>
           </div>
         </TabsContent>
         
-        <TabsContent value="commission-tiers" className="mt-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Create Commission Tier</h3>
-              <CreateCommissionTierForm onSuccess={fetchAffiliateStats} />
+        <TabsContent value="commission-tiers">
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="md:col-span-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Commission Tiers</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CommissionTierList commissionTiers={commissionTiers} onRefresh={fetchData} />
+                </CardContent>
+              </Card>
             </div>
-            
             <div>
-              <h3 className="text-lg font-semibold mb-4">Commission Tiers</h3>
-              <CommissionTierList />
+              <Card>
+                <CardHeader>
+                  <CardTitle>Create Commission Tier</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CreateCommissionTierForm />
+                </CardContent>
+              </Card>
             </div>
           </div>
         </TabsContent>

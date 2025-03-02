@@ -12,6 +12,7 @@ import { PurchaseCreditsButton } from "./subscription/PurchaseCreditsButton";
 import { AlertCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { hasAnyPurchasedReport } from "@/utils/purchaseUtils";
 
 interface DashboardContentProps {
   subscription: any;
@@ -40,6 +41,15 @@ export const DashboardContent = ({
       </div>
     );
   }
+
+  // Calculate if user has any purchased reports
+  const hasPurchasedReport = previousAssessments.some(assessment => 
+    assessment.is_purchased || assessment.is_detailed
+  );
+  
+  // Calculate if user has available credits
+  const hasAvailableCredits = subscription ? 
+    subscription.assessments_used < subscription.max_assessments : false;
 
   const handleUnlockReport = async (reportId: string) => {
     if (purchaseLoading) return;
@@ -110,9 +120,13 @@ export const DashboardContent = ({
         />
       </div>
       <div className="space-y-6">
-        <QuickActionsCard />
+        <QuickActionsCard 
+          subscription={subscription}
+          hasPurchasedReport={hasPurchasedReport}
+          hasAvailableCredits={hasAvailableCredits}
+        />
         {subscription ? (
-          <SubscriptionCard subscription={subscription} />
+          <SubscriptionCard subscription={subscription} error={null} />
         ) : (
           <NoSubscriptionCard />
         )}

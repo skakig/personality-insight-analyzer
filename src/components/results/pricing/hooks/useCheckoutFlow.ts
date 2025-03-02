@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { useLoggedInCheckout } from "./useLoggedInCheckout";
@@ -9,8 +10,13 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null, final
   const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
   
   // Initialize checkout methods
-  const { loading: loggedInLoading, handleCheckout: handleLoggedInCheckout } = useLoggedInCheckout();
-  const { loading: guestLoading, handleCheckout: handleGuestCheckout } = useGuestCheckout();
+  const { loading: loggedInLoading, handleCheckout: handleLoggedInCheckout } = useLoggedInCheckout(quizResultId, couponCode);
+  const { loading: guestLoading, handleGuestCheckout } = useGuestCheckout(
+    quizResultId,
+    email, 
+    () => setIsEmailDialogOpen(false),
+    couponCode
+  );
   
   const loading = loggedInLoading || guestLoading;
   
@@ -34,24 +40,7 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null, final
       // For logged in users, process directly
       if (session?.user) {
         console.log('Processing as logged in user with ID:', session.user.id);
-        
-        const success = await handleLoggedInCheckout({
-          quizResultId,
-          userId: session.user.id,
-          email: session.user.email,
-          priceAmount: finalPrice,
-          couponCode
-        });
-        
-        if (!success) {
-          console.error('Logged-in checkout failed');
-          toast({
-            title: "Checkout Error",
-            description: "Unable to process your purchase. Please try again.",
-            variant: "destructive",
-          });
-        }
-        
+        handleLoggedInCheckout();
         return;
       }
       
@@ -84,24 +73,7 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null, final
     }
     
     console.log('Processing guest checkout with email:', email);
-    
-    const success = await handleGuestCheckout({
-      quizResultId,
-      guestEmail: email,
-      priceAmount: finalPrice,
-      couponCode
-    });
-    
-    if (!success) {
-      console.error('Guest checkout failed');
-      toast({
-        title: "Checkout Error",
-        description: "Unable to process your purchase. Please try again.",
-        variant: "destructive",
-      });
-    }
-    
-    // Keep dialog open until redirect happens
+    handleGuestCheckout();
   };
 
   return {
