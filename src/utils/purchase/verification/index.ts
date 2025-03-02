@@ -1,19 +1,5 @@
 
 /**
- * Central export point for verification functionality
+ * Entry point for purchase verification
  */
-
-// Re-export strategies
-export { 
-  verifyWithUserId,
-  verifyWithGuestToken, 
-  verifyWithGuestEmail,
-  verifyWithStripeSession,
-  forceUpdatePurchaseStatus
-} from './strategies';
-
-// Export verification executor
-export { executeVerification } from './verificationExecutor';
-
-// Export result fetcher
-export { fetchLatestResult } from './resultFetcher';
+export { executeVerification } from "./verificationExecutor";

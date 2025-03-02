@@ -39,5 +39,5 @@ export interface CreateAffiliateFormProps {
   onSuccess: () => void;
 }
 
-export { Affiliate, CommissionTier }; // Export these types
+export type { Affiliate, CommissionTier }; // Export these types properly
 export type AffiliateResult = Affiliate; // For backwards compatibility

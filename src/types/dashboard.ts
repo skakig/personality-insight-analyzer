@@ -8,6 +8,7 @@ export interface Assessment {
   is_detailed: boolean;
   access_method: string | null;
   primary_level?: string | number | null;
+  conversions?: number;
 }
 
 export interface Subscription {
