@@ -1,59 +1,50 @@
 
 /**
- * Stores purchase data in localStorage for later verification
+ * Utility functions for managing purchase state
  */
-export const storePurchaseData = (resultId: string | null, sessionId: string, userId?: string) => {
-  if (!resultId || !sessionId) {
-    console.error('Cannot store purchase data: missing resultId or sessionId');
-    return;
-  }
-  
+
+/**
+ * Store purchase data in localStorage
+ */
+export const storePurchaseData = (
+  resultId: string,
+  sessionId: string,
+  userId?: string
+) => {
   console.log('Storing purchase data:', { resultId, sessionId, userId });
   
-  // Store the core data needed for verification
+  localStorage.setItem('purchaseResultId', resultId);
   localStorage.setItem('stripeSessionId', sessionId);
-  localStorage.setItem('checkoutResultId', resultId);
+  localStorage.setItem('purchaseInitiatedAt', new Date().toISOString());
   
-  // Store user ID if available (for logged in users)
   if (userId) {
     localStorage.setItem('checkoutUserId', userId);
   }
-  
-  // Also store timestamps
-  localStorage.setItem('purchaseInitiatedAt', new Date().toISOString());
 };
 
 /**
- * Clears purchase data from localStorage after it's no longer needed
- * This is the renamed function from clearPurchaseData to cleanupPurchaseState
- */
-export const cleanupPurchaseState = () => {
-  localStorage.removeItem('stripeSessionId');
-  localStorage.removeItem('checkoutResultId');
-  localStorage.removeItem('checkoutUserId');
-  localStorage.removeItem('purchaseInitiatedAt');
-};
-
-/**
- * Original clear function to maintain backward compatibility
+ * Clear purchase data from localStorage
  */
 export const clearPurchaseData = () => {
-  cleanupPurchaseState();
+  localStorage.removeItem('purchaseResultId');
+  localStorage.removeItem('checkoutResultId');
+  localStorage.removeItem('stripeSessionId');
+  localStorage.removeItem('creditsPurchaseSessionId');
+  localStorage.removeItem('checkoutUserId');
+  localStorage.removeItem('purchaseInitiatedAt');
+  localStorage.removeItem('purchaseTrackingId');
 };
 
 /**
- * Retrieves purchase data from localStorage
+ * Get purchase data from localStorage
  */
 export const getPurchaseData = () => {
   return {
-    sessionId: localStorage.getItem('stripeSessionId'),
-    resultId: localStorage.getItem('checkoutResultId'),
+    resultId: localStorage.getItem('purchaseResultId') || localStorage.getItem('checkoutResultId'),
+    sessionId: localStorage.getItem('stripeSessionId') || localStorage.getItem('creditsPurchaseSessionId'),
     userId: localStorage.getItem('checkoutUserId'),
-    initiatedAt: localStorage.getItem('purchaseInitiatedAt')
+    guestEmail: localStorage.getItem('guestEmail'),
+    initiatedAt: localStorage.getItem('purchaseInitiatedAt'),
+    trackingId: localStorage.getItem('purchaseTrackingId')
   };
 };
-
-/**
- * Alias for getPurchaseData to fix import error
- */
-export const getPurchaseState = getPurchaseData;

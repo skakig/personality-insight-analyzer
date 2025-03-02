@@ -79,8 +79,7 @@ export const PricingSection = ({ session, quizResultId }: PricingSectionProps) =
         if (success && quizResultId) {
           toast({
             title: "Purchase Successful!",
-            description: "Your detailed report is now available.",
-            variant: "success",
+            description: "Your detailed report is now available."
           });
           
           // Handle successful purchase return

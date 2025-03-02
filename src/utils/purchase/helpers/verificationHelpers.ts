@@ -2,6 +2,9 @@
 /**
  * Helper functions for purchase verification
  */
+
+import { supabase } from "@/integrations/supabase/client";
+
 export const getUrlVerificationParams = () => {
   const urlParams = new URLSearchParams(window.location.search);
   return {
@@ -70,7 +73,6 @@ export const attemptFastCheckoutVerification = async (
   
   try {
     console.log('Attempting fast checkout verification with success=true in URL');
-    const { supabase } = await import('@/integrations/supabase/client');
     
     // If we have success=true in the URL, let's update the result directly
     const { data, error } = await supabase

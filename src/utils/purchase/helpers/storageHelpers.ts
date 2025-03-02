@@ -1,38 +1,62 @@
 
 /**
- * Helper functions related to localStorage operations
+ * Helper functions for purchase storage
  */
-export const getStoredPurchaseData = () => {
-  return {
-    trackingId: localStorage.getItem('purchaseTrackingId'),
-    stripeSessionId: localStorage.getItem('stripeSessionId'),
-    guestAccessToken: localStorage.getItem('guestAccessToken'),
-    storedResultId: localStorage.getItem('purchaseResultId') || localStorage.getItem('checkoutResultId'),
-    guestEmail: localStorage.getItem('guestEmail'),
-    checkoutUserId: localStorage.getItem('checkoutUserId')
-  };
-};
 
-export const clearPurchaseData = () => {
-  localStorage.removeItem('purchaseTrackingId');
-  localStorage.removeItem('stripeSessionId');
-  localStorage.removeItem('guestAccessToken');
-  localStorage.removeItem('purchaseResultId');
-  localStorage.removeItem('checkoutResultId');
-  localStorage.removeItem('guestEmail'); 
-  localStorage.removeItem('checkoutUserId');
-};
-
-export const storeSessionIdFromUrl = () => {
+/**
+ * Store the session ID from URL if present
+ */
+export const storeSessionIdFromUrl = (): string | null => {
   const urlParams = new URLSearchParams(window.location.search);
-  const urlSessionId = urlParams.get('session_id');
+  const sessionId = urlParams.get('session_id');
   
-  if (urlSessionId && !localStorage.getItem('stripeSessionId')) {
-    localStorage.setItem('stripeSessionId', urlSessionId);
-    console.log('Stored session ID from URL parameters');
-    return urlSessionId;
+  if (sessionId) {
+    console.log('Storing session ID from URL:', sessionId);
+    localStorage.setItem('stripeSessionId', sessionId);
+    return sessionId;
   }
   
   return null;
 };
 
+/**
+ * Store purchase data in localStorage
+ */
+export const storePurchaseData = (
+  resultId: string,
+  sessionId: string,
+  userId?: string
+) => {
+  localStorage.setItem('purchaseResultId', resultId);
+  localStorage.setItem('stripeSessionId', sessionId);
+  localStorage.setItem('purchaseInitiatedAt', new Date().toISOString());
+  
+  if (userId) {
+    localStorage.setItem('checkoutUserId', userId);
+  }
+};
+
+/**
+ * Retrieve purchase state from localStorage
+ */
+export const getPurchaseState = () => {
+  return {
+    resultId: localStorage.getItem('purchaseResultId') || localStorage.getItem('checkoutResultId'),
+    sessionId: localStorage.getItem('stripeSessionId') || localStorage.getItem('creditsPurchaseSessionId'),
+    userId: localStorage.getItem('checkoutUserId'),
+    initiatedAt: localStorage.getItem('purchaseInitiatedAt'),
+    guestEmail: localStorage.getItem('guestEmail')
+  };
+};
+
+/**
+ * Clear purchase data from localStorage
+ */
+export const clearPurchaseState = () => {
+  localStorage.removeItem('purchaseResultId');
+  localStorage.removeItem('checkoutResultId');
+  localStorage.removeItem('stripeSessionId');
+  localStorage.removeItem('creditsPurchaseSessionId');
+  localStorage.removeItem('checkoutUserId');
+  localStorage.removeItem('purchaseInitiatedAt');
+};

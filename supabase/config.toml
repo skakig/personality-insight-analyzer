@@ -1,6 +1,10 @@
 
+# This is your Supabase project's configuration file
+
 project_id = "caebnpbdprrptogirxky"
+
 [api]
-[api.edge_functions]
+enabled = true
+
 [api.edge_functions.send-results]
 verify_jwt = false

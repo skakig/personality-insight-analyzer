@@ -1,24 +1,10 @@
 
 /**
- * Entry point for verification strategies
- * Re-exports all verification functionality for external use
+ * Entry point for verification utilities
  */
-
-// Core strategies
-export { 
-  executeImmediateVerificationStrategies,
-  executeRetryVerificationStrategies,
-  executeFallbackVerification
-} from './coreStrategies';
-
-// Individual verification methods
-export { 
-  verifyWithUserId,
-  verifyWithGuestToken,
-  verifyWithGuestEmail,
-  verifyWithStripeSession,
-  forceUpdatePurchaseStatus
-} from './baseStrategies';
-
-// Utilities
+export * from './baseStrategies';
+export * from './coreStrategies';
 export * from './verificationUtils';
+
+// Export the verification execution function
+export { executeImmediateVerificationStrategies as executeVerification } from './coreStrategies';

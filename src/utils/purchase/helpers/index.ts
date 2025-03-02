@@ -1,11 +1,26 @@
 
 /**
- * Re-exports all helper functions to maintain backward compatibility
+ * Entry point for purchase helper utilities
+ * Re-exports from specific helper files
  */
-export * from './storageHelpers';
-export * from './verificationHelpers';
+
+// Export from storageHelpers
+export {
+  storePurchaseData,
+  getPurchaseState,
+  clearPurchaseState
+} from './storageHelpers';
+
+// Export from verificationHelpers
+export {
+  getUrlVerificationParams,
+  logVerificationParameters,
+  getStoredPurchaseData
+} from './verificationHelpers';
+
+// Export from directVerificationHelpers
 export * from './directVerificationHelpers';
 
-// Re-export getStoredPurchaseData and clearPurchaseData from the old location
-// to maintain backward compatibility while we transition to the new structure
-export { getStoredPurchaseData, clearPurchaseData } from '../helpers';
+// Explicitly export these to avoid ambiguity
+export { storeSessionIdFromUrl } from './storageHelpers';
+export { attemptFastCheckoutVerification } from './verificationHelpers';
