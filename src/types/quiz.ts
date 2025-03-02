@@ -23,7 +23,6 @@ export interface QuizState {
   quizResultId: string | null;
 }
 
-// Add QuizResult type which was missing
 export interface QuizResult {
   id: string;
   user_id?: string;

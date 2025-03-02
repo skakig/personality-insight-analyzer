@@ -1,6 +1,6 @@
-// Fix the errors in useVerificationCoordinator.ts
-import { useState, useCallback } from 'react';
-import { useVerificationStrategies } from './useVerificationStrategies';
+
+import { useState } from "react";
+import { useDatabaseUpdateStrategies } from "./useDatabaseUpdateStrategies";
 
 export const useVerificationCoordinator = () => {
   const [isVerifying, setIsVerifying] = useState(false);
@@ -8,66 +8,75 @@ export const useVerificationCoordinator = () => {
   const [verificationSuccess, setVerificationSuccess] = useState(false);
   
   const { 
-    standardVerification, 
-    fallbackVerification 
-  } = useVerificationStrategies();
-
-  // Fix calling with required parameters (dummy values for now - to be updated with actual implementation)
-  const performStandardVerification = useCallback(() => standardVerification("", "", "", ""), [standardVerification]);
-  const performLastResortVerification = useCallback(() => fallbackVerification("", "", "", ""), [fallbackVerification]);
-
-  const runStandardVerification = useCallback(async (resultId: string, userId: string | null, trackingId: string | null, sessionId: string | null, guestToken: string | null, guestEmail: string | null) => {
-    setIsVerifying(true);
-    setVerificationComplete(false);
-    setVerificationSuccess(false);
-    
+    updateResultForUser, 
+    updateResultWithSessionId, 
+    tryFallbackUpdates 
+  } = useDatabaseUpdateStrategies();
+  
+  // Add these methods to match what's being called in other files
+  const performStandardVerification = async (resultId: string, userId?: string, trackingId?: string, sessionId?: string, guestToken?: string, guestEmail?: string) => {
     try {
-      const result = await standardVerification(resultId, userId, trackingId, sessionId, guestToken, guestEmail);
+      setIsVerifying(true);
+      // Implement verification logic or delegate to other methods
+      // For example:
+      let success = false;
       
-      if (result) {
-        setVerificationSuccess(true);
-      } else {
-        setVerificationSuccess(false);
+      if (userId) {
+        success = await updateResultForUser(resultId, userId);
       }
       
+      if (!success && sessionId) {
+        success = await updateResultWithSessionId(resultId, sessionId);
+      }
+      
+      if (!success && (userId || sessionId || guestEmail)) {
+        success = await tryFallbackUpdates({ 
+          id: resultId, 
+          userId, 
+          sessionId, 
+          guestEmail 
+        });
+      }
+      
+      setVerificationSuccess(success);
       setVerificationComplete(true);
-      return result;
+      return success;
     } catch (error) {
-      console.error('Standard verification error:', error);
+      console.error("Verification error:", error);
       setVerificationSuccess(false);
       setVerificationComplete(true);
-      return null;
+      return false;
     } finally {
       setIsVerifying(false);
     }
-  }, [standardVerification]);
-
-  const runFallbackVerification = useCallback(async (resultId: string) => {
-    setIsVerifying(true);
-    setVerificationComplete(false);
-    setVerificationSuccess(false);
-    
+  };
+  
+  const performLastResortVerification = async (resultId: string) => {
     try {
-      const result = await fallbackVerification(resultId);
-      
-      if (result) {
-        setVerificationSuccess(true);
-      } else {
-        setVerificationSuccess(false);
-      }
-      
+      setIsVerifying(true);
+      const success = await tryFallbackUpdates({ id: resultId });
+      setVerificationSuccess(success);
       setVerificationComplete(true);
-      return result;
+      return success;
     } catch (error) {
-      console.error('Fallback verification error:', error);
+      console.error("Last resort verification error:", error);
       setVerificationSuccess(false);
       setVerificationComplete(true);
-      return null;
+      return false;
     } finally {
       setIsVerifying(false);
     }
-  }, [fallbackVerification]);
-
+  };
+  
+  // These are the methods we'll use for consistency
+  const runStandardVerification = async (resultId: string, userId?: string, trackingId?: string, sessionId?: string, guestToken?: string, guestEmail?: string) => {
+    return performStandardVerification(resultId, userId, trackingId, sessionId, guestToken, guestEmail);
+  };
+  
+  const runFallbackVerification = async (resultId: string) => {
+    return performLastResortVerification(resultId);
+  };
+  
   return {
     isVerifying,
     verificationComplete,

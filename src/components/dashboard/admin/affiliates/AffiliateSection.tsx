@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,7 +10,7 @@ import { CommissionTierList } from "./CommissionTierList";
 import { CreateCommissionTierForm } from "./CreateCommissionTierForm";
 import { AffiliatePerformanceCard } from "./AffiliatePerformanceCard";
 import { toast } from "@/hooks/use-toast";
-import { Affiliate, CommissionTier } from "../types";
+import { Affiliate, CommissionTier } from "./types";
 import { Plus } from "lucide-react";
 
 export function AffiliateSection() {
@@ -31,7 +32,8 @@ export function AffiliateSection() {
       
       const typedAffiliates = affiliatesData?.map(affiliate => ({
         ...affiliate,
-        status: affiliate.status as "active" | "inactive" | "pending"
+        status: affiliate.status as "active" | "inactive" | "pending",
+        conversions: affiliate.conversions || 0 // Set default value for conversions
       })) || [];
       
       setAffiliates(typedAffiliates);

@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useVerifyPurchase } from "./assessment/useVerifyPurchase";
-import { QuizResult } from "@/types/quiz"; // Updated import
+import { QuizResult } from "@/types/quiz"; 
 import { toast } from "./use-toast";
 import { useAuth } from "./useAuth";
 
@@ -10,18 +10,18 @@ export const useAssessmentResult = (id?: string) => {
   const [result, setResult] = useState<QuizResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const { session } = useAuth(); // Updated to use session instead of user
+  const { session } = useAuth(); // Using session instead of user
 
   const {
-    loading: verifying,
-    verified: verificationComplete,
-    error: verificationError,
-    verifyPurchase
+    isVerifying, // Using the renamed property
+    verificationComplete,
+    verificationSuccess,
+    runVerification
   } = useVerifyPurchase();
 
   // Derived state for UI components
-  const verificationSuccess = verificationComplete && !verificationError;
-  const verificationAttempts = 0; // This can be managed in state if needed
+  const verifying = isVerifying; // Alias for backward compatibility
+  const verificationAttempts = 0; // Adding this for backward compatibility
 
   // Load the assessment result
   useEffect(() => {
@@ -50,10 +50,17 @@ export const useAssessmentResult = (id?: string) => {
           return;
         }
 
-        setResult(data);
+        // Safely cast the data to QuizResult to ensure type compatibility
+        const typedResult: QuizResult = {
+          ...data,
+          purchase_status: data.purchase_status as 'pending' | 'completed' | null,
+          access_method: data.access_method as 'purchase' | 'free' | 'credit' | 'subscription' | 'forced_update' | null
+        };
+
+        setResult(typedResult);
         
         // If result indicates purchase in progress, verify it
-        if (data.purchase_status === 'pending' || data.stripe_session_id) {
+        if (typedResult.purchase_status === 'pending' || typedResult.stripe_session_id) {
           await verifyResult();
         }
       } catch (err: any) {
@@ -70,9 +77,10 @@ export const useAssessmentResult = (id?: string) => {
   // Verification functions
   const verifyResult = useCallback(() => {
     if (!id) return null;
-    return verifyPurchase(id);
-  }, [id, verifyPurchase]);
+    return runVerification(id);
+  }, [id, runVerification]);
   
+  // Adding these methods for backward compatibility
   const checkDirectAccess = async () => {
     // Implementation can be added if needed
     return false;
@@ -87,11 +95,6 @@ export const useAssessmentResult = (id?: string) => {
 
   const executeVerificationFlow = async () => {
     return verifyResult();
-  };
-
-  const runFallbackVerification = async () => {
-    // Implementation can be added if needed
-    return false;
   };
 
   const refreshPage = () => {
@@ -110,7 +113,7 @@ export const useAssessmentResult = (id?: string) => {
     showCreateAccountToast,
     executeVerificationFlow,
     verifyResult,
-    runFallbackVerification,
+    runFallbackVerification: async () => false, // Stub implementation for compatibility
     refreshPage
   };
 };

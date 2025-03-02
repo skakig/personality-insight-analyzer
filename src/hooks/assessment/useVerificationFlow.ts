@@ -1,58 +1,57 @@
 
-import { useState, useCallback } from 'react';
-import { useVerificationCoordinator } from './verification/useVerificationCoordinator';
+import { useState } from "react";
+import { useVerificationCoordinator } from "./verification/useVerificationCoordinator";
 
 export const useVerificationFlow = () => {
-  const [verificationAttempts, setVerificationAttempts] = useState(0);
-  const [verificationInProgress, setVerificationInProgress] = useState(false);
-  
   const {
     isVerifying,
     verificationComplete,
     verificationSuccess,
-    runVerification,
+    runStandardVerification,
     runFallbackVerification
   } = useVerificationCoordinator();
-  
-  const executeStandardVerification = useCallback(async (resultId: string) => {
-    if (verificationInProgress) return false;
+
+  const runVerification = async (resultId: string, sessionId?: string, userId?: string) => {
+    console.log('Running verification with:', { resultId, sessionId, userId });
     
     try {
-      setVerificationInProgress(true);
-      setVerificationAttempts(prev => prev + 1);
+      // Use renamed methods
+      const verificationResult = await runStandardVerification(
+        resultId,
+        userId,
+        undefined, // trackingId
+        sessionId,
+        undefined, // guestToken
+        undefined  // guestEmail
+      );
       
-      const success = await runVerification(resultId);
-      return success;
+      console.log('Verification result:', verificationResult);
+      return verificationResult;
     } catch (error) {
-      console.error('Verification flow error:', error);
+      console.error("Verification flow error:", error);
       return false;
-    } finally {
-      setVerificationInProgress(false);
     }
-  }, [verificationInProgress, runVerification]);
-  
-  const executeLastResortVerification = useCallback(async (resultId: string) => {
-    if (verificationInProgress) return false;
+  };
+
+  const executeLastResortVerification = async (resultId: string) => {
+    console.log('Running last resort verification for:', resultId);
     
     try {
-      setVerificationInProgress(true);
-      
-      const success = await runFallbackVerification(resultId);
-      return success;
+      // Use renamed method
+      const fallbackResult = await runFallbackVerification(resultId);
+      console.log('Fallback verification result:', fallbackResult);
+      return fallbackResult;
     } catch (error) {
-      console.error('Last resort verification error:', error);
+      console.error("Last resort verification error:", error);
       return false;
-    } finally {
-      setVerificationInProgress(false);
     }
-  }, [verificationInProgress, runFallbackVerification]);
-  
+  };
+
   return {
     isVerifying,
     verificationComplete,
     verificationSuccess,
-    verificationAttempts,
-    executeStandardVerification,
-    executeLastResortVerification
+    runVerification,
+    runFallbackVerification: executeLastResortVerification
   };
 };
