@@ -77,8 +77,8 @@ export const resetPassword = async (email: string) => {
 
   if (error) {
     console.error('Reset password error:', error);
-    throw error;
+    return { success: false, error };
   }
 
-  return { success: true };
+  return { success: true, error: null };
 };
