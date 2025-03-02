@@ -23,7 +23,8 @@ export const executeVerification = async (resultId: string, maxRetries = 5, dela
       guestAccessToken, 
       stripeSessionId, 
       guestEmail, 
-      storedResultId 
+      storedResultId,
+      checkoutUserId
     } = getStoredPurchaseData();
     
     const urlParams = new URLSearchParams(window.location.search);
@@ -39,7 +40,7 @@ export const executeVerification = async (resultId: string, maxRetries = 5, dela
     
     console.log('Starting purchase verification:', { 
       resultId, 
-      userId: userId || 'guest',
+      userId: userId || checkoutUserId || 'guest',
       hasTrackingId: !!trackingId,
       hasGuestToken: !!guestAccessToken,
       hasStripeSession: !!sessionIdToUse,
@@ -56,8 +57,10 @@ export const executeVerification = async (resultId: string, maxRetries = 5, dela
       
       try {
         // For logged-in users, we can update directly with the user ID
-        if (userId) {
+        if (userId || checkoutUserId) {
           console.log('Attempting direct update for logged-in user');
+          const userIdToUse = userId || checkoutUserId;
+          
           await supabase
             .from('quiz_results')
             .update({ 
@@ -65,20 +68,46 @@ export const executeVerification = async (resultId: string, maxRetries = 5, dela
               is_detailed: true,
               purchase_status: 'completed',
               purchase_completed_at: new Date().toISOString(),
-              access_method: 'purchase'
+              access_method: 'purchase',
+              user_id: userIdToUse // Ensure the result is linked to the user
             })
-            .eq('id', resultId)
-            .eq('user_id', userId);
+            .eq('id', resultId);
             
           const { data: result } = await supabase
             .from('quiz_results')
             .select('*')
             .eq('id', resultId)
-            .eq('user_id', userId)
             .maybeSingle();
             
           if (result && isPurchased(result)) {
             console.log('Fast purchase verification successful!');
+            return result;
+          }
+        }
+        
+        // For guest users
+        if (guestEmail) {
+          console.log('Attempting direct update for guest user');
+          await supabase
+            .from('quiz_results')
+            .update({ 
+              is_purchased: true,
+              is_detailed: true,
+              purchase_status: 'completed',
+              purchase_completed_at: new Date().toISOString(),
+              access_method: 'purchase',
+              guest_email: guestEmail
+            })
+            .eq('id', resultId);
+            
+          const { data: result } = await supabase
+            .from('quiz_results')
+            .select('*')
+            .eq('id', resultId)
+            .maybeSingle();
+            
+          if (result && isPurchased(result)) {
+            console.log('Fast purchase verification successful for guest!');
             return result;
           }
         }
@@ -102,7 +131,7 @@ export const executeVerification = async (resultId: string, maxRetries = 5, dela
     // Execute immediate verification strategies
     const immediateResult = await executeImmediateVerificationStrategies(
       resultId,
-      userId,
+      userId || checkoutUserId,
       trackingId,
       sessionIdToUse,
       guestAccessToken,
@@ -118,7 +147,7 @@ export const executeVerification = async (resultId: string, maxRetries = 5, dela
       resultId,
       maxRetries,
       delayMs,
-      userId,
+      userId || checkoutUserId,
       trackingId,
       sessionIdToUse,
       guestAccessToken,

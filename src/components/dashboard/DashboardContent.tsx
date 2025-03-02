@@ -13,6 +13,7 @@ import { AlertCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { hasAnyPurchasedReport } from "@/utils/purchaseUtils";
+import { storePurchaseData } from "@/utils/purchaseStateUtils";
 
 interface DashboardContentProps {
   subscription: any;
@@ -58,16 +59,20 @@ export const DashboardContent = ({
     try {
       console.log('Initiating report unlock for:', reportId);
       
+      if (!session?.user?.id) {
+        throw new Error('You must be logged in to purchase reports');
+      }
+      
       // Create checkout session for this specific report
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: {
           resultId: reportId,
-          userId: session?.user?.id,
-          email: session?.user?.email,
+          userId: session.user.id,
+          email: session.user.email,
           metadata: {
             resultId: reportId,
-            userId: session?.user?.id,
-            returnUrl: `/dashboard?success=true`
+            userId: session.user.id,
+            returnUrl: `${window.location.origin}/assessment/${reportId}?success=true`
           }
         }
       });
@@ -83,14 +88,14 @@ export const DashboardContent = ({
       
       // Store session data for verification
       if (data.sessionId) {
-        localStorage.setItem('purchaseResultId', reportId);
-        localStorage.setItem('stripeSessionId', data.sessionId);
+        storePurchaseData(reportId, data.sessionId, session.user.id);
         
         // Update result with session ID
         await supabase
           .from('quiz_results')
           .update({ 
             stripe_session_id: data.sessionId,
+            user_id: session.user.id, // Ensure the user ID is set
             purchase_initiated_at: new Date().toISOString(),
             purchase_status: 'pending'
           })

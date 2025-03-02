@@ -69,6 +69,38 @@ const Dashboard = ({ session }: DashboardProps) => {
     }
   };
 
+  const handleSuccessfulPurchase = async () => {
+    try {
+      // Get the result ID from localStorage
+      const resultId = localStorage.getItem('purchaseResultId') || localStorage.getItem('checkoutResultId');
+      const sessionId = localStorage.getItem('stripeSessionId') || localStorage.getItem('creditsPurchaseSessionId');
+      
+      if (resultId && sessionId && session?.user?.id) {
+        console.log('Confirming purchase for result:', resultId);
+        
+        // Update the result to mark it as purchased
+        await supabase
+          .from('quiz_results')
+          .update({
+            is_purchased: true,
+            is_detailed: true,
+            purchase_status: 'completed',
+            purchase_completed_at: new Date().toISOString(),
+            access_method: 'purchase',
+            user_id: session.user.id // Ensure the user ID is set
+          })
+          .eq('id', resultId);
+          
+        console.log('Purchase confirmed for result:', resultId);
+        
+        // Refresh data to show updated purchases
+        await fetchData();
+      }
+    } catch (error) {
+      console.error('Error confirming purchase:', error);
+    }
+  };
+
   useEffect(() => {
     if (!session?.user?.id) {
       console.log('No valid session, redirecting to auth');
@@ -103,7 +135,7 @@ const Dashboard = ({ session }: DashboardProps) => {
         title: "Purchase Successful",
         description: "Your full report is now available.",
       });
-      fetchData(); // Refresh data immediately after successful purchase
+      handleSuccessfulPurchase();
     } else if (success === 'false') {
       toast({
         title: "Purchase Cancelled",

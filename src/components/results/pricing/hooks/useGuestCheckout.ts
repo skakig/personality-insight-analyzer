@@ -37,6 +37,7 @@ export const useGuestCheckout = (
     try {
       // Store email for guest checkout tracking
       localStorage.setItem('guestEmail', email);
+      localStorage.setItem('guestQuizResultId', quizResultId);
       
       // Create guest checkout session via Edge Function
       const { data, error } = await supabase.functions.invoke('create-guest-checkout', {

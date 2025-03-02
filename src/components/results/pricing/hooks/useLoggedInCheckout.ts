@@ -22,15 +22,23 @@ export const useLoggedInCheckout = (quizResultId: string | null, couponCode?: st
     console.log('Initiating checkout for logged-in user with result:', quizResultId);
 
     try {
+      // Get the current user session to ensure we're logged in
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        throw new Error('Please log in to complete this purchase');
+      }
+
       // Create checkout session via Edge Function
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: {
           resultId: quizResultId,
           couponCode,
+          userId: session.user.id,
           metadata: {
             resultId: quizResultId,
             couponCode,
-            returnUrl: `${window.location.origin}/dashboard?success=true`
+            userId: session.user.id,
+            returnUrl: `${window.location.origin}/assessment/${quizResultId}?success=true`
           }
         }
       });
@@ -54,16 +62,18 @@ export const useLoggedInCheckout = (quizResultId: string | null, couponCode?: st
       if (data.sessionId) {
         console.log('Storing session data for verification:', {
           resultId: quizResultId,
-          sessionId: data.sessionId
+          sessionId: data.sessionId,
+          userId: session.user.id
         });
         
-        storePurchaseData(quizResultId, data.sessionId);
+        storePurchaseData(quizResultId, data.sessionId, session.user.id);
         
         // Update quiz result with session ID for tracking
         await supabase
           .from('quiz_results')
           .update({
             stripe_session_id: data.sessionId,
+            user_id: session.user.id, // Ensure the result is linked to the user
             purchase_initiated_at: new Date().toISOString(),
             purchase_status: 'pending'
           })

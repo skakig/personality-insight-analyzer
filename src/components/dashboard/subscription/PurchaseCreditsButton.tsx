@@ -13,14 +13,22 @@ export const PurchaseCreditsButton = () => {
       setLoading(true);
       console.log('Initiating credits purchase...');
       
+      // First check if user is logged in
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        throw new Error('You must be logged in to purchase credits');
+      }
+      
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { 
           mode: 'payment',
           productType: 'credits',
           amount: 5, // Default to 5 credits
+          userId: session.user.id,
           metadata: {
             productType: 'credits',
             amount: 5,
+            userId: session.user.id,
             returnUrl: `${window.location.origin}/dashboard?success=true`
           }
         }
@@ -37,6 +45,7 @@ export const PurchaseCreditsButton = () => {
         // Store the session ID for verification after return
         if (data.sessionId) {
           localStorage.setItem('creditsPurchaseSessionId', data.sessionId);
+          localStorage.setItem('checkoutUserId', session.user.id);
         }
         
         // Add a small delay to ensure any state updates are processed
@@ -66,7 +75,7 @@ export const PurchaseCreditsButton = () => {
       } else {
         toast({
           title: "Error",
-          description: "Failed to initiate credit purchase. Please try again.",
+          description: error.message || "Failed to initiate credit purchase. Please try again.",
           variant: "destructive",
         });
       }
@@ -78,7 +87,7 @@ export const PurchaseCreditsButton = () => {
   return (
     <Button 
       onClick={handlePurchaseCredits}
-      className="w-full bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white"
+      className="w-full rounded-full bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white"
       disabled={loading}
     >
       {loading ? (
