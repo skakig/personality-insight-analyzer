@@ -4,5 +4,14 @@
  */
 
 export { isPurchased, isPending, shouldAllowAccess, shouldShowPurchaseOptions, hasAnyPurchasedReport } from './purchaseStatus';
-export { verifyPurchaseWithRetry } from './purchase/index';
-export { checkPurchaseTracking, updateResultWithPurchase, manuallyCheckStripeSession } from './purchaseVerification';
+export { executeVerification } from './purchase/verificationCore';
+export { 
+  checkPurchaseTracking, 
+  updateResultWithPurchase, 
+  manuallyCheckStripeSession 
+} from './purchaseVerification';
+
+// Add the missing function export
+export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 5) => {
+  return await executeVerification(resultId, maxRetries);
+};

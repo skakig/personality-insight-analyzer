@@ -12,7 +12,7 @@ export const getVerificationParameters = () => {
     guestAccessToken, 
     stripeSessionId, 
     guestEmail, 
-    resultId,  // Changed from storedResultId to resultId
+    checkoutResultId,  // Use correct property name
     checkoutUserId
   } = getStoredPurchaseData();
   
@@ -32,7 +32,7 @@ export const getVerificationParameters = () => {
     guestAccessToken,
     stripeSessionId: sessionIdToUse,
     guestEmail,
-    storedResultId: resultId,  // Renamed to match expected property
+    storedResultId: checkoutResultId,  // Use correct property
     checkoutUserId,
     urlSuccess,
     urlSessionId

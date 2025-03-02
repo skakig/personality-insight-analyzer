@@ -37,7 +37,7 @@ export interface QuizResult {
   purchase_initiated_at?: string | null;
   purchase_completed_at?: string | null;
   created_at: string;
-  updated_at?: string;
+  updated_at?: string; // Added missing property
   detailed_analysis?: any;
   category_scores?: Record<string, number> | null;
   answers?: any;
@@ -46,7 +46,7 @@ export interface QuizResult {
   guest_access_expires_at?: string | null;
   purchase_date?: string | null;
   purchase_amount?: number | null;
-  primary_level?: string | number | null;
+  primary_level?: string | number | null; // Added missing property
   conversions?: number;
 }
 

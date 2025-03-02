@@ -14,17 +14,14 @@ const Assessment = () => {
     result,
     loading,
     error,
-    isVerifying,
-    verificationComplete,
-    verificationSuccess,
-    verificationAttempts,
-    refreshPage,
-    runVerification
+    purchaseStatus,
+    allowAccess
   } = useAssessmentResult({ id });
+  
   const [showVerificationSuccess, setShowVerificationSuccess] = useState(false);
   
   useEffect(() => {
-    if (result && (verificationSuccess || (isVerifying === false && verificationAttempts > 0))) {
+    if (result && purchaseStatus === 'complete') {
       setShowVerificationSuccess(true);
       const timer = setTimeout(() => {
         setShowVerificationSuccess(false);
@@ -32,14 +29,18 @@ const Assessment = () => {
       
       return () => clearTimeout(timer);
     }
-  }, [result, isVerifying, verificationAttempts, verificationSuccess]);
+  }, [result, purchaseStatus]);
 
-  if (loading || isVerifying) {
+  const refreshPage = () => {
+    window.location.reload();
+  };
+
+  if (loading) {
     return (
       <AssessmentLoading
-        verifying={isVerifying}
-        verificationAttempts={verificationAttempts}
-        onRefresh={() => refreshPage()}
+        verifying={purchaseStatus === 'pending'}
+        verificationAttempts={0}
+        onRefresh={refreshPage}
       />
     );
   }
@@ -54,7 +55,7 @@ const Assessment = () => {
         <div className="container mx-auto px-4 mb-6">
           <VerificationStatusIndicator
             verifying={false}
-            verificationAttempts={verificationAttempts}
+            verificationAttempts={0}
             isSuccess={true}
           />
         </div>

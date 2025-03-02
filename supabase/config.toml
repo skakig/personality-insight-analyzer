@@ -7,4 +7,4 @@ project_id = "caebnpbdprrptogirxky"
 enabled = true
 
 [functions]
-send-results = { verify_jwt = false }
+enabled = true

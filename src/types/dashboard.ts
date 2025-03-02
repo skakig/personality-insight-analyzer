@@ -39,7 +39,7 @@ export interface Affiliate {
   earnings: number;
   created_at: string;
   updated_at: string;
-  conversions: number;
+  conversions: number; // Added missing property
 }
 
 export interface CommissionTier {
@@ -48,7 +48,7 @@ export interface CommissionTier {
   commission_rate: number;
   min_sales: number;
   max_sales: number | null;
-  is_default: boolean;
+  is_default: boolean; // Added missing property
   created_at: string | null;
   updated_at: string | null;
 }
