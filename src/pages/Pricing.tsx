@@ -54,7 +54,7 @@ const pricingPlans = [
 
 const Pricing = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState("");
+  const [loading, setLoading] = useState<string>("");
 
   const handleSubscribe = async (priceId: string, paymentType: "payment" | "subscription" = "subscription") => {
     setLoading(priceId);

@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { BookOpen, CheckCircle2, ArrowRight } from "lucide-react";
 
-interface HeroSectionProps {
+export interface HeroSectionProps {
   onPreOrder: () => void;
 }
 
