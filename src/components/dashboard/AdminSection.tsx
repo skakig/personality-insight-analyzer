@@ -1,6 +1,5 @@
 
 import { useAdminOperations } from "./admin/useAdminOperations";
-import { AdminDashboard } from "./admin/AdminDashboard";
 import { Card, CardContent } from "@/components/ui/card";
 import { AdminSectionProps } from "./admin/types";
 import { Loader2 } from "lucide-react";
