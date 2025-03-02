@@ -12,7 +12,6 @@ import {
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
-import { Session } from "@supabase/supabase-js";
 
 interface AdminSectionProps {
   userId: string;
@@ -26,7 +25,9 @@ export const AdminSection = ({ userId }: AdminSectionProps) => {
   const [creatingCoupon, setCreatingCoupon] = useState(false);
 
   useEffect(() => {
-    checkAdminStatus();
+    if (userId) {
+      checkAdminStatus();
+    }
   }, [userId]);
 
   const checkAdminStatus = async () => {
@@ -40,27 +41,43 @@ export const AdminSection = ({ userId }: AdminSectionProps) => {
 
       console.log('Checking admin status for user:', userId);
 
-      const { data, error } = await supabase
-        .from('admin_users')
-        .select('id')
-        .eq('id', userId)
-        .maybeSingle();
-      
-      if (error) {
-        console.error('Error checking admin status:', {
-          error,
-          userId
-        });
-        throw error;
-      }
-
-      const hasAdminAccess = !!data;
-      console.log('Admin status result:', {
-        userId,
-        isAdmin: hasAdminAccess
+      // First try using the is_admin database function
+      const { data: isAdminResult, error: funcError } = await supabase.rpc('is_admin', {
+        user_id: userId
       });
       
-      setIsAdmin(hasAdminAccess);
+      if (funcError) {
+        console.error('Error checking admin status with RPC:', funcError);
+        // Fall back to direct query if RPC fails
+        const { data, error } = await supabase
+          .from('admin_users')
+          .select('id')
+          .eq('id', userId)
+          .maybeSingle();
+        
+        if (error) {
+          console.error('Error checking admin status:', {
+            error,
+            userId
+          });
+          throw error;
+        }
+
+        const hasAdminAccess = !!data;
+        console.log('Admin status result (direct query):', {
+          userId,
+          isAdmin: hasAdminAccess
+        });
+        
+        setIsAdmin(hasAdminAccess);
+      } else {
+        console.log('Admin status result (RPC):', {
+          userId,
+          isAdmin: isAdminResult
+        });
+        
+        setIsAdmin(!!isAdminResult);
+      }
     } catch (error: any) {
       console.error('Error in checkAdminStatus:', error);
       toast({
@@ -149,8 +166,10 @@ export const AdminSection = ({ userId }: AdminSectionProps) => {
     );
   }
 
+  // For debugging purposes - show even when not admin but comment out in production
+  console.log('User admin status:', { userId, isAdmin });
+
   if (!isAdmin) {
-    console.log('User is not admin, hiding admin section:', userId);
     return null;
   }
 
