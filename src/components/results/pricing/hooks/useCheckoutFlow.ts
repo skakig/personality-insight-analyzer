@@ -73,7 +73,7 @@ export const useCheckoutFlow = (session: any, quizResultId: string | null, final
     }
     
     console.log('Processing guest checkout with email:', email);
-    handleGuestCheckout();
+    await handleGuestCheckout();
   };
 
   return {

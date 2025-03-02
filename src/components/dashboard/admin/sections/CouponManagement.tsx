@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -51,8 +52,6 @@ export function CouponManagement() {
     return sum + (coupon.max_uses - (coupon.current_uses || 0));
   }, 0);
   
-  // Other analytics could be added here
-  
   return (
     <>
       <div className="flex justify-between items-center mb-6">
@@ -101,7 +100,11 @@ export function CouponManagement() {
               {loading ? (
                 <p>Loading coupons...</p>
               ) : (
-                <CouponList coupons={coupons} onCouponUpdated={fetchCoupons} />
+                <CouponList 
+                  coupons={coupons} 
+                  onCouponUpdated={fetchCoupons}
+                  loading={loading} 
+                />
               )}
             </CardContent>
           </Card>

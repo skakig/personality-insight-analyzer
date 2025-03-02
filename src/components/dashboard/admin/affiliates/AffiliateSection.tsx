@@ -9,11 +9,13 @@ import { CreateAffiliateForm } from "./CreateAffiliateForm";
 import { CommissionTierList } from "./CommissionTierList";
 import { CreateCommissionTierForm } from "./CreateCommissionTierForm";
 import { AffiliatePerformanceCard } from "./AffiliatePerformanceCard";
+import { toast } from "@/hooks/use-toast";
+import { Affiliate, CommissionTier } from "../types";
 
 export const AffiliateSection = () => {
   const [activeTab, setActiveTab] = useState("overview");
-  const [affiliates, setAffiliates] = useState<any[]>([]);
-  const [commissionTiers, setCommissionTiers] = useState<any[]>([]);
+  const [affiliates, setAffiliates] = useState<Affiliate[]>([]);
+  const [commissionTiers, setCommissionTiers] = useState<CommissionTier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = async () => {
@@ -40,6 +42,11 @@ export const AffiliateSection = () => {
       setCommissionTiers(tiersData || []);
     } catch (error) {
       console.error("Error fetching affiliate data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch affiliate data. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -54,6 +61,76 @@ export const AffiliateSection = () => {
   const activeAffiliates = affiliates.filter(a => a.status === 'active').length;
   const totalEarnings = affiliates.reduce((sum, a) => sum + (a.earnings || 0), 0);
   
+  const handleCreateAffiliate = async (name: string, email: string) => {
+    try {
+      // Generate affiliate code from name (first letter + last name + random digits)
+      const nameParts = name.split(' ');
+      const baseName = nameParts.length > 1 
+        ? (nameParts[0][0] + nameParts[nameParts.length - 1]).toUpperCase() 
+        : nameParts[0].substring(0, 4).toUpperCase();
+      const randomDigits = Math.floor(1000 + Math.random() * 9000);
+      const generatedCode = `${baseName}${randomDigits}`;
+
+      const { data, error } = await supabase
+        .from('affiliates')
+        .insert({
+          name: name,
+          email: email,
+          code: generatedCode,
+          commission_rate: 0.10, // Default 10%
+          status: 'active',
+          earnings: 0,
+          total_sales: 0
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Affiliate ${name} created with code ${generatedCode}`,
+      });
+
+      fetchData();
+    } catch (error: any) {
+      console.error('Error creating affiliate:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create affiliate",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCreateCommissionTier = async (minSales: string, maxSales: string, commissionRate: string) => {
+    try {
+      const { error } = await supabase
+        .from('affiliate_commission_tiers')
+        .insert({
+          min_sales: parseFloat(minSales),
+          max_sales: maxSales ? parseFloat(maxSales) : null,
+          commission_rate: parseFloat(commissionRate) / 100 // Convert from percentage to decimal
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Commission tier created successfully",
+      });
+
+      fetchData();
+    } catch (error: any) {
+      console.error('Error creating commission tier:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create commission tier",
+        variant: "destructive",
+      });
+    }
+  };
+  
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -62,22 +139,22 @@ export const AffiliateSection = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <AffiliatePerformanceCard
-          title="Total Affiliates"
-          value={totalAffiliates.toString()}
-          description="Total number of registered affiliates"
-          icon="users"
+          statTitle="Total Affiliates"
+          statValue={totalAffiliates.toString()}
+          statDescription="Total number of registered affiliates"
+          iconName="users"
         />
         <AffiliatePerformanceCard
-          title="Active Affiliates"
-          value={activeAffiliates.toString()}
-          description="Number of currently active affiliates"
-          icon="userCheck"
+          statTitle="Active Affiliates"
+          statValue={activeAffiliates.toString()}
+          statDescription="Number of currently active affiliates"
+          iconName="userCheck"
         />
         <AffiliatePerformanceCard
-          title="Total Commissions"
-          value={`$${totalEarnings.toFixed(2)}`}
-          description="Total commissions paid to affiliates"
-          icon="dollarSign"
+          statTitle="Total Commissions"
+          statValue={`$${totalEarnings.toFixed(2)}`}
+          statDescription="Total commissions paid to affiliates"
+          iconName="dollarSign"
         />
       </div>
 
@@ -166,7 +243,10 @@ export const AffiliateSection = () => {
                   <CardTitle>Manage Affiliates</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <AffiliateList />
+                  <AffiliateList 
+                    affiliates={affiliates} 
+                    onRefresh={fetchData} 
+                  />
                 </CardContent>
               </Card>
             </div>
@@ -176,7 +256,9 @@ export const AffiliateSection = () => {
                   <CardTitle>Add New Affiliate</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <CreateAffiliateForm />
+                  <CreateAffiliateForm 
+                    onCreateAffiliate={handleCreateAffiliate} 
+                  />
                 </CardContent>
               </Card>
             </div>
@@ -191,7 +273,10 @@ export const AffiliateSection = () => {
                   <CardTitle>Commission Tiers</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <CommissionTierList commissionTiers={commissionTiers} onRefresh={fetchData} />
+                  <CommissionTierList 
+                    commissionTiers={commissionTiers} 
+                    onRefresh={fetchData} 
+                  />
                 </CardContent>
               </Card>
             </div>
@@ -201,7 +286,9 @@ export const AffiliateSection = () => {
                   <CardTitle>Create Commission Tier</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <CreateCommissionTierForm />
+                  <CreateCommissionTierForm 
+                    onCreateTier={handleCreateCommissionTier} 
+                  />
                 </CardContent>
               </Card>
             </div>

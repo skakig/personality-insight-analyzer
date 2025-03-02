@@ -48,7 +48,7 @@ export function PreOrderCTA() {
         <div className="max-w-md mx-auto">
           <Button 
             onClick={handlePreOrder} 
-            className="w-full px-8 py-6 text-lg bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white"
+            className="w-full px-8 py-6 text-xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white"
             size="lg"
             disabled={loading}
           >
