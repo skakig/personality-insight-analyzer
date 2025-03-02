@@ -3,6 +3,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Loader2, PlusCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
@@ -17,7 +19,20 @@ export const CreateCouponForm = ({ userId, onCouponCreated }: CreateCouponFormPr
   const [discountAmount, setDiscountAmount] = useState("");
   const [discountType, setDiscountType] = useState("percentage");
   const [maxUses, setMaxUses] = useState("100");
+  const [expiryDate, setExpiryDate] = useState("");
   const [creatingCoupon, setCreatingCoupon] = useState(false);
+  
+  // Product-specific options
+  const [applicableProducts, setApplicableProducts] = useState<string[]>([]);
+  
+  // Handle product selection
+  const toggleProduct = (product: string) => {
+    setApplicableProducts(current => 
+      current.includes(product)
+        ? current.filter(p => p !== product)
+        : [...current, product]
+    );
+  };
 
   const createCoupon = async () => {
     try {
@@ -55,6 +70,12 @@ export const CreateCouponForm = ({ userId, onCouponCreated }: CreateCouponFormPr
         return;
       }
 
+      // Prepare expiry date if provided
+      let expiryTimestamp = null;
+      if (expiryDate) {
+        expiryTimestamp = new Date(expiryDate).toISOString();
+      }
+
       const { error } = await supabase
         .from('coupons')
         .insert({
@@ -63,7 +84,9 @@ export const CreateCouponForm = ({ userId, onCouponCreated }: CreateCouponFormPr
           discount_amount: amount,
           max_uses: uses,
           is_active: true,
-          created_by: userId
+          created_by: userId,
+          expires_at: expiryTimestamp,
+          applicable_products: applicableProducts.length > 0 ? applicableProducts : null
         });
 
       if (error) {
@@ -85,6 +108,8 @@ export const CreateCouponForm = ({ userId, onCouponCreated }: CreateCouponFormPr
       setDiscountAmount("");
       setDiscountType("percentage");
       setMaxUses("100");
+      setExpiryDate("");
+      setApplicableProducts([]);
       
       // Refresh coupons list
       onCouponCreated();
@@ -139,6 +164,54 @@ export const CreateCouponForm = ({ userId, onCouponCreated }: CreateCouponFormPr
           value={maxUses}
           onChange={(e) => setMaxUses(e.target.value)}
         />
+        
+        <Input
+          type="date"
+          placeholder="Expiry date (optional)"
+          value={expiryDate}
+          onChange={(e) => setExpiryDate(e.target.value)}
+        />
+        
+        <div className="space-y-2 pt-2">
+          <h4 className="text-sm font-medium">Applicable Products:</h4>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="assessment" 
+                checked={applicableProducts.includes('assessment')}
+                onCheckedChange={() => toggleProduct('assessment')}
+              />
+              <Label htmlFor="assessment">Assessment Reports</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="book" 
+                checked={applicableProducts.includes('book')}
+                onCheckedChange={() => toggleProduct('book')}
+              />
+              <Label htmlFor="book">Book Pre-order</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="subscription" 
+                checked={applicableProducts.includes('subscription')}
+                onCheckedChange={() => toggleProduct('subscription')}
+              />
+              <Label htmlFor="subscription">Subscriptions</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="credits" 
+                checked={applicableProducts.includes('credits')}
+                onCheckedChange={() => toggleProduct('credits')}
+              />
+              <Label htmlFor="credits">Assessment Credits</Label>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground pt-1">
+            Leave unchecked to apply to all products
+          </p>
+        </div>
         
         <Button 
           onClick={createCoupon} 

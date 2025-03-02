@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { format, parseISO } from "date-fns";
 import { Coupon } from "./types";
+import { Badge } from "@/components/ui/badge";
 
 interface CouponListProps {
   coupons: Coupon[];
@@ -66,6 +67,30 @@ export const CouponList = ({ coupons, onCouponUpdated, loading }: CouponListProp
     }
   };
 
+  // Helper function to show formatted product badges
+  const getProductBadges = (products: string[] | null) => {
+    if (!products || products.length === 0) {
+      return <Badge variant="outline">All Products</Badge>;
+    }
+    
+    const productColors: Record<string, string> = {
+      assessment: "bg-blue-100 text-blue-800",
+      book: "bg-purple-100 text-purple-800",
+      subscription: "bg-green-100 text-green-800",
+      credits: "bg-amber-100 text-amber-800"
+    };
+    
+    return (
+      <div className="flex flex-wrap gap-1 mt-1">
+        {products.map(product => (
+          <Badge key={product} variant="outline" className={productColors[product] || ""}>
+            {product.charAt(0).toUpperCase() + product.slice(1)}
+          </Badge>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-3">
       <h3 className="text-lg font-medium">Active Coupons</h3>
@@ -85,7 +110,7 @@ export const CouponList = ({ coupons, onCouponUpdated, loading }: CouponListProp
               key={coupon.id} 
               className={`border rounded-lg p-3 ${!coupon.is_active ? 'bg-muted/20' : ''}`}
             >
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-start">
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{coupon.code}</span>
@@ -99,6 +124,11 @@ export const CouponList = ({ coupons, onCouponUpdated, loading }: CouponListProp
                         Maxed Out
                       </span>
                     )}
+                    {coupon.is_active && coupon.expires_at && new Date(coupon.expires_at) < new Date() && (
+                      <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                        Expired
+                      </span>
+                    )}
                   </div>
                   <div className="text-sm text-muted-foreground">
                     {coupon.discount_type === 'percentage' 
@@ -108,7 +138,9 @@ export const CouponList = ({ coupons, onCouponUpdated, loading }: CouponListProp
                   <div className="text-xs text-muted-foreground mt-1">
                     Uses: {coupon.current_uses} / {coupon.max_uses} • 
                     Created: {format(parseISO(coupon.created_at), 'MMM d, yyyy')}
+                    {coupon.expires_at && ` • Expires: ${format(parseISO(coupon.expires_at), 'MMM d, yyyy')}`}
                   </div>
+                  {getProductBadges(coupon.applicable_products)}
                 </div>
                 <div className="flex gap-2">
                   <Button 

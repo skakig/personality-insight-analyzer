@@ -5,6 +5,7 @@ import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { PricingHeader } from "@/components/pricing/PricingHeader";
 import { PricingPlan } from "@/components/pricing/PricingPlan";
+import { CouponInput } from "@/components/common/CouponInput";
 
 const pricingPlans = [
   {
@@ -54,32 +55,39 @@ const pricingPlans = [
 
 const Pricing = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState<string>("");
+  const [loadingPlan, setLoadingPlan] = useState<string>("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discount: number;
+    discountType: string;
+  } | null>(null);
 
   const handleSubscribe = async (priceId: string, paymentType: "payment" | "subscription" = "subscription") => {
-    setLoading(priceId);
+    setLoadingPlan(priceId);
     try {
       let response;
       
       // Use different endpoints for one-time payments vs subscriptions
       if (paymentType === "payment") {
-        console.log('Creating one-time payment checkout for:', { priceId, paymentType });
+        console.log('Creating one-time payment checkout for:', { priceId, paymentType, couponCode: appliedCoupon?.code });
         response = await supabase.functions.invoke('create-checkout-session', {
           body: { 
             resultId: null, // No specific result ID for general purchase
             mode: 'payment',
             priceAmount: 1499,
+            couponCode: appliedCoupon?.code,
             metadata: {
               isGeneral: true
             }
           }
         });
       } else {
-        console.log('Creating subscription with:', { priceId, paymentType });
+        console.log('Creating subscription with:', { priceId, paymentType, couponCode: appliedCoupon?.code });
         response = await supabase.functions.invoke('create-subscription', {
           body: { 
             priceId,
             mode: paymentType,
+            couponCode: appliedCoupon?.code,
             metadata: {
               isGeneral: true
             }
@@ -108,20 +116,51 @@ const Pricing = () => {
         variant: "destructive",
       });
     } finally {
-      setLoading("");
+      setLoadingPlan("");
     }
+  };
+
+  // Coupon handlers
+  const handleCouponApplied = (discount: number, code: string, discountType: string) => {
+    console.log('Coupon applied:', { discount, code, discountType });
+    setAppliedCoupon({
+      discount,
+      code,
+      discountType
+    });
+    
+    toast({
+      title: "Coupon Applied",
+      description: `${discountType === 'percentage' ? `${discount}% off` : `$${(discount / 100).toFixed(2)} off`} has been applied to your order`,
+    });
+  };
+  
+  const handleCouponRemoved = () => {
+    setAppliedCoupon(null);
+    toast({
+      title: "Coupon Removed",
+      description: "Discount has been removed from your order",
+    });
   };
 
   return (
     <div className="container mx-auto px-4 py-16">
       <PricingHeader />
       
+      <div className="max-w-md mx-auto px-4 mb-8">
+        <CouponInput 
+          onCouponApplied={handleCouponApplied}
+          onCouponRemoved={handleCouponRemoved}
+          disabled={!!loadingPlan}
+        />
+      </div>
+      
       <div className="grid md:grid-cols-3 gap-8 max-w-7xl mx-auto">
         {pricingPlans.map((plan) => (
           <PricingPlan
             key={plan.name}
             {...plan}
-            loading={loading === plan.priceId}
+            loading={loadingPlan === plan.priceId}
             onSubscribe={() => handleSubscribe(plan.priceId, plan.paymentType)}
           />
         ))}

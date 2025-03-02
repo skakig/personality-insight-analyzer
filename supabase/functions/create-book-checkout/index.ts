@@ -1,148 +1,95 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1"
-import Stripe from "https://esm.sh/stripe@12.5.0?target=deno"
+import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.1';
+import Stripe from 'https://esm.sh/stripe@12.16.0?target=deno';
 
-// CORS headers
+// Define CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-deno-subhost',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Max-Age': '86400',
+};
 
-// Create a Supabase client
-const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+// Initialize Supabase client
+const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Initialize Stripe
+const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY') ?? '';
+const stripe = new Stripe(stripeSecretKey, {
+  apiVersion: '2023-08-16',
+  httpClient: Stripe.createFetchHttpClient(),
+});
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
-      headers: corsHeaders
+      headers: corsHeaders,
     });
   }
 
-  // Get request data with url parameters
-  const url = new URL(req.url);
-  // Default redirect URL in case request doesn't provide one
-  const defaultReturnUrl = `${url.origin}/book`;
-  const defaultCancelUrl = `${url.origin}/book`;
-
-  // Set default redirect URLs
-  let successUrl = defaultReturnUrl + '?success=true';
-  let cancelUrl = defaultCancelUrl + '?canceled=true';
-
   try {
     // Parse request body
-    const requestData = await req.json();
-    console.log('Book checkout request data:', requestData);
+    const { basePrice, couponCode, returnUrl, cancelUrl } = await req.json();
+    console.log('Book checkout requested:', { basePrice, couponCode, returnUrl });
 
-    // Initialize Stripe
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-      apiVersion: '2023-10-16',
-      httpClient: Stripe.createFetchHttpClient(),
-    });
-
-    // If request provides custom URLs, use those instead
-    if (requestData.returnUrl) {
-      successUrl = requestData.returnUrl;
-      if (!successUrl.includes('?')) {
-        successUrl += '?success=true';
-      } else if (!successUrl.includes('success=')) {
-        successUrl += '&success=true';
-      }
-    }
-    if (requestData.cancelUrl) {
-      cancelUrl = requestData.cancelUrl;
+    // Validate input
+    if (!basePrice || !returnUrl) {
+      throw new Error('Missing required parameters: basePrice and returnUrl are required');
     }
 
-    // Check for coupon code
-    let couponCode = requestData.couponCode;
-    let discountAmount = 0;
-    let discountType = '';
-    let finalPrice = requestData.basePrice || 2999; // Default to $29.99 for the book
-    
-    // Apply coupon if provided
+    let finalPrice = basePrice;
+    let appliedCoupon = null;
+
+    // Handle coupon if provided
     if (couponCode) {
-      console.log('Checking coupon:', couponCode);
-      try {
-        // Fetch coupon from the database
-        const { data: coupon, error: couponError } = await supabase
-          .from('coupons')
-          .select('*')
-          .eq('code', couponCode)
-          .eq('is_active', true)
-          .maybeSingle();
-          
-        if (couponError) {
-          console.error('Coupon fetch error:', couponError);
-          throw new Error('Failed to validate coupon');
-        }
+      const { data: coupon, error: couponError } = await supabase
+        .from('coupons')
+        .select('*')
+        .eq('code', couponCode.toUpperCase())
+        .eq('is_active', true)
+        .single();
+
+      if (couponError) {
+        console.error('Error fetching coupon:', couponError);
+      } else if (coupon) {
+        // Check if coupon can be applied to books
+        const applicableToBooks = !coupon.applicable_products || 
+                                coupon.applicable_products.length === 0 || 
+                                coupon.applicable_products.includes('book');
         
-        if (!coupon) {
-          console.log('Coupon not found or inactive');
-          // Continue without a coupon
+        if (!applicableToBooks) {
+          console.log('Coupon not applicable to books');
+        } else if (coupon.max_uses && coupon.current_uses >= coupon.max_uses) {
+          console.log('Coupon has reached maximum uses');
+        } else if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
+          console.log('Coupon has expired');
         } else {
-          // Check if coupon has reached max uses
-          if (coupon.max_uses && coupon.current_uses >= coupon.max_uses) {
-            console.log('Coupon reached max uses');
-            // Continue without a coupon
-          } 
-          // Check if coupon is expired
-          else if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
-            console.log('Coupon expired');
-            // Continue without a coupon
-          } 
-          // Apply valid coupon
-          else {
-            console.log('Valid coupon found:', coupon);
-            discountType = coupon.discount_type;
-            
-            if (discountType === 'percentage') {
-              // Calculate percentage discount
-              discountAmount = Math.round(finalPrice * (coupon.discount_amount / 100));
-            } else {
-              // Fixed amount discount
-              discountAmount = coupon.discount_amount;
-            }
-            
-            // Apply discount to final price
-            finalPrice = Math.max(0, finalPrice - discountAmount);
-            
-            console.log('Applied discount:', {
-              originalPrice: requestData.basePrice || 2999,
-              discountAmount,
-              finalPrice,
-              discountType
-            });
-            
-            // Increment coupon usage counter
-            try {
-              const { error: updateError } = await supabase
-                .from('coupons')
-                .update({ 
-                  current_uses: (coupon.current_uses || 0) + 1 
-                })
-                .eq('id', coupon.id);
-                
-              if (updateError) {
-                console.error('Error updating coupon usage:', updateError);
-                // Continue anyway, this shouldn't block checkout
-              }
-            } catch (e) {
-              console.error('Failed to increment coupon usage:', e);
-              // Continue anyway, this shouldn't block checkout
-            }
+          appliedCoupon = coupon;
+          
+          // Calculate discount
+          if (coupon.discount_type === 'percentage') {
+            const discountAmount = Math.round(basePrice * (coupon.discount_amount / 100));
+            finalPrice = Math.max(0, basePrice - discountAmount);
+          } else {
+            finalPrice = Math.max(0, basePrice - coupon.discount_amount);
           }
+          
+          console.log(`Applied coupon ${couponCode}:`, { 
+            originalPrice: basePrice, 
+            finalPrice, 
+            discountType: coupon.discount_type, 
+            discountAmount: coupon.discount_amount 
+          });
         }
-      } catch (error) {
-        console.error('Error processing coupon:', error);
-        // Continue without applying the coupon
       }
     }
 
-    // Create checkout session
+    // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -151,7 +98,7 @@ serve(async (req) => {
             currency: 'usd',
             product_data: {
               name: 'The Moral Hierarchy Book',
-              description: 'Pre-order for the forthcoming book "The Moral Hierarchy"',
+              description: 'Pre-order of The Moral Hierarchy book with exclusive bonus materials',
             },
             unit_amount: finalPrice,
           },
@@ -159,23 +106,39 @@ serve(async (req) => {
         },
       ],
       mode: 'payment',
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      customer_email: requestData.email || undefined,
+      success_url: returnUrl,
+      cancel_url: cancelUrl || returnUrl.replace('success=true', 'canceled=true'),
       metadata: {
-        productType: 'book',
-        couponCode: couponCode || '',
-        discountAmount: discountAmount,
-        discountType: discountType || '',
+        product_type: 'book',
+        coupon_code: couponCode || null,
+        applied_discount: appliedCoupon ? (finalPrice - basePrice) : 0,
+        original_price: basePrice
       },
     });
 
-    // Return success with session ID and URL
+    // If coupon was applied, increment the usage counter
+    if (appliedCoupon) {
+      await supabase
+        .from('coupons')
+        .update({ current_uses: (appliedCoupon.current_uses || 0) + 1 })
+        .eq('id', appliedCoupon.id);
+        
+      // Record coupon usage
+      await supabase
+        .from('coupon_usage')
+        .insert({
+          coupon_id: appliedCoupon.id,
+          purchase_amount: basePrice,
+          discount_amount: basePrice - finalPrice,
+          guest_email: null // We don't have user email at this point
+        });
+    }
+
     return new Response(
-      JSON.stringify({
-        url: session.url,
+      JSON.stringify({ 
+        url: session.url, 
         sessionId: session.id,
-        discountAmount: discountAmount,
+        discountAmount: appliedCoupon ? (basePrice - finalPrice) : 0
       }),
       {
         status: 200,
@@ -185,13 +148,12 @@ serve(async (req) => {
         },
       }
     );
+
   } catch (error) {
-    console.error('Error creating checkout session:', error);
+    console.error('Book checkout error:', error);
     
     return new Response(
-      JSON.stringify({
-        error: error.message || 'Failed to create checkout session',
-      }),
+      JSON.stringify({ error: error.message }),
       {
         status: 400,
         headers: {
