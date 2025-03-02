@@ -1,11 +1,13 @@
-import React from "react";
 import { toast } from "@/hooks/use-toast";
 import { verifyPurchaseWithRetry } from "@/utils/purchaseUtils";
 import { cleanupPurchaseState, storePurchaseData } from "@/utils/purchaseStateUtils";
 import { supabase } from "@/integrations/supabase/client";
-import { useDirectDatabaseUpdates } from "./useDirectDatabaseUpdates";
-import { useFetchUpdatedResult } from "./useFetchUpdatedResult";
+import { useVerificationStrategies } from "./verification/useVerificationStrategies";
+import { useResultFetchingStrategies } from "./verification/useResultFetchingStrategies";
 
+/**
+ * Hook to handle purchase verification
+ */
 export const useVerifyPurchase = (
   setLoading: (value: boolean) => void,
   setResult: (result: any) => void,
@@ -19,14 +21,17 @@ export const useVerifyPurchase = (
     updateResultForUser, 
     updateResultWithSessionId, 
     tryFallbackUpdates 
-  } = useDirectDatabaseUpdates();
+  } = useVerificationStrategies();
   
   const { 
     fetchUserResult, 
     fetchResultBySessionId, 
     fetchResultById 
-  } = useFetchUpdatedResult();
+  } = useResultFetchingStrategies();
 
+  /**
+   * Main verification function that orchestrates verification process
+   */
   const verifyPurchase = async (id?: string) => {
     if (!id) {
       console.error('Verification failed: Missing result ID');
