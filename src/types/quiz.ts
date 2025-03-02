@@ -46,4 +46,37 @@ export interface QuizResult {
   guest_access_expires_at?: string | null;
   purchase_date?: string | null;
   purchase_amount?: number | null;
+  primary_level?: string | number | null;
+}
+
+// Now, let's add the affiliate and commission tier types to address those errors
+export interface Affiliate {
+  id: string;
+  name: string;
+  email: string;
+  code: string;
+  commission_rate: number;
+  status: string;
+  total_sales: number;
+  earnings: number;
+  created_at: string;
+  updated_at: string;
+  conversions: number;
+}
+
+export interface CommissionTier {
+  id: string;
+  commission_rate: number;
+  min_sales: number;
+  max_sales: number | null;
+  created_at: string | null;
+  updated_at: string | null;
+  is_default: boolean;
+}
+
+// Add a type definition for UseAssessmentResultProps
+export interface UseAssessmentResultProps {
+  id?: string;
+  sessionId?: string;
+  email?: string;
 }

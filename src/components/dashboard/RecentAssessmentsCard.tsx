@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Loader2, ChevronRight, FileText, LockOpen } from "lucide-react";
 import { isPurchased } from "@/utils/purchaseStatus";
 import { formatDistanceToNow } from "date-fns";
+import { QuizResult } from "@/types/quiz";
 
 interface RecentAssessmentsCardProps {
-  assessments: any[];
+  assessments: QuizResult[];
   onUnlockReport: (reportId: string) => void;
   purchaseLoading: string | null;
 }

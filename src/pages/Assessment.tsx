@@ -1,3 +1,4 @@
+
 import { useParams } from "react-router-dom";
 import { DetailedReport } from "@/components/results/DetailedReport";
 import { AssessmentLoading } from "@/components/assessment/AssessmentLoading";
@@ -5,9 +6,10 @@ import { AssessmentNotFound } from "@/components/assessment/AssessmentNotFound";
 import { useAssessmentResult } from "@/hooks/useAssessmentResult";
 import { VerificationStatusIndicator } from "@/components/assessment/VerificationStatusIndicator";
 import { useState, useEffect } from "react";
+import { UseAssessmentResultProps } from "@/types/quiz";
 
 const Assessment = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const { 
     result,
     loading,
@@ -18,7 +20,7 @@ const Assessment = () => {
     verificationAttempts,
     refreshPage,
     runVerification
-  } = useAssessmentResult(id);
+  } = useAssessmentResult(id ? { id } : {});
   const [showVerificationSuccess, setShowVerificationSuccess] = useState(false);
   
   useEffect(() => {

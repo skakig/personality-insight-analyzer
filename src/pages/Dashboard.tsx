@@ -7,6 +7,7 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
 import { LoadingState } from "@/components/dashboard/LoadingState";
 import { toast } from "@/hooks/use-toast";
+import { QuizResult } from "@/types/quiz";
 
 export interface DashboardProps {
   session: Session | null;
