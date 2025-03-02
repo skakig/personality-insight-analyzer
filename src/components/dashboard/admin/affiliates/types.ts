@@ -12,6 +12,7 @@ export interface Affiliate {
   earnings: number;
   created_at: string;
   updated_at: string;
+  conversions?: number; // Added this property
 }
 
 export interface CommissionTier {

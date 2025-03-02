@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,14 +80,23 @@ export function CouponManagement() {
         return;
       }
 
+      // Map our form data to the structure expected by the database
+      const couponData = {
+        code: newCoupon.code,
+        discount_type: newCoupon.discount_type,
+        discount_amount: newCoupon.discount_value, // Rename this to match database column
+        max_uses: newCoupon.max_uses,
+        expires_at: newCoupon.expiration_date || null, // Use null if no date provided
+        is_active: newCoupon.is_active,
+        // Additional field for the description that might be stored in metadata or another field
+        // You might need to adjust this based on your database schema
+        description: newCoupon.description,
+        current_uses: 0 // Initialize with 0 uses
+      };
+
       const { data, error } = await supabase
         .from('coupons')
-        .insert([{
-          ...newCoupon,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          times_used: 0
-        }])
+        .insert([couponData])
         .select();
         
       if (error) throw error;
@@ -184,7 +194,7 @@ export function CouponManagement() {
 
   const filteredCoupons = coupons.filter(coupon => {
     const matchesSearch = coupon.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         coupon.description.toLowerCase().includes(searchQuery.toLowerCase());
+                         (coupon.description && coupon.description.toLowerCase().includes(searchQuery.toLowerCase()));
     
     if (activeTab === "all") return matchesSearch;
     if (activeTab === "active") return matchesSearch && coupon.is_active;
@@ -471,23 +481,23 @@ function CouponTable({ coupons, onToggleStatus, onDelete, onCopy, loading }) {
               </TableCell>
               <TableCell>
                 {coupon.discount_type === 'percentage' 
-                  ? `${coupon.discount_value}%` 
-                  : `$${coupon.discount_value.toFixed(2)}`
+                  ? `${coupon.discount_value || coupon.discount_amount}%` 
+                  : `$${(coupon.discount_value || coupon.discount_amount).toFixed(2)}`
                 }
               </TableCell>
               <TableCell>
                 <span className="text-sm">
-                  {coupon.times_used || 0} / {coupon.max_uses || '∞'}
+                  {coupon.times_used || coupon.current_uses || 0} / {coupon.max_uses || '∞'}
                 </span>
               </TableCell>
               <TableCell>
-                <Badge variant={coupon.is_active ? "success" : "secondary"}>
+                <Badge variant={coupon.is_active ? "default" : "secondary"}>
                   {coupon.is_active ? 'Active' : 'Inactive'}
                 </Badge>
               </TableCell>
               <TableCell>
-                {coupon.expiration_date 
-                  ? new Date(coupon.expiration_date).toLocaleDateString() 
+                {coupon.expiration_date || coupon.expires_at
+                  ? new Date(coupon.expiration_date || coupon.expires_at).toLocaleDateString() 
                   : 'No expiration'
                 }
               </TableCell>
