@@ -1,98 +1,57 @@
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Rocket, FileText, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { ChartBar, History, FileText } from "lucide-react";
-import { isPurchased, hasAnyPurchasedReport } from "@/utils/purchaseUtils";
 
-interface QuickActionsCardProps {
-  subscription: {
-    active: boolean;
-    assessments_used: number;
-    max_assessments: number;
-  } | null;
+export interface QuickActionsCardProps {
+  subscription: any;
   hasPurchasedReport: boolean;
   hasAvailableCredits: boolean;
 }
 
 export const QuickActionsCard = ({ 
   subscription, 
-  hasPurchasedReport,
+  hasPurchasedReport, 
   hasAvailableCredits 
 }: QuickActionsCardProps) => {
   const navigate = useNavigate();
-
-  const isButtonDisabled = !subscription?.active && !hasPurchasedReport && !hasAvailableCredits;
-  const buttonHelpText = !subscription?.active 
-    ? hasPurchasedReport 
-      ? "View Your Report"
-      : "Subscribe or purchase individual assessment"
-    : !hasAvailableCredits 
-      ? "Purchase more credits"
-      : "Start a new evaluation";
-
-  const handleAssessmentClick = () => {
-    if (hasPurchasedReport) {
-      navigate("/assessment-history");
-    } else if (subscription?.active && hasAvailableCredits) {
-      navigate("/assessment");
-    } else if (!subscription?.active) {
-      navigate("/pricing");
-    }
-  };
-
+  
   return (
-    <Card className="border-0 shadow-sm bg-white">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-xl font-medium">Quick Actions</CardTitle>
-        <CardDescription className="text-sm text-gray-500">
-          Manage your assessments
-        </CardDescription>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Quick Actions</CardTitle>
+        <CardDescription>Get started with these quick actions</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <Button 
-          className="w-full h-auto py-4 px-4 bg-gradient-to-br from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 shadow-sm"
-          onClick={handleAssessmentClick}
-          disabled={isButtonDisabled}
+          variant="outline" 
+          className="w-full justify-start" 
+          onClick={() => navigate('/')}
         >
-          <div className="flex items-center space-x-3">
-            <ChartBar className="h-5 w-5" />
-            <div className="text-left">
-              <div className="font-medium">Take Assessment</div>
-              <div className="text-xs opacity-90">
-                {buttonHelpText}
-              </div>
-            </div>
-          </div>
+          <Rocket className="mr-2 h-4 w-4" />
+          Take Assessment
         </Button>
         
-        {hasPurchasedReport ? (
+        {hasPurchasedReport && (
           <Button 
             variant="outline" 
-            className="w-full h-auto py-4 px-4 border border-gray-200 hover:bg-gray-50/50"
-            onClick={() => navigate("/assessment-history")}
+            className="w-full justify-start"
+            onClick={() => navigate('/assessments')}
           >
-            <div className="flex items-center space-x-3">
-              <FileText className="h-5 w-5" />
-              <div className="text-left">
-                <div className="font-medium">View Your Full Report</div>
-                <div className="text-xs text-gray-600">Access your detailed analysis</div>
-              </div>
-            </div>
+            <FileText className="mr-2 h-4 w-4" />
+            View Reports
           </Button>
-        ) : (
+        )}
+        
+        {subscription && subscription.active && (
           <Button 
             variant="outline" 
-            className="w-full h-auto py-4 px-4 border border-gray-200 hover:bg-gray-50/50"
-            onClick={() => navigate("/assessment-history")}
+            className="w-full justify-start"
+            onClick={() => navigate('/teams')}
           >
-            <div className="flex items-center space-x-3">
-              <History className="h-5 w-5" />
-              <div className="text-left">
-                <div className="font-medium">View History</div>
-                <div className="text-xs text-gray-600">See past results</div>
-              </div>
-            </div>
+            <Users className="mr-2 h-4 w-4" />
+            Team Assessment
           </Button>
         )}
       </CardContent>

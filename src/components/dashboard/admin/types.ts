@@ -1,18 +1,18 @@
 
-import { Quiz } from "@/types/quiz";
+import { QuizResult } from "@/types/quiz";
 
-export interface AdminState {
-  loading: boolean;
-  error: string | null;
-  coupons: Coupon[];
-  affiliates: Affiliate[];
-  commissionTiers: CommissionTier[];
+export interface AdminDashboardProps {
+  session: any;
 }
 
-export interface AdminSectionProps {
-  userId?: string;
-  title?: string;
-  children?: React.ReactNode;
+export interface CouponFormValues {
+  code: string;
+  discount_type: 'percentage' | 'fixed';
+  discount_amount: number;
+  max_uses: number | null;
+  expires_at: Date | null;
+  affiliate_id?: string | null;
+  applicable_products?: string[];
 }
 
 export interface Coupon {
@@ -24,51 +24,33 @@ export interface Coupon {
   current_uses: number;
   expires_at: string | null;
   is_active: boolean;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
   affiliate_id: string | null;
-  applicable_products: string[] | null;
+  applicable_products: string[];
 }
 
-export interface Affiliate {
+export interface CouponStats {
+  totalCoupons: number;
+  activeCoupons: number;
+  expiredCoupons: number;
+  totalRedeemed: number;
+  topCoupon: Coupon | null;
+}
+
+export interface CouponUsage {
   id: string;
-  name: string;
-  email: string;
-  code: string;
-  commission_rate: number;
-  status: string;
-  total_sales: number;
-  earnings: number;
-  created_at: string;
-  updated_at: string | null;
-  conversions?: number;
+  coupon_id: string;
+  user_id: string | null;
+  used_at: string;
+  purchase_amount: number;
+  discount_amount: number;
+  guest_email: string | null;
 }
 
-export interface CommissionTier {
-  id: string;
-  tier_name?: string;
-  commission_rate: number;
-  min_sales: number;
-  max_sales: number | null;
-  is_default?: boolean;
-  created_at: string | null;
-  updated_at: string | null;
+export interface SchemaType {
+  current_version: number;
+  needs_update: boolean;
+  recommended_version: number;
 }
-
-export interface AffiliateFormData {
-  name: string;
-  email: string;
-  code: string;
-  commission_rate: number;
-}
-
-export interface CommissionTierFormData {
-  tier_name: string;
-  commission_rate: number;
-  min_sales: number;
-  max_sales: number | null;
-  is_default: boolean;
-}
-
-// Alias for backwards compatibility
-export type AffiliateCommissionTier = CommissionTier;

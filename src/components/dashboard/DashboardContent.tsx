@@ -54,6 +54,7 @@ export const DashboardContent = ({
     ? (subscription.assessments_used / subscription.max_assessments) * 100
     : 0;
   const hasAvailableCredits = hasSubscription && subscription.assessments_used < subscription.max_assessments;
+  const hasPurchasedReport = previousAssessments.some(assessment => assessment.is_purchased);
 
   const assessmentsToShow = paginatedAssessments.length > 0 ? paginatedAssessments : previousAssessments;
 
@@ -85,12 +86,16 @@ export const DashboardContent = ({
         />
         {hasSubscription && (
           <SubscriptionAlert 
-            used={subscription.assessments_used}
-            total={subscription.max_assessments}
+            assessmentsUsed={subscription.assessments_used}
+            maxAssessments={subscription.max_assessments}
             progress={subscriptionProgress}
           />
         )}
-        <QuickActionsCard />
+        <QuickActionsCard 
+          subscription={subscription}
+          hasPurchasedReport={hasPurchasedReport}
+          hasAvailableCredits={hasAvailableCredits}
+        />
         <CreditsSection />
       </div>
     </div>
