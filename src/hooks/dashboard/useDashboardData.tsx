@@ -10,6 +10,17 @@ export const useDashboardData = (session: Session | null) => {
   const [subscription, setSubscription] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [previousAssessments, setPreviousAssessments] = useState<QuizResult[]>([]);
+  const [filteredAssessments, setFilteredAssessments] = useState<QuizResult[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  
+  const totalPages = Math.ceil(filteredAssessments.length / itemsPerPage);
+  
+  const paginatedAssessments = filteredAssessments.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const fetchData = async () => {
     try {
@@ -77,6 +88,7 @@ export const useDashboardData = (session: Session | null) => {
         })) : [];
         
         setPreviousAssessments(typedAssessments);
+        setFilteredAssessments(typedAssessments);
       }
     } catch (err: any) {
       console.error('Error in fetchData:', {
@@ -88,6 +100,36 @@ export const useDashboardData = (session: Session | null) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const searchAssessments = (query: string) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setFilteredAssessments(previousAssessments);
+    } else {
+      const normalizedQuery = query.toLowerCase().trim();
+      const filtered = previousAssessments.filter(assessment => {
+        const createdDate = new Date(assessment.created_at).toLocaleDateString();
+        const level = assessment.primary_level ? `Level ${assessment.primary_level}` : '';
+        
+        return (
+          createdDate.toLowerCase().includes(normalizedQuery) ||
+          level.toLowerCase().includes(normalizedQuery)
+        );
+      });
+      setFilteredAssessments(filtered);
+    }
+    // Reset to first page when searching
+    setCurrentPage(1);
+  };
+
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+
+  const changeItemsPerPage = (items: number) => {
+    setItemsPerPage(items);
+    setCurrentPage(1); // Reset to first page when changing items per page
   };
 
   useEffect(() => {
@@ -123,6 +165,15 @@ export const useDashboardData = (session: Session | null) => {
     subscription,
     error,
     previousAssessments,
-    fetchData
+    paginatedAssessments,
+    filteredAssessments,
+    searchQuery,
+    currentPage,
+    totalPages,
+    itemsPerPage,
+    fetchData,
+    searchAssessments,
+    goToPage,
+    changeItemsPerPage
   };
 };

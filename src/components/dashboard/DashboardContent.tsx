@@ -1,13 +1,12 @@
 
 import { Session } from "@supabase/supabase-js";
-import { RecentAssessmentsCard } from "./RecentAssessmentsCard";
-import { QuickActionsCard } from "./QuickActionsCard";
-import { SubscriptionCard } from "./SubscriptionCard";
-import { NoSubscriptionCard } from "./subscription/NoSubscriptionCard";
-import { DashboardError } from "./content/DashboardError";
-import { AdminPanel } from "./content/AdminPanel";
-import { CreditsSection } from "./content/CreditsSection";
-import { ReportUnlockHandler } from "./content/ReportUnlockHandler";
+import { RecentAssessmentsCard } from "@/components/dashboard/RecentAssessmentsCard";
+import { DashboardError } from "@/components/dashboard/content/DashboardError";
+import { SubscriptionCard } from "@/components/dashboard/SubscriptionCard";
+import { QuickActionsCard } from "@/components/dashboard/QuickActionsCard";
+import { CreditsSection } from "@/components/dashboard/content/CreditsSection";
+import { SubscriptionAlert } from "@/components/dashboard/subscription/SubscriptionAlert";
+import { useState } from "react";
 import { QuizResult } from "@/types/quiz";
 
 interface DashboardContentProps {
@@ -15,54 +14,83 @@ interface DashboardContentProps {
   error: string | null;
   previousAssessments: QuizResult[];
   session: Session | null;
+  currentPage?: number;
+  totalPages?: number;
+  searchQuery?: string;
+  itemsPerPage?: number;
+  onSearch?: (query: string) => void;
+  onPageChange?: (page: number) => void;
+  onItemsPerPageChange?: (items: number) => void;
+  paginatedAssessments?: QuizResult[];
 }
 
 export const DashboardContent = ({
   subscription,
   error,
   previousAssessments,
-  session
+  session,
+  currentPage = 1,
+  totalPages = 1,
+  searchQuery = "",
+  itemsPerPage = 10,
+  onSearch = () => {},
+  onPageChange = () => {},
+  onItemsPerPageChange = () => {},
+  paginatedAssessments = []
 }: DashboardContentProps) => {
-  // Calculate if user has any purchased reports
-  const hasPurchasedReport = previousAssessments.some(assessment => 
-    assessment.is_purchased || assessment.is_detailed
-  );
-  
-  // Calculate if user has available credits
-  const hasAvailableCredits = subscription ? 
-    subscription.assessments_used < subscription.max_assessments : false;
+  const [purchaseLoading, setPurchaseLoading] = useState<string | null>(null);
 
-  // Check if user is admin to show admin panel
-  const isAdmin = session?.user?.id === '32adf500-c102-4b14-a6a4-f8aa38f337c6';
+  const handleUnlockReport = (reportId: string) => {
+    setPurchaseLoading(reportId);
+    // Here you would implement the unlock functionality
+    // After the operation is complete, reset purchaseLoading
+    setTimeout(() => {
+      setPurchaseLoading(null);
+    }, 1000);
+  };
+
+  const hasSubscription = subscription && subscription.active;
+  const subscriptionProgress = hasSubscription 
+    ? (subscription.assessments_used / subscription.max_assessments) * 100
+    : 0;
+  const hasAvailableCredits = hasSubscription && subscription.assessments_used < subscription.max_assessments;
+
+  const assessmentsToShow = paginatedAssessments.length > 0 ? paginatedAssessments : previousAssessments;
+
+  if (error) {
+    return <DashboardError error={error} />;
+  }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2 space-y-6">
-        <DashboardError error={error} />
-        
-        <ReportUnlockHandler session={session}>
-          {({ purchaseLoading, handleUnlockReport }) => (
-            <RecentAssessmentsCard 
-              assessments={previousAssessments}
-              onUnlockReport={handleUnlockReport}
-              purchaseLoading={purchaseLoading}
-            />
-          )}
-        </ReportUnlockHandler>
-        
-        <AdminPanel isAdmin={isAdmin} />
-      </div>
-      <div className="space-y-6">
-        <QuickActionsCard 
-          subscription={subscription}
-          hasPurchasedReport={hasPurchasedReport}
-          hasAvailableCredits={hasAvailableCredits}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="md:col-span-2 space-y-6">
+        <RecentAssessmentsCard 
+          assessments={assessmentsToShow}
+          onUnlockReport={handleUnlockReport}
+          purchaseLoading={purchaseLoading}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          searchQuery={searchQuery}
+          itemsPerPage={itemsPerPage}
+          onSearch={onSearch}
+          onPageChange={onPageChange}
+          onItemsPerPageChange={onItemsPerPageChange}
         />
-        {subscription ? (
-          <SubscriptionCard subscription={subscription} error={null} />
-        ) : (
-          <NoSubscriptionCard />
+      </div>
+      
+      <div className="space-y-6">
+        <SubscriptionCard 
+          subscription={subscription} 
+          error={error} 
+        />
+        {hasSubscription && (
+          <SubscriptionAlert 
+            used={subscription.assessments_used}
+            total={subscription.max_assessments}
+            progress={subscriptionProgress}
+          />
         )}
+        <QuickActionsCard />
         <CreditsSection />
       </div>
     </div>
