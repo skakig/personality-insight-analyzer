@@ -37,7 +37,7 @@ export interface QuizResult {
   purchase_initiated_at?: string;
   purchase_completed_at?: string;
   created_at: string;
-  updated_at?: string;
+  updated_at?: string | null;
   detailed_analysis?: string;
   category_scores?: Record<string, number> | null;
   answers?: any;
@@ -61,7 +61,7 @@ export interface Affiliate {
   earnings: number;
   created_at: string;
   updated_at: string | null;
-  conversions: number;
+  conversions?: number;
 }
 
 export interface CommissionTier {
