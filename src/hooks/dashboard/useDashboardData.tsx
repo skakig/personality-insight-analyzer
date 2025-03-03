@@ -70,8 +70,8 @@ export const useDashboardData = (session: Session | null) => {
           guest_access_expires_at: assessment.guest_access_expires_at,
           purchase_date: assessment.purchase_date,
           purchase_amount: assessment.purchase_amount,
-          primary_level: assessment.primary_level,
-          conversions: assessment.conversions
+          primary_level: assessment.primary_level || null,
+          conversions: assessment.conversions || 0
         })) : [];
         
         setPreviousAssessments(typedAssessments);

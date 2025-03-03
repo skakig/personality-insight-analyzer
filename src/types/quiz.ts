@@ -72,7 +72,7 @@ export interface CommissionTier {
   max_sales: number | null;
   created_at: string | null;
   updated_at: string | null;
-  is_default: boolean;
+  is_default?: boolean;
 }
 
 export interface UseAssessmentResultProps {
