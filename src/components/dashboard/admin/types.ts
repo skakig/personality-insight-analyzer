@@ -9,6 +9,12 @@ export interface AdminState {
   commissionTiers: CommissionTier[];
 }
 
+export interface AdminSectionProps {
+  userId?: string;
+  title?: string;
+  children?: React.ReactNode;
+}
+
 export interface Coupon {
   id: string;
   code: string;
@@ -35,7 +41,7 @@ export interface Affiliate {
   earnings: number;
   created_at: string;
   updated_at: string | null;
-  conversions: number;
+  conversions?: number;
 }
 
 export interface CommissionTier {
@@ -44,7 +50,7 @@ export interface CommissionTier {
   commission_rate: number;
   min_sales: number;
   max_sales: number | null;
-  is_default: boolean;
+  is_default?: boolean;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -63,3 +69,6 @@ export interface CommissionTierFormData {
   max_sales: number | null;
   is_default: boolean;
 }
+
+// Alias for backwards compatibility
+export type AffiliateCommissionTier = CommissionTier;

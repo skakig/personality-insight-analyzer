@@ -63,7 +63,9 @@ export const useDashboardData = (session: Session | null) => {
           created_at: assessment.created_at,
           updated_at: assessment.updated_at || assessment.created_at,
           detailed_analysis: assessment.detailed_analysis,
-          category_scores: assessment.category_scores as Record<string, number> | null,
+          category_scores: typeof assessment.category_scores === 'string' 
+            ? JSON.parse(assessment.category_scores) 
+            : (assessment.category_scores as Record<string, number> | null),
           answers: assessment.answers,
           temp_access_token: assessment.temp_access_token,
           temp_access_expires_at: assessment.temp_access_expires_at,
