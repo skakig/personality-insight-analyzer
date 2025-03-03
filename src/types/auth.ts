@@ -1,4 +1,6 @@
+
 export interface AuthFormProps {
+  mode?: "signin" | "signup" | "reset";
   onSuccess: () => void;
 }
 

@@ -61,8 +61,6 @@ export const useAuthForm = () => {
         description: "Please check your email for password reset instructions.",
       });
       
-      // Return to login form after successful reset request
-      setShowResetForm(false);
     } catch (error: any) {
       console.error('Password reset error details:', {
         message: error.message,
@@ -102,6 +100,7 @@ export const useAuthForm = () => {
       } else {
         const { data, error } = await signIn({ email, password });
         if (error) throw error;
+        
         if (data?.session) {
           navigate("/dashboard");
         }

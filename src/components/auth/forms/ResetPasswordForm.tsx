@@ -1,71 +1,49 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { toast } from "@/components/ui/use-toast";
 import { AuthInput } from "../AuthInput";
-import { resetPassword } from "@/utils/auth";
+import { AlertCircle } from "lucide-react";
 
 interface ResetPasswordFormProps {
   email: string;
   onEmailChange: (value: string) => void;
   onBackToSignIn: () => void;
+  onSubmit: (e: React.FormEvent) => void;
+  loading: boolean;
+  errors: {email?: string};
+  setErrors: (errors: {email?: string}) => void;
 }
 
 export const ResetPasswordForm = ({ 
   email, 
   onEmailChange, 
-  onBackToSignIn 
+  onBackToSignIn,
+  onSubmit,
+  loading,
+  errors,
+  setErrors
 }: ResetPasswordFormProps) => {
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{email?: string}>({});
   const [resetSent, setResetSent] = useState(false);
 
-  const validateEmail = (email: string) => {
-    return /\S+@\S+\.\S+/.test(email);
-  };
-
-  const handlePasswordReset = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
       setErrors({ email: "Email is required for password reset" });
       return;
     }
 
-    if (!validateEmail(email)) {
+    if (!/\S+@\S+\.\S+/.test(email)) {
       setErrors({ email: "Please enter a valid email address" });
       return;
     }
 
-    setLoading(true);
-    try {
-      const { success, error } = await resetPassword(email);
-      
-      if (error) {
-        throw error;
-      }
-      
-      setResetSent(true);
-      
-      toast({
-        title: "Password Reset Email Sent",
-        description: "Please check your email for password reset instructions.",
-      });
-    } catch (error: any) {
-      console.error('Password reset error:', error);
-      toast({
-        title: "Password Reset Failed",
-        description: error.message || "Please try again later.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+    await onSubmit(e);
+    setResetSent(true);
   };
 
   return (
     <Card className="p-6">
-      <form onSubmit={handlePasswordReset} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
         <h2 className="text-2xl font-semibold text-center">Reset Password</h2>
         
         {resetSent ? (
@@ -98,6 +76,12 @@ export const ResetPasswordForm = ({
               placeholder="Email address"
               error={errors.email}
             />
+            {errors.email && (
+              <div className="flex items-center gap-2 text-red-500 text-sm">
+                <AlertCircle className="h-4 w-4" />
+                <p>{errors.email}</p>
+              </div>
+            )}
             <div className="space-y-4">
               <Button
                 type="submit"
