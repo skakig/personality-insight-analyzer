@@ -172,12 +172,15 @@ export const AdminSection = ({ userId }: AdminSectionProps) => {
         return;
       }
 
+      // Fix: Don't access protected properties directly
+      const apiUrl = `${process.env.VITE_SUPABASE_URL || 'https://caebnpbdprrptogirxky.supabase.co'}/functions/v1/manual-authorize-assessment`;
+      
       // Call the Supabase Edge Function to grant access
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/manual-authorize-assessment`, {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabase.supabaseKey}`
+          'Authorization': `Bearer ${process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhZWJucGJkcHJycHRvZ2lyeGt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc5MTcyODgsImV4cCI6MjA1MzQ5MzI4OH0.UWMAEN_06Ne2dAFDOS543B1C8K98GxCb0mQfFbWm7p8'}`
         },
         body: JSON.stringify({
           email: authEmail,
@@ -185,9 +188,14 @@ export const AdminSection = ({ userId }: AdminSectionProps) => {
         })
       });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
       const result = await response.json();
 
-      if (!response.ok || !result.success) {
+      if (!result.success) {
         throw new Error(result.error || 'Failed to grant access');
       }
 

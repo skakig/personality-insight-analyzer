@@ -42,7 +42,7 @@ serve(async (req) => {
           error: 'Unauthorized: Admin privileges required' 
         }),
         { 
-          status: 403, 
+          status: an: 403, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       );
