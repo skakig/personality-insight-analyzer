@@ -7,8 +7,10 @@ import {
   CardHeader,
   CardTitle, 
   CardDescription,
-  CardContent
+  CardContent,
+  CardFooter
 } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
@@ -23,6 +25,8 @@ export const AdminSection = ({ userId }: AdminSectionProps) => {
   const [couponCode, setCouponCode] = useState("");
   const [discountAmount, setDiscountAmount] = useState("");
   const [creatingCoupon, setCreatingCoupon] = useState(false);
+  const [authEmail, setAuthEmail] = useState("");
+  const [grantingAccess, setGrantingAccess] = useState(false);
 
   useEffect(() => {
     if (userId) {
@@ -154,6 +158,58 @@ export const AdminSection = ({ userId }: AdminSectionProps) => {
     }
   };
 
+  const grantAssessmentAccess = async () => {
+    try {
+      setGrantingAccess(true);
+      
+      // Validate inputs
+      if (!authEmail) {
+        toast({
+          title: "Error",
+          description: "Please enter an email address",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Call the Supabase Edge Function to grant access
+      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/manual-authorize-assessment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabase.supabaseKey}`
+        },
+        body: JSON.stringify({
+          email: authEmail,
+          adminId: userId
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to grant access');
+      }
+
+      toast({
+        title: "Success",
+        description: `Access granted for ${authEmail}!`,
+      });
+
+      // Reset form
+      setAuthEmail("");
+    } catch (error: any) {
+      console.error('Error granting assessment access:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to grant access",
+        variant: "destructive",
+      });
+    } finally {
+      setGrantingAccess(false);
+    }
+  };
+
   if (loading) {
     return (
       <Card>
@@ -177,36 +233,73 @@ export const AdminSection = ({ userId }: AdminSectionProps) => {
     <Card>
       <CardHeader>
         <CardTitle>Admin Controls</CardTitle>
-        <CardDescription>Create and manage discount coupons</CardDescription>
+        <CardDescription>Manage discounts and grant assessment access</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Input
-            placeholder="Coupon code (e.g. SAVE50)"
-            value={couponCode}
-            onChange={(e) => setCouponCode(e.target.value)}
-          />
-          <Input
-            type="number"
-            placeholder="Discount percentage (e.g. 50)"
-            value={discountAmount}
-            onChange={(e) => setDiscountAmount(e.target.value)}
-          />
-          <Button 
-            onClick={createCoupon} 
-            disabled={creatingCoupon}
-            className="w-full"
-          >
-            {creatingCoupon ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
-              </>
-            ) : (
-              'Create Coupon'
-            )}
-          </Button>
-        </div>
+        <Tabs defaultValue="coupons">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="coupons">Coupons</TabsTrigger>
+            <TabsTrigger value="authorize">Authorize Access</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="coupons" className="space-y-4">
+            <div className="space-y-2">
+              <Input
+                placeholder="Coupon code (e.g. SAVE50)"
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value)}
+              />
+              <Input
+                type="number"
+                placeholder="Discount percentage (e.g. 50)"
+                value={discountAmount}
+                onChange={(e) => setDiscountAmount(e.target.value)}
+              />
+              <Button 
+                onClick={createCoupon} 
+                disabled={creatingCoupon}
+                className="w-full"
+              >
+                {creatingCoupon ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  'Create Coupon'
+                )}
+              </Button>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="authorize" className="space-y-4">
+            <div className="space-y-2">
+              <div className="text-sm text-gray-600 mb-2">
+                Grant full assessment access to someone by email address
+              </div>
+              <Input
+                placeholder="Email address"
+                type="email"
+                value={authEmail}
+                onChange={(e) => setAuthEmail(e.target.value)}
+              />
+              <Button 
+                onClick={grantAssessmentAccess} 
+                disabled={grantingAccess}
+                className="w-full"
+              >
+                {grantingAccess ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Granting access...
+                  </>
+                ) : (
+                  'Grant Full Access'
+                )}
+              </Button>
+            </div>
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );
