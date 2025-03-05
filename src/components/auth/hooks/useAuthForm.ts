@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
-import { signIn, signUp, resetPassword } from "@/utils/auth";
+import { signIn, signUp } from "@/utils/auth";
 
 export const useAuthForm = () => {
   const [email, setEmail] = useState("");
@@ -32,51 +32,6 @@ export const useAuthForm = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Only validate email for password reset
-    if (!email) {
-      setErrors({ email: "Email is required for password reset" });
-      return;
-    }
-    
-    if (!/\S+@\S+\.\S+/.test(email)) {
-      setErrors({ email: "Please enter a valid email address" });
-      return;
-    }
-    
-    setLoading(true);
-    setErrors({});
-    
-    try {
-      console.log('Attempting password reset for:', email);
-      
-      const { success, error } = await resetPassword(email);
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Password Reset Email Sent",
-        description: "Please check your email for password reset instructions.",
-      });
-      
-    } catch (error: any) {
-      console.error('Password reset error details:', {
-        message: error.message,
-        timestamp: new Date().toISOString(),
-      });
-      
-      toast({
-        title: "Password Reset Failed",
-        description: error.message || "Failed to send reset instructions. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -100,7 +55,6 @@ export const useAuthForm = () => {
       } else {
         const { data, error } = await signIn({ email, password });
         if (error) throw error;
-        
         if (data?.session) {
           navigate("/dashboard");
         }
@@ -142,7 +96,6 @@ export const useAuthForm = () => {
     setShowResetForm,
     setIsSignUp,
     handleAuth,
-    handleResetPassword,
     setErrors
   };
 };

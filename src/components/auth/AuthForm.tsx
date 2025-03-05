@@ -3,9 +3,8 @@ import { AuthFormProps } from "@/types/auth";
 import { ResetPasswordForm } from "./forms/ResetPasswordForm";
 import { SignInUpForm } from "./forms/SignInUpForm";
 import { useAuthForm } from "./hooks/useAuthForm";
-import { useEffect } from "react";
 
-export const AuthForm = ({ mode = "signin", onSuccess }: AuthFormProps) => {
+export const AuthForm = ({ onSuccess }: AuthFormProps) => {
   const {
     email,
     setEmail,
@@ -18,23 +17,8 @@ export const AuthForm = ({ mode = "signin", onSuccess }: AuthFormProps) => {
     setShowResetForm,
     setIsSignUp,
     handleAuth,
-    handleResetPassword,
     setErrors
   } = useAuthForm();
-
-  // Set the initial mode based on prop
-  useEffect(() => {
-    if (mode === "signup") {
-      setIsSignUp(true);
-      setShowResetForm(false);
-    } else if (mode === "reset") {
-      setShowResetForm(true);
-      setIsSignUp(false);
-    } else {
-      setIsSignUp(false);
-      setShowResetForm(false);
-    }
-  }, [mode, setIsSignUp, setShowResetForm]);
 
   if (showResetForm) {
     return (
@@ -42,10 +26,6 @@ export const AuthForm = ({ mode = "signin", onSuccess }: AuthFormProps) => {
         email={email}
         onEmailChange={setEmail}
         onBackToSignIn={() => setShowResetForm(false)}
-        onSubmit={handleResetPassword}
-        loading={loading}
-        errors={errors}
-        setErrors={setErrors}
       />
     );
   }

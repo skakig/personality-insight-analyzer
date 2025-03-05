@@ -1,143 +1,141 @@
 
-import { useDatabaseUpdateStrategies } from './useDatabaseUpdateStrategies';
-import { useStandardVerification } from './useStandardVerification';
-import { useState } from 'react';
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import { useStripeReturnHandler } from "./useStripeReturnHandler";
+import { useVerificationFlowProcessor } from "./useVerificationFlowProcessor";
 
+/**
+ * Coordinates the verification flow processes
+ */
 export const useVerificationCoordinator = () => {
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [verificationComplete, setVerificationComplete] = useState(false);
-  const [verificationSuccess, setVerificationSuccess] = useState(false);
-  
-  const databaseStrategies = useDatabaseUpdateStrategies();
-  const standardVerification = useStandardVerification();
-  
-  // Add compatibility methods
-  const updateResultForUser = async (resultId: string, userId: string) => {
-    return await databaseStrategies.updateForCheckoutSuccess(resultId, userId, undefined);
-  };
-  
-  const updateResultWithSessionId = async (resultId: string, sessionId: string) => {
-    return await databaseStrategies.updateForCheckoutSuccess(resultId, undefined, sessionId);
-  };
-  
-  const tryFallbackUpdates = async ({ id, userId, sessionId, guestEmail }: { 
-    id: string, 
-    userId?: string, 
-    sessionId?: string, 
-    guestEmail?: string 
-  }) => {
-    return await standardVerification.performLastResortVerification(id);
-  };
-  
-  // Run verification in a sequence of attempts
-  const runVerificationSequence = async (
-    resultId: string,
-    userId?: string,
-    trackingId?: string,
-    sessionId?: string, 
-    guestToken?: string,
-    guestEmail?: string
+  const { handleStripeReturn } = useStripeReturnHandler();
+  const { attemptDirectUpdate, handleMaxRetriesExceeded } = useVerificationFlowProcessor();
+
+  /**
+   * Execute the verification flow for a purchase
+   */
+  const executeVerificationFlow = async (
+    id: string | undefined, 
+    options: {
+      userId?: string;
+      stripeSessionId?: string;
+      isPostPurchase: boolean;
+      storedResultId?: string;
+      maxRetries: number;
+    },
+    verificationState: {
+      verificationAttempts: number;
+      startVerification: () => void;
+      stopVerification: () => void;
+    },
+    handlers: {
+      setResult: (result: any) => void;
+      setLoading: (loading: boolean) => void;
+      verifyPurchase: (id: string) => Promise<boolean>;
+    }
   ) => {
-    try {
-      setIsVerifying(true);
-      setVerificationComplete(false);
-      setVerificationSuccess(false);
-      
-      console.log('Starting verification sequence for result:', resultId);
-      
-      // Try standard verification
-      const result = await standardVerification.performStandardVerification(
-        resultId,
-        userId,
-        trackingId,
-        sessionId,
-        guestToken,
-        guestEmail
-      );
-      
-      if (result) {
-        console.log('Standard verification successful');
-        setVerificationSuccess(true);
-        setVerificationComplete(true);
-        setIsVerifying(false);
-        return result;
-      }
-      
-      console.log('Standard verification failed, trying fallback');
-      
-      // Try fallback verification
-      const fallbackResult = await standardVerification.performLastResortVerification(resultId);
-      
-      setVerificationComplete(true);
-      setIsVerifying(false);
-      
-      if (fallbackResult) {
-        console.log('Fallback verification successful');
-        setVerificationSuccess(true);
-        return fallbackResult;
-      }
-      
-      console.log('All verification attempts failed');
-      return null;
-    } catch (error) {
-      console.error('Verification sequence error:', error);
-      setVerificationComplete(true);
-      setIsVerifying(false);
+    const { userId, stripeSessionId, isPostPurchase, storedResultId, maxRetries } = options;
+    const { verificationAttempts, startVerification, stopVerification } = verificationState;
+    const { setResult, setLoading, verifyPurchase } = handlers;
+    
+    console.log('Initiating purchase verification flow', {
+      id,
+      userId,
+      stripeSessionId,
+      isPostPurchase
+    });
+    
+    const verificationId = id || storedResultId;
+    
+    if (!verificationId) {
+      console.error('No result ID available for verification');
+      toast({
+        title: "Verification Error",
+        description: "Missing result ID. Please try accessing your report from the dashboard.",
+        variant: "destructive",
+      });
+      setLoading(false);
       return null;
     }
-  };
-  
-  // Standard verification for simpler interfaces
-  const runStandardVerification = async (
-    resultId: string,
-    userId?: string,
-    trackingId?: string,
-    sessionId?: string,
-    guestToken?: string,
-    guestEmail?: string
-  ) => {
-    setIsVerifying(true);
-    try {
-      const result = await standardVerification.performStandardVerification(
-        resultId,
+    
+    // First, try to handle direct return from Stripe
+    if (isPostPurchase || stripeSessionId) {
+      const stripeReturnResult = await handleStripeReturn(verificationId, {
+        userId, 
+        sessionId: stripeSessionId
+      });
+      
+      if (stripeReturnResult) {
+        console.log('Successfully processed Stripe return directly');
+        setResult(stripeReturnResult);
+        setLoading(false);
+        return stripeReturnResult;
+      }
+    }
+    
+    // Last resort - attempt direct update if all else fails
+    if (verificationAttempts >= 1 && userId) {
+      console.log('Attempting direct database update as fallback for logged-in user');
+      
+      const directResult = await attemptDirectUpdate(
+        verificationId, 
         userId,
-        trackingId,
-        sessionId,
-        guestToken,
-        guestEmail
+        stripeSessionId
       );
       
-      setVerificationSuccess(!!result);
-      return result;
-    } finally {
-      setVerificationComplete(true);
-      setIsVerifying(false);
+      if (directResult) {
+        setResult(directResult);
+        setLoading(false);
+        stopVerification();
+        return directResult;
+      }
     }
-  };
-  
-  // Fallback verification for simpler interfaces
-  const runFallbackVerification = async (resultId: string) => {
-    setIsVerifying(true);
-    try {
-      const result = await standardVerification.performLastResortVerification(resultId);
-      setVerificationSuccess(!!result);
-      return result;
-    } finally {
-      setVerificationComplete(true);
-      setIsVerifying(false);
+    
+    // Maximum retries check
+    if (verificationAttempts >= maxRetries) {
+      return await handleMaxRetriesExceeded(verificationId, {
+        stripeSessionId,
+        userId
+      });
     }
+    
+    // Standard verification attempt
+    let success = await verifyPurchase(verificationId);
+    
+    // If first attempt fails and this is directly after purchase, try again
+    if (!success && isPostPurchase) {
+      console.log('First attempt failed, trying again after short delay');
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      success = await verifyPurchase(verificationId);
+    }
+    
+    // If verification failed, use fallback methods
+    if (!success) {
+      toast({
+        title: "Verification in progress",
+        description: "We're still processing your purchase. Please wait a moment...",
+      });
+      
+      console.log('Attempting direct database update as fallback');
+      const finalResult = await attemptDirectUpdate(
+        verificationId,
+        userId,
+        stripeSessionId
+      );
+      
+      if (finalResult) {
+        console.log('Direct database update successful!');
+        setResult(finalResult);
+        setLoading(false);
+        stopVerification();
+        return finalResult;
+      }
+    }
+    
+    return null;
   };
-  
+
   return {
-    runVerificationSequence,
-    updateResultForUser,
-    updateResultWithSessionId,
-    tryFallbackUpdates,
-    runStandardVerification,
-    runFallbackVerification,
-    isVerifying,
-    verificationComplete,
-    verificationSuccess,
-    ...databaseStrategies
+    executeVerificationFlow
   };
 };

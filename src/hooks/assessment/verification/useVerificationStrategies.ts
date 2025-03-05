@@ -1,194 +1,229 @@
 
-import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { verifyPurchaseWithRetry } from "@/utils/purchaseUtils";
+import { toast } from "@/hooks/use-toast";
 import { storePurchaseData } from "@/utils/purchaseStateUtils";
 
 /**
- * Provides strategies for direct database updates during purchase verification
+ * Provides strategies for verifying purchases through different methods
  */
-export const useVerificationStrategies = () => {
+export const useVerificationStrategies = (
+  setResult: (result: any) => void,
+  setLoading: (loading: boolean) => void,
+  stopVerification: () => void
+) => {
   
   /**
-   * Attempts to update a result for a specific user
+   * Verifies a purchase for a logged-in user using their user ID
    */
-  const updateResultForUser = async (resultId: string, userId: string) => {
-    try {
-      console.log('Attempting to update result for user:', { resultId, userId });
-      
-      const { error } = await supabase
-        .from('quiz_results')
-        .update({
-          user_id: userId,
-          is_purchased: true,
-          is_detailed: true,
-          purchase_status: 'completed',
-          purchase_completed_at: new Date().toISOString(),
-          access_method: 'purchase'
-        })
-        .eq('id', resultId);
-        
-      if (error) {
-        console.error('Error updating result for user:', error);
-        return false;
-      }
-      
-      console.log('Successfully updated result for user');
+  const verifyForLoggedInUser = async (id: string, userId: string, sessionId?: string | null) => {
+    console.log('Attempting verification for logged-in user:', userId);
+    
+    // First check if this result belongs to the user and is already purchased
+    const { data: userResult } = await supabase
+      .from('quiz_results')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .maybeSingle();
+    
+    if (userResult?.is_purchased || userResult?.is_detailed) {
+      console.log('Result already purchased for logged in user');
+      setResult(userResult);
+      setLoading(false);
+      stopVerification();
       return true;
-    } catch (error) {
-      console.error('Exception during user result update:', error);
-      return false;
     }
-  };
-  
-  /**
-   * Attempts to update a result with a specific session ID
-   */
-  const updateResultWithSessionId = async (resultId: string, sessionId: string) => {
-    try {
-      console.log('Attempting to update result with session ID:', { resultId, sessionId });
+    
+    // Update the database for logged-in user
+    console.log('Updating result for user ID:', userId);
+    const { error: updateError } = await supabase
+      .from('quiz_results')
+      .update({ 
+        is_purchased: true,
+        is_detailed: true,
+        purchase_status: 'completed',
+        purchase_completed_at: new Date().toISOString(),
+        access_method: 'purchase'
+      })
+      .eq('id', id)
+      .eq('user_id', userId);
       
-      const { error } = await supabase
+    if (!updateError) {
+      // Fetch the updated result
+      const { data: updatedResult } = await supabase
         .from('quiz_results')
-        .update({
-          is_purchased: true,
-          is_detailed: true,
-          purchase_status: 'completed',
-          purchase_completed_at: new Date().toISOString(),
-          access_method: 'purchase'
-        })
-        .eq('id', resultId)
-        .eq('stripe_session_id', sessionId);
-        
-      if (error) {
-        console.error('Error updating result with session ID:', error);
-        return false;
-      }
-      
-      console.log('Successfully updated result with session ID');
-      return true;
-    } catch (error) {
-      console.error('Exception during session result update:', error);
-      return false;
-    }
-  };
-  
-  /**
-   * Attempts various fallback update strategies
-   */
-  const tryFallbackUpdates = async ({ 
-    id, 
-    userId, 
-    sessionId, 
-    guestEmail 
-  }: { 
-    id: string; 
-    userId?: string | null; 
-    sessionId?: string | null; 
-    guestEmail?: string | null; 
-  }) => {
-    try {
-      console.log('Attempting fallback updates with:', { id, userId, sessionId, guestEmail });
-      
-      // Try each strategy in succession
-      let updateSuccess = false;
-      
-      // 1. Try with User ID if available
-      if (userId) {
-        const { error } = await supabase
-          .from('quiz_results')
-          .update({
-            user_id: userId,
-            is_purchased: true,
-            is_detailed: true,
-            purchase_status: 'completed',
-            purchase_completed_at: new Date().toISOString(),
-            access_method: 'purchase'
-          })
-          .eq('id', id);
+        .select('*')
+        .eq('id', id)
+        .eq('user_id', userId)
+        .maybeSingle();
           
-        updateSuccess = !error;
+      if (updatedResult) {
+        console.log('Successfully fetched updated result for logged-in user');
+        setResult(updatedResult);
+        setLoading(false);
+        stopVerification();
+        toast({
+          title: "Purchase verified!",
+          description: "Your detailed report is now available.",
+        });
         
-        if (updateSuccess) {
-          console.log('Fallback update successful with user ID');
-          return true;
-        }
-      }
-      
-      // 2. Try with Session ID if available
-      if (sessionId) {
-        const { error } = await supabase
-          .from('quiz_results')
-          .update({
-            is_purchased: true,
-            is_detailed: true,
-            purchase_status: 'completed',
-            purchase_completed_at: new Date().toISOString(),
-            stripe_session_id: sessionId,
-            access_method: 'purchase'
-          })
-          .eq('id', id);
-          
-        updateSuccess = !error;
-        
-        if (updateSuccess) {
-          console.log('Fallback update successful with session ID');
-          return true;
-        }
-      }
-      
-      // 3. Try with Guest Email if available
-      if (guestEmail) {
-        const { error } = await supabase
-          .from('quiz_results')
-          .update({
-            is_purchased: true,
-            is_detailed: true,
-            purchase_status: 'completed',
-            purchase_completed_at: new Date().toISOString(),
-            guest_email: guestEmail,
-            access_method: 'purchase'
-          })
-          .eq('id', id);
-          
-        updateSuccess = !error;
-        
-        if (updateSuccess) {
-          console.log('Fallback update successful with guest email');
-          return true;
-        }
-      }
-      
-      // 4. Last resort - just try with ID only
-      const { error } = await supabase
-        .from('quiz_results')
-        .update({
-          is_purchased: true,
-          is_detailed: true,
-          purchase_status: 'completed',
-          purchase_completed_at: new Date().toISOString(),
-          access_method: 'purchase'
-        })
-        .eq('id', id);
-        
-      updateSuccess = !error;
-      
-      if (updateSuccess) {
-        console.log('Fallback update successful with ID only');
+        // Keep the result ID in case we need it later
+        storePurchaseData(id, sessionId || '', userId);
         return true;
       }
-      
-      console.log('All fallback updates failed');
-      return false;
-    } catch (error) {
-      console.error('Exception during fallback updates:', error);
-      return false;
+    } else {
+      console.error('Error updating result for logged-in user:', updateError);
     }
+    
+    return false;
+  };
+  
+  /**
+   * Verifies a purchase using the Stripe session ID
+   */
+  const verifyWithSessionId = async (id: string, sessionId: string, userId?: string) => {
+    console.log('Attempting verification with session ID:', sessionId);
+    
+    // First sync the session ID with the result if needed
+    try {
+      console.log('Syncing session ID with result:', { resultId: id, sessionId });
+      await supabase
+        .from('quiz_results')
+        .update({ stripe_session_id: sessionId })
+        .eq('id', id);
+    } catch (syncError) {
+      console.error('Session ID sync error (non-critical):', syncError);
+    }
+    
+    // Update result with session ID
+    const { error: updateError } = await supabase
+      .from('quiz_results')
+      .update({ 
+        is_purchased: true,
+        is_detailed: true,
+        purchase_status: 'completed',
+        purchase_completed_at: new Date().toISOString(),
+        access_method: 'purchase',
+        stripe_session_id: sessionId
+      })
+      .eq('id', id)
+      .eq('stripe_session_id', sessionId);
+        
+    if (!updateError) {
+      // Fetch the updated result
+      const { data: sessionResult } = await supabase
+        .from('quiz_results')
+        .select('*')
+        .eq('id', id)
+        .eq('stripe_session_id', sessionId)
+        .maybeSingle();
+            
+      if (sessionResult) {
+        console.log('Successfully fetched updated result via session ID');
+        setResult(sessionResult);
+        setLoading(false);
+        stopVerification();
+        toast({
+          title: "Purchase verified!",
+          description: "Your detailed report is now available.",
+        });
+        storePurchaseData(id, sessionId, userId);
+        return true;
+      }
+    } else {
+      console.error('Error updating result with session ID:', updateError);
+    }
+    
+    // If the update with exact session ID match failed, try a direct update
+    // This handles cases where the session ID might have been stored slightly differently
+    const { error: directError } = await supabase
+      .from('quiz_results')
+      .update({ 
+        is_purchased: true,
+        is_detailed: true,
+        purchase_status: 'completed',
+        purchase_completed_at: new Date().toISOString(),
+        access_method: 'purchase',
+        stripe_session_id: sessionId
+      })
+      .eq('id', id);
+      
+    if (!directError) {
+      // Fetch the updated result
+      const { data: directResult } = await supabase
+        .from('quiz_results')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+            
+      if (directResult) {
+        console.log('Successfully fetched updated result via direct update with session ID');
+        setResult(directResult);
+        setLoading(false);
+        stopVerification();
+        toast({
+          title: "Purchase verified!",
+          description: "Your detailed report is now available.",
+        });
+        storePurchaseData(id, sessionId, userId);
+        return true;
+      }
+    } else {
+      console.error('Error with direct session ID update:', directError);
+    }
+    
+    return false;
+  };
+  
+  /**
+   * Final fallback verification - try direct update without filters
+   */
+  const performFallbackVerification = async (id: string, userId?: string, sessionId?: string | null) => {
+    console.log('Trying direct database update as last resort');
+    
+    // Try without any filters
+    const { error: updateError } = await supabase
+      .from('quiz_results')
+      .update({ 
+        is_purchased: true,
+        is_detailed: true,
+        purchase_status: 'completed',
+        purchase_completed_at: new Date().toISOString(),
+        access_method: 'purchase'
+      })
+      .eq('id', id);
+        
+    if (!updateError) {
+      const { data: updatedResult } = await supabase
+        .from('quiz_results')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+          
+      if (updatedResult) {
+        console.log('Last resort update successful!');
+        setResult(updatedResult);
+        setLoading(false);
+        stopVerification();
+        toast({
+          title: "Purchase verified!",
+          description: "Your detailed report is now available.",
+        });
+        if (sessionId) {
+          storePurchaseData(id, sessionId, userId);
+        }
+        return true;
+      }
+    } else {
+      console.error('Last resort update failed:', updateError);
+    }
+    
+    return false;
   };
   
   return {
-    updateResultForUser,
-    updateResultWithSessionId,
-    tryFallbackUpdates
+    verifyForLoggedInUser,
+    verifyWithSessionId,
+    performFallbackVerification
   };
 };

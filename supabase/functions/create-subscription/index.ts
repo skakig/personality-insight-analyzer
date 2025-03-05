@@ -1,180 +1,131 @@
 
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.1';
-import Stripe from 'https://esm.sh/stripe@12.16.0?target=deno';
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import Stripe from 'https://esm.sh/stripe@14.21.0';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
-// Define CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-deno-subhost',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Max-Age': '86400',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Initialize Supabase client
-const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-// Initialize Stripe
-const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY') ?? '';
-const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2023-08-16',
-  httpClient: Stripe.createFetchHttpClient(),
-});
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+);
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: corsHeaders,
-    });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Parse request
-    const { priceId, mode = 'subscription', metadata = {}, couponCode } = await req.json();
-    console.log('Creating subscription session:', { priceId, mode, couponCode });
+    const { priceId, mode = 'subscription', metadata = {}, email } = await req.json();
 
-    // Validate input
-    if (!priceId) {
-      throw new Error('Missing required parameter: priceId');
-    }
+    // Extract authorization header
+    const authHeader = req.headers.get('Authorization');
+    let userId = null;
 
-    // Get price details from Stripe
-    const price = await stripe.prices.retrieve(priceId);
-    if (!price) {
-      throw new Error(`Invalid price ID: ${priceId}`);
-    }
-
-    let discountAmount = 0;
-    let affiliateId = null;
-    const lineItems = [{
-      price: priceId,
-      quantity: 1,
-    }];
-
-    // Handle coupon if provided
-    if (couponCode) {
-      // Check if coupon exists and is valid
-      const { data: coupon, error: couponError } = await supabase
-        .from('coupons')
-        .select('*')
-        .eq('code', couponCode.toUpperCase())
-        .eq('is_active', true)
-        .single();
-
-      if (couponError) {
-        console.error('Error fetching coupon:', couponError);
-      } else if (coupon) {
-        // Check if coupon applies to subscriptions
-        const isApplicable = !coupon.applicable_products || 
-                           coupon.applicable_products.length === 0 || 
-                           coupon.applicable_products.includes('subscription');
-        
-        if (!isApplicable) {
-          console.log('Coupon not applicable to subscriptions');
-        } else if (coupon.max_uses && coupon.current_uses >= coupon.max_uses) {
-          console.log('Coupon has reached maximum uses');
-        } else if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
-          console.log('Coupon has expired');
-        } else {
-          // Calculate discount
-          if (price.unit_amount) {
-            if (coupon.discount_type === 'percentage') {
-              discountAmount = Math.round(price.unit_amount * (coupon.discount_amount / 100));
-            } else {
-              discountAmount = coupon.discount_amount;
-            }
-          }
-          
-          affiliateId = coupon.affiliate_id;
-          
-          // Apply coupon in DB
-          await supabase
-            .from('coupons')
-            .update({ current_uses: (coupon.current_uses || 0) + 1 })
-            .eq('id', coupon.id);
-            
-          console.log(`Applied coupon ${couponCode}:`, { 
-            originalPrice: price.unit_amount, 
-            discountAmount,
-            discountType: coupon.discount_type
-          });
-        }
+    if (authHeader) {
+      // Get user ID from auth header if it exists
+      const { data: { user }, error } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
+      if (!error && user) {
+        userId = user.id;
       }
     }
 
-    // Enhanced metadata
-    const enhancedMetadata = {
-      productType: 'subscription',
-      priceId,
-      couponCode: couponCode || null,
-      discountAmount,
-      affiliateId,
-      ...metadata
-    };
+    // Validate required parameters
+    if (!priceId) {
+      console.error('Missing priceId parameter');
+      return new Response(
+        JSON.stringify({ error: 'Price ID is required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
 
-    // Create Stripe checkout session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: lineItems,
-      mode,
-      success_url: `${req.headers.get('origin')}/dashboard?subscribed=true`,
-      cancel_url: `${req.headers.get('origin')}/pricing?canceled=true`,
-      metadata: enhancedMetadata,
-      ...(discountAmount > 0 && price.unit_amount ? {
-        discounts: [{
-          coupon: await stripe.coupons.create({
-            amount_off: discountAmount,
-            currency: price.currency,
-            duration: 'once',
-            name: `Coupon ${couponCode}`
-          })
-        }]
-      } : {})
+    console.log('Processing subscription request:', { priceId, mode, metadata, userId });
+
+    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+      apiVersion: '2023-10-16',
     });
 
-    // If we have an affiliateId and discount was applied, record usage
-    if (affiliateId && discountAmount > 0 && price.unit_amount) {
-      await supabase
-        .from('coupon_usage')
+    // Create customer if email is provided (guest checkout)
+    let customer;
+    if (email && !userId) {
+      const customers = await stripe.customers.list({ email });
+      customer = customers.data[0] || await stripe.customers.create({ email });
+      
+      // Store guest subscription info
+      const { error: guestError } = await supabase
+        .from('guest_subscriptions')
         .insert({
-          coupon_id: affiliateId,
-          purchase_amount: price.unit_amount,
-          discount_amount: discountAmount
+          email,
+          stripe_customer_id: customer.id,
+          stripe_price_id: priceId,
+          plan_type: mode === 'subscription' ? 'pro' : 'individual',
+          status: 'pending'
         });
+
+      if (guestError) {
+        console.error('Error storing guest subscription:', guestError);
+      }
     }
 
-    console.log('Subscription session created successfully:', session.id);
-    
+    // Create a basic checkout session configuration
+    const sessionConfig = {
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
+        },
+      ],
+      mode,
+      success_url: `${req.headers.get('origin')}/dashboard?success=true`,
+      cancel_url: `${req.headers.get('origin')}/pricing?canceled=true`,
+      metadata: {
+        userId,
+        isGuest: !userId,
+        ...metadata
+      },
+      allow_promotion_codes: true,
+      billing_address_collection: 'required',
+    };
+
+    // Add customer ID if available
+    if (customer?.id) {
+      Object.assign(sessionConfig, { customer: customer.id });
+    }
+
+    // Add payment_method_types for subscriptions
+    if (mode === 'subscription') {
+      Object.assign(sessionConfig, {
+        payment_method_types: ['card']
+      });
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionConfig);
+
+    // Update guest subscription with session ID if applicable
+    if (email && !userId) {
+      await supabase
+        .from('guest_subscriptions')
+        .update({ session_id: session.id })
+        .eq('email', email);
+    }
+
+    console.log('Created Stripe session:', session.id);
+
+    return new Response(
+      JSON.stringify({ url: session.url }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+    );
+  } catch (error) {
+    console.error('Error creating subscription:', error);
     return new Response(
       JSON.stringify({ 
-        url: session.url,
-        sessionId: session.id 
+        error: error.message,
+        details: error.toString() 
       }),
-      {
-        status: 200,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-  } catch (error) {
-    console.error('Subscription error:', error);
-    
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 400,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json',
-        },
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
     );
   }
 });

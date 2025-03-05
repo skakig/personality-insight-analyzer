@@ -1,74 +1,59 @@
 
-import { useState } from "react";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Book, Loader2 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
 
-export function PreOrderCTA() {
-  const [loading, setLoading] = useState(false);
-
+export const PreOrderCTA = () => {
   const handlePreOrder = async () => {
-    setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('create-book-checkout', {
-        body: { 
-          returnUrl: `${window.location.origin}/book?success=true`
-        }
+        method: 'POST',
       });
-
-      if (error) {
-        throw new Error(error.message || 'Failed to create checkout session');
-      }
       
-      if (!data?.url) {
-        throw new Error('No checkout URL received');
+      if (error) {
+        throw new Error(error.message);
       }
 
-      window.location.href = data.url;
-    } catch (error: any) {
-      console.error('Pre-order error:', error);
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to process pre-order. Please try again.",
+        description: "Failed to initiate checkout. Please try again.",
         variant: "destructive",
       });
-      setLoading(false);
     }
   };
 
   return (
-    <section className="py-16 bg-gradient-to-b from-white to-blue-50">
-      <div className="container mx-auto px-4 text-center">
-        <h2 className="text-3xl font-bold mb-6">Pre-Order Your Copy Today</h2>
-        <p className="max-w-2xl mx-auto mb-8 text-gray-600">
-          Be among the first to receive "The Moral Hierarchy" when it's released. 
-          Pre-order now to secure your copy and get exclusive bonuses.
-        </p>
-        <div className="max-w-md mx-auto">
-          <Button 
-            onClick={handlePreOrder} 
-            className="w-full px-8 py-6 text-xl rounded-full bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-            size="lg"
-            disabled={loading}
-          >
-            {loading ? (
-              <span className="flex items-center justify-center">
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Processing...
-              </span>
-            ) : (
-              <span className="flex items-center justify-center">
-                <Book className="mr-2 h-5 w-5" />
-                Pre-Order Now - $24.99
-              </span>
-            )}
-          </Button>
-          <p className="mt-4 text-sm text-gray-500">
-            Shipping begins June 2026. You'll only be charged when the book ships.
+    <section className="py-24 bg-gradient-to-br from-primary to-secondary text-white">
+      <div className="container mx-auto px-4">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          className="max-w-3xl mx-auto text-center"
+        >
+          <h2 className="text-4xl font-bold mb-6">Secure Your Copy Today</h2>
+          <p className="text-xl mb-8 text-white/90">
+            Pre-order now and receive exclusive access to supplementary materials and exercises.
           </p>
-        </div>
+          <Button 
+            size="lg"
+            onClick={handlePreOrder}
+            className="text-lg px-8 py-6 rounded-full bg-white text-primary hover:bg-white/90 hover:text-primary/90 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
+          >
+            Pre-order for $29.99
+            <ArrowRight className="ml-2 h-5 w-5" />
+          </Button>
+          <p className="mt-6 text-white/80">
+            Limited time offer - Price will increase after launch
+          </p>
+        </motion.div>
       </div>
     </section>
   );
-}
+};

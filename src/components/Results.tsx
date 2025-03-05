@@ -7,12 +7,11 @@ import { ResultsHeader } from "./results/ResultsHeader";
 import { CharacteristicsList } from "./results/CharacteristicsList";
 import { PricingSection } from "./results/PricingSection";
 import { useEffect, useState } from "react";
-import { Session } from "@supabase/supabase-js";
 
 interface ResultsProps {
   personalityType: string;
-  session: Session | null;
-  quizResultId: string | null;
+  session: any;
+  quizResultId: string | null; // Added quizResultId prop to fix the type error
 }
 
 export const Results = ({ personalityType, session, quizResultId }: ResultsProps) => {

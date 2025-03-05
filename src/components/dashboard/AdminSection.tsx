@@ -1,11 +1,141 @@
 
-import { useAdminOperations } from "./admin/useAdminOperations";
-import { Card, CardContent } from "@/components/ui/card";
-import { AdminSectionProps } from "./admin/types";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { 
+  Card, 
+  CardHeader,
+  CardTitle, 
+  CardDescription,
+  CardContent
+} from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/components/ui/use-toast";
+import { Session } from "@supabase/supabase-js";
+
+interface AdminSectionProps {
+  userId: string;
+}
 
 export const AdminSection = ({ userId }: AdminSectionProps) => {
-  const { isAdmin, loading } = useAdminOperations(userId);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [couponCode, setCouponCode] = useState("");
+  const [discountAmount, setDiscountAmount] = useState("");
+  const [creatingCoupon, setCreatingCoupon] = useState(false);
+
+  useEffect(() => {
+    checkAdminStatus();
+  }, [userId]);
+
+  const checkAdminStatus = async () => {
+    try {
+      if (!userId) {
+        console.error('No user ID provided to AdminSection');
+        setIsAdmin(false);
+        setLoading(false);
+        return;
+      }
+
+      console.log('Checking admin status for user:', userId);
+
+      const { data, error } = await supabase
+        .from('admin_users')
+        .select('id')
+        .eq('id', userId)
+        .maybeSingle();
+      
+      if (error) {
+        console.error('Error checking admin status:', {
+          error,
+          userId
+        });
+        throw error;
+      }
+
+      const hasAdminAccess = !!data;
+      console.log('Admin status result:', {
+        userId,
+        isAdmin: hasAdminAccess
+      });
+      
+      setIsAdmin(hasAdminAccess);
+    } catch (error: any) {
+      console.error('Error in checkAdminStatus:', error);
+      toast({
+        title: "Error",
+        description: "Failed to verify admin status",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createCoupon = async () => {
+    try {
+      setCreatingCoupon(true);
+      
+      // Validate inputs
+      if (!couponCode || !discountAmount) {
+        toast({
+          title: "Error",
+          description: "Please fill in all fields",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const amount = parseFloat(discountAmount);
+      if (isNaN(amount) || amount <= 0 || amount > 100) {
+        toast({
+          title: "Error",
+          description: "Discount must be between 0 and 100",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('coupons')
+        .insert({
+          code: couponCode.toUpperCase(),
+          discount_type: 'percentage',
+          discount_amount: amount,
+          is_active: true,
+          max_uses: 100,
+          created_by: userId
+        });
+
+      if (error) {
+        console.error('Error creating coupon:', {
+          error,
+          userId,
+          couponCode
+        });
+        throw error;
+      }
+
+      toast({
+        title: "Success",
+        description: `Coupon ${couponCode.toUpperCase()} created successfully!`,
+      });
+
+      // Reset form
+      setCouponCode("");
+      setDiscountAmount("");
+    } catch (error: any) {
+      console.error('Error creating coupon:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create coupon",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingCoupon(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -20,26 +150,45 @@ export const AdminSection = ({ userId }: AdminSectionProps) => {
   }
 
   if (!isAdmin) {
+    console.log('User is not admin, hiding admin section:', userId);
     return null;
   }
 
   return (
-    <Card className="overflow-hidden">
-      <CardContent className="p-4">
-        <h2 className="text-xl font-semibold">Admin Controls</h2>
-        <p className="text-sm text-muted-foreground mb-4">Manage your site settings and data</p>
-        <div className="grid gap-2">
-          <a 
-            href="/dashboard/admin/coupons" 
-            className="flex items-center p-2 rounded-md hover:bg-gray-100 transition-colors"
+    <Card>
+      <CardHeader>
+        <CardTitle>Admin Controls</CardTitle>
+        <CardDescription>Create and manage discount coupons</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Input
+            placeholder="Coupon code (e.g. SAVE50)"
+            value={couponCode}
+            onChange={(e) => setCouponCode(e.target.value)}
+          />
+          <Input
+            type="number"
+            placeholder="Discount percentage (e.g. 50)"
+            value={discountAmount}
+            onChange={(e) => setDiscountAmount(e.target.value)}
+          />
+          <Button 
+            onClick={createCoupon} 
+            disabled={creatingCoupon}
+            className="w-full"
           >
-            <span className="font-medium">Open Admin Dashboard</span>
-            <span className="ml-auto text-xs bg-primary/10 text-primary px-2.5 py-0.5 rounded-full">
-              Full Access
-            </span>
-          </a>
+            {creatingCoupon ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              'Create Coupon'
+            )}
+          </Button>
         </div>
       </CardContent>
     </Card>
   );
-}
+};

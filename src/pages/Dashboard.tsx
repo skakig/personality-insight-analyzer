@@ -2,51 +2,71 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Session } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
 import { LoadingState } from "@/components/dashboard/LoadingState";
-import { useDashboardData } from "@/hooks/dashboard/useDashboardData";
-import { usePurchaseHandler } from "@/hooks/dashboard/usePurchaseHandler";
-import { RecentAssessmentsCard } from "@/components/dashboard/RecentAssessmentsCard";
-import { DashboardError } from "@/components/dashboard/content/DashboardError";
-import { CreditsSection } from "@/components/dashboard/content/CreditsSection";
-import { QuickActionsCard } from "@/components/dashboard/QuickActionsCard";
-import { SubscriptionCard } from "@/components/dashboard/SubscriptionCard";
-import { SubscriptionAlert } from "@/components/dashboard/subscription/SubscriptionAlert";
+import { toast } from "@/hooks/use-toast";
 
-export interface DashboardProps {
+interface DashboardProps {
   session: Session | null;
 }
 
 const Dashboard = ({ session }: DashboardProps) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [purchaseLoading, setPurchaseLoading] = useState<string | null>(null);
-  
-  const { 
-    loading, 
-    subscription, 
-    error, 
-    paginatedAssessments, 
-    currentPage,
-    totalPages,
-    searchQuery,
-    itemsPerPage,
-    fetchData,
-    searchAssessments,
-    goToPage,
-    changeItemsPerPage
-  } = useDashboardData(session);
-  
-  const { handlePurchaseStatus } = usePurchaseHandler(session, fetchData);
+  const [loading, setLoading] = useState(true);
+  const [subscription, setSubscription] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [previousAssessments, setPreviousAssessments] = useState<any[]>([]);
 
-  const handleUnlockReport = (reportId: string) => {
-    setPurchaseLoading(reportId);
-    // Here you would add the logic to unlock a report
-    // After completion:
-    setTimeout(() => {
-      setPurchaseLoading(null);
-    }, 1000);
+  const fetchData = async () => {
+    try {
+      if (!session?.user?.id) {
+        console.error('No user ID found in session:', session);
+        setError('User session is invalid');
+        return;
+      }
+
+      console.log('Fetching data for user:', session.user.id);
+
+      // Fetch subscription data
+      const { data: subscriptionData, error: subscriptionError } = await supabase
+        .from('corporate_subscriptions')
+        .select('*')
+        .eq('organization_id', session.user.id)
+        .maybeSingle();
+
+      if (subscriptionError) {
+        console.error('Error fetching subscription:', subscriptionError);
+        setError('Failed to load subscription data');
+      } else {
+        setSubscription(subscriptionData);
+      }
+
+      // Fetch previous assessments
+      const { data: assessments, error: assessmentsError } = await supabase
+        .from('quiz_results')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false });
+
+      if (assessmentsError) {
+        console.error('Error fetching assessments:', assessmentsError);
+        setError('Failed to load assessment history');
+      } else {
+        setPreviousAssessments(assessments || []);
+      }
+    } catch (err: any) {
+      console.error('Error in fetchData:', {
+        error: err,
+        session: session,
+        userId: session?.user?.id
+      });
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -56,69 +76,61 @@ const Dashboard = ({ session }: DashboardProps) => {
       return;
     }
 
+    fetchData();
+
+    // Set up real-time subscription for quiz_results
+    const channel = supabase
+      .channel('dashboard-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'quiz_results',
+          filter: `user_id=eq.${session.user.id}`
+        },
+        () => {
+          console.log('Quiz results updated, refreshing data...');
+          fetchData();
+        }
+      )
+      .subscribe();
+
     // Handle purchase success/failure notifications
     const success = searchParams.get('success');
-    if (success) {
-      handlePurchaseStatus(success);
+    if (success === 'true') {
+      toast({
+        title: "Purchase Successful",
+        description: "Your full report is now available.",
+      });
+      fetchData(); // Refresh data immediately after successful purchase
+    } else if (success === 'false') {
+      toast({
+        title: "Purchase Cancelled",
+        description: "Your purchase was not completed. Please try again if you'd like to unlock your full report.",
+        variant: "destructive",
+      });
     }
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [session, navigate, searchParams]);
 
   if (loading) {
     return <LoadingState />;
   }
 
-  const hasSubscription = subscription && subscription.active;
-  const subscriptionProgress = hasSubscription 
-    ? (subscription.assessments_used / subscription.max_assessments) * 100
-    : 0;
-  const hasAvailableCredits = hasSubscription && subscription.assessments_used < subscription.max_assessments;
-  const hasPurchasedReport = paginatedAssessments.some(assessment => assessment.is_purchased);
-
   return (
     <div className="min-h-screen bg-gray-50/50">
       <div className="container mx-auto px-4 py-8 space-y-8">
         <DashboardHeader subscription={subscription} />
-        
-        {error && <DashboardError error={error} />}
-        
-        {!error && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-2 space-y-6">
-              <RecentAssessmentsCard 
-                assessments={paginatedAssessments}
-                onUnlockReport={handleUnlockReport}
-                purchaseLoading={purchaseLoading}
-                currentPage={currentPage}
-                totalPages={totalPages}
-                searchQuery={searchQuery}
-                itemsPerPage={itemsPerPage}
-                onSearch={searchAssessments}
-                onPageChange={goToPage}
-                onItemsPerPageChange={changeItemsPerPage}
-              />
-            </div>
-            
-            <div className="space-y-6">
-              <SubscriptionCard 
-                subscription={subscription} 
-                error={error} 
-              />
-              {hasSubscription && (
-                <SubscriptionAlert 
-                  assessmentsUsed={subscription.assessments_used}
-                  maxAssessments={subscription.max_assessments}
-                  progress={subscriptionProgress}
-                />
-              )}
-              <QuickActionsCard 
-                subscription={subscription}
-                hasPurchasedReport={hasPurchasedReport}
-                hasAvailableCredits={hasAvailableCredits}
-              />
-              <CreditsSection />
-            </div>
-          </div>
-        )}
+        <DashboardContent 
+          subscription={subscription}
+          error={error}
+          previousAssessments={previousAssessments}
+          session={session}
+        />
       </div>
     </div>
   );

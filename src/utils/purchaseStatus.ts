@@ -1,65 +1,30 @@
 
 /**
- * Utility to determine if a result is purchased
+ * Utility functions for checking purchase status
  */
-export const isPurchased = (result: any): boolean => {
-  if (!result) return false;
-  
-  // Check various purchase status indicators
+
+/**
+ * Checks if an assessment is purchased based on its attributes
+ */
+export const isPurchased = (assessment: {
+  is_purchased?: boolean;
+  is_detailed?: boolean;
+  access_method?: string | null;
+}) => {
   return (
-    result.is_purchased === true ||
-    result.purchase_status === 'completed' ||
-    result.access_method === 'purchase' ||
-    result.is_detailed === true
+    assessment.is_purchased === true ||
+    assessment.is_detailed === true ||
+    assessment.access_method === 'purchase'
   );
 };
 
 /**
- * Utility to determine if a result is in a pending purchase state
+ * Checks if any assessment in a collection is purchased
  */
-export const isPending = (result: any): boolean => {
-  if (!result) return false;
-  
-  return (
-    result.purchase_status === 'pending' ||
-    result.purchase_initiated_at != null
-  );
-};
-
-/**
- * Utility to check if we should allow access to detailed results
- */
-export const shouldAllowAccess = (result: any): boolean => {
-  if (!result) return false;
-  
-  return (
-    isPurchased(result) ||
-    result.access_method === 'free' ||
-    result.access_method === 'credit' ||
-    result.access_method === 'subscription'
-  );
-};
-
-/**
- * Utility to check if we should show purchase options
- */
-export const shouldShowPurchaseOptions = (result: any): boolean => {
-  if (!result) return false;
-  
-  return (
-    !isPurchased(result) &&
-    !isPending(result) &&
-    result.access_method !== 'free' &&
-    result.access_method !== 'credit' &&
-    result.access_method !== 'subscription'
-  );
-};
-
-/**
- * Utility to check if a user has any purchased reports in their assessment history
- */
-export const hasAnyPurchasedReport = (assessments: any[]): boolean => {
-  if (!assessments || !assessments.length) return false;
-  
+export const hasAnyPurchasedReport = (assessments: Array<{
+  is_purchased?: boolean;
+  is_detailed?: boolean;
+  access_method?: string | null;
+}>) => {
   return assessments.some(assessment => isPurchased(assessment));
 };

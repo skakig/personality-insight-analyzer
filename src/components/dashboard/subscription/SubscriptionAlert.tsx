@@ -1,33 +1,33 @@
-
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { SubscriptionProgress } from "./SubscriptionProgress";
 
-export interface SubscriptionAlertProps {
-  assessmentsUsed: number;
-  maxAssessments: number;
-  progress: number;
+interface SubscriptionAlertProps {
+  isOutOfCredits: boolean;
+  isLowOnCredits: boolean;
 }
 
-export const SubscriptionAlert = ({ 
-  assessmentsUsed, 
-  maxAssessments, 
-  progress 
-}: SubscriptionAlertProps) => {
-  const isLowOnCredits = assessmentsUsed >= maxAssessments * 0.8;
-  
-  return (
-    <Alert variant={isLowOnCredits ? "destructive" : "default"}>
-      <AlertCircle className="h-4 w-4" />
-      <AlertTitle>
-        {isLowOnCredits ? "Running low on assessments" : "Assessment Credits"}
-      </AlertTitle>
-      <AlertDescription className="mt-2">
-        <div className="text-sm">
-          {assessmentsUsed} of {maxAssessments} assessments used
-        </div>
-        <SubscriptionProgress progress={progress} />
-      </AlertDescription>
-    </Alert>
-  );
+export const SubscriptionAlert = ({ isOutOfCredits, isLowOnCredits }: SubscriptionAlertProps) => {
+  if (isOutOfCredits) {
+    return (
+      <Alert className="bg-yellow-50 text-yellow-800 border-yellow-200">
+        <AlertCircle className="h-4 w-4 text-yellow-800" />
+        <AlertDescription>
+          You've used all your assessment credits. Purchase more to continue accessing detailed reports.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (isLowOnCredits) {
+    return (
+      <Alert className="bg-yellow-50 text-yellow-800 border-yellow-200">
+        <AlertCircle className="h-4 w-4 text-yellow-800" />
+        <AlertDescription>
+          You're running low on assessment credits. Consider purchasing more to continue accessing detailed reports.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  return null;
 };

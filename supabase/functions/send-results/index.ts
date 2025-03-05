@@ -1,151 +1,79 @@
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { Resend } from "npm:resend@1.0.0";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { Resend } from "npm:resend@2.0.0";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-const supabaseUrl = Deno.env.get("SUPABASE_URL") as string;
-const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") as string;
+const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface EmailRequestBody {
-  email: string;
-  resultId: string;
-}
-
-serve(async (req: Request) => {
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { email, resultId } = await req.json() as EmailRequestBody;
-    
-    if (!email || !resultId) {
-      console.error("Missing required fields:", { email, resultId });
-      return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    console.log("Processing email request:", { email, resultId });
-    
-    // Initialize Supabase client
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    
-    // Fetch the result data from the database
-    const { data: result, error: resultError } = await supabase
-      .from('quiz_results')
-      .select('*')
-      .eq('id', resultId)
-      .single();
-      
-    if (resultError || !result) {
-      console.error("Error fetching result:", resultError);
-      return new Response(
-        JSON.stringify({ error: "Result not found" }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Get basic level description for the email
-    const level = result.personality_type || result.primary_level;
-    let levelDescription = "your moral hierarchy level";
-    
-    switch(level) {
-      case "1":
-        levelDescription = "Self-Preservation (Survival Morality)";
-        break;
-      case "2":
-        levelDescription = "Self-Interest (Pragmatic Morality)";
-        break;
-      case "3":
-        levelDescription = "Social Contract (Cooperative Morality)";
-        break;
-      case "4":
-        levelDescription = "Fairness (Justice Morality)";
-        break;
-      case "5":
-        levelDescription = "Empathy (Relational Morality)";
-        break;
-      case "6":
-        levelDescription = "Altruism (Sacrificial Morality)";
-        break;
-      case "7":
-        levelDescription = "Integrity (Principled Morality)";
-        break;
-      case "8":
-        levelDescription = "Virtue (Aspiring Morality)";
-        break;
-      case "9":
-        levelDescription = "Self-Actualization (Transcendent Morality)";
-        break;
-    }
-    
-    // Prepare result URL
-    const resultUrl = `${req.headers.get('origin') || 'https://themoralhierarchy.com'}/assessment/${resultId}`;
-    
-    // Send the email with the results and receipt
-    const { data: emailResult, error: emailError } = await resend.emails.send({
-      from: 'The Moral Hierarchy <noreply@themoralhierarchy.com>',
-      to: [email],
-      subject: 'Your Moral Hierarchy Assessment Results',
+    const { email, resultId, accessToken, isGuest } = await req.json();
+
+    const reportUrl = isGuest 
+      ? `https://themoralhierarchy.com/assessment/${resultId}?token=${accessToken}`
+      : `https://themoralhierarchy.com/assessment/${resultId}`;
+
+    const signupUrl = `https://themoralhierarchy.com/auth?email=${encodeURIComponent(email)}&action=signup`;
+
+    const { data, error } = await resend.emails.send({
+      from: 'The Moral Hierarchy <onboarding@resend.dev>',
+      to: email,
+      subject: 'Your Full Report is Ready!',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
-          <h1 style="color: #2563eb; text-align: center;">Your Moral Hierarchy Results</h1>
-          
-          <p>Thank you for completing your Moral Hierarchy assessment. We're excited to share your results with you!</p>
-          
-          <div style="background-color: #f3f4f6; padding: 20px; border-radius: 10px; margin: 20px 0;">
-            <h2 style="color: #2563eb; margin-top: 0;">Your Level: ${level}</h2>
-            <p>You are currently at <strong>${levelDescription}</strong>.</p>
-          </div>
-          
-          <p>To view your complete detailed report, please click the button below:</p>
-          
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${resultUrl}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">View My Full Report</a>
-          </div>
-          
-          <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-            <h3>Receipt Information</h3>
-            <p>Order Date: ${new Date(result.purchase_completed_at || result.created_at).toLocaleDateString()}</p>
-            <p>Product: Moral Hierarchy Detailed Assessment</p>
-            <p>Amount: $${(result.purchase_amount ? result.purchase_amount / 100 : 14.99).toFixed(2)}</p>
-          </div>
-          
-          <p style="margin-top: 40px; font-size: 14px; color: #6b7280; text-align: center;">
-            &copy; ${new Date().getFullYear()} The Moral Hierarchy. All rights reserved.
-          </p>
-        </div>
+        <h1>Thank You for Your Purchase!</h1>
+        <p>Your Full Report is now ready to view.</p>
+        
+        <h2>Purchase Details:</h2>
+        <ul>
+          <li>Item: Detailed Moral Analysis Report</li>
+          <li>Amount: $14.99</li>
+        </ul>
+
+        <p>Access your report here:</p>
+        <p><a href="${reportUrl}">View Your Full Report</a></p>
+
+        ${isGuest ? `
+          <hr/>
+          <h3>Create Your Account</h3>
+          <p>Create an account to access exclusive features and save your results:</p>
+          <p><a href="${signupUrl}">Create Your Account</a></p>
+          <p>Note: This report access link will expire in 7 days. Create an account to maintain permanent access to your report.</p>
+        ` : ''}
       `,
     });
-    
-    if (emailError) {
-      console.error("Error sending email:", emailError);
-      return new Response(
-        JSON.stringify({ error: "Failed to send email" }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+
+    if (error) {
+      throw error;
     }
-    
-    console.log("Email sent successfully:", emailResult);
-    
+
     return new Response(
-      JSON.stringify({ success: true, data: emailResult }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ success: true }),
+      { 
+        headers: { 
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        } 
+      }
     );
   } catch (error) {
-    console.error("Unexpected error:", error);
+    console.error('Error sending results:', error);
     return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: error.message }),
+      { 
+        status: 500,
+        headers: { 
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        }
+      }
     );
   }
 });

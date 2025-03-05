@@ -1,82 +1,107 @@
 
-import { useState, useEffect, createContext, useContext } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Session } from '@supabase/supabase-js';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "@/components/ui/use-toast";
+import { signIn, signUp } from "@/utils/auth";
 
-type AuthContextType = {
-  session: Session | null;
-  loading: boolean;
-  isAuthenticated: boolean;
-};
+export const useAuthForm = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [showResetForm, setShowResetForm] = useState(false);
+  const [errors, setErrors] = useState<{email?: string; password?: string}>({});
+  const navigate = useNavigate();
 
-const AuthContext = createContext<AuthContextType>({
-  session: null,
-  loading: true,
-  isAuthenticated: false,
-});
+  const validateForm = () => {
+    const newErrors: {email?: string; password?: string} = {};
+    
+    if (!email) {
+      newErrors.email = "Email is required";
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = "Please enter a valid email address";
+    }
+    
+    if (!password && !showResetForm) {
+      newErrors.password = "Password is required";
+    } else if (password.length < 6 && !showResetForm) {
+      newErrors.password = "Password must be at least 6 characters";
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+    
+    setLoading(true);
+    setErrors({});
 
-  useEffect(() => {
-    // Get session from local storage initially
-    const getSession = async () => {
-      try {
-        const { data, error } = await supabase.auth.getSession();
-        if (error) throw error;
-        
-        if (data.session) {
-          console.log('[INFO] Auth state changed:', {
-            event: "INITIAL_SESSION",
-            userEmail: data.session?.user?.email,
-            timestamp: new Date().toISOString()
-          });
-          
-          setSession(data.session);
-        }
-      } catch (error) {
-        console.error('[ERROR] Error getting auth session:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    getSession();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
-      console.log('[INFO] Auth state changed:', {
-        event,
-        userEmail: newSession?.user?.email,
+    try {
+      console.log('Attempting authentication:', { 
+        mode: isSignUp ? 'signup' : 'signin',
+        email,
         timestamp: new Date().toISOString()
       });
-      
-      setSession(newSession);
-      setLoading(false);
-      
-      // Store user ID in localStorage for purchase tracking if logged in
-      if (newSession?.user) {
-        localStorage.setItem('checkoutUserId', newSession.user.id);
+
+      if (isSignUp) {
+        await signUp({ email, password });
+        toast({
+          title: "Account created!",
+          description: "Please check your email to verify your account.",
+        });
+      } else {
+        const { data, error } = await signIn({ email, password });
+        if (error) throw error;
+        if (data?.session) {
+          // Check if there's a pending purchase
+          const purchaseId = localStorage.getItem('purchaseResultId');
+          if (purchaseId) {
+            navigate(`/assessment/${purchaseId}`);
+          } else {
+            navigate("/dashboard");
+          }
+        }
       }
-    });
+    } catch (error: any) {
+      console.error('Authentication error details:', {
+        message: error.message,
+        timestamp: new Date().toISOString(),
+      });
+      
+      let errorMessage = "Authentication failed. Please try again.";
+      
+      if (error.message.includes("Invalid login credentials")) {
+        errorMessage = "Invalid email or password. Please try again.";
+        setErrors({ password: "Invalid email or password combination" });
+      } else if (error.message.includes("Email not confirmed")) {
+        errorMessage = "Please verify your email before signing in.";
+      }
+      
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  return (
-    <AuthContext.Provider
-      value={{
-        session,
-        loading,
-        isAuthenticated: !!session,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  return {
+    email,
+    setEmail,
+    password,
+    setPassword,
+    loading,
+    isSignUp,
+    showResetForm,
+    errors,
+    setShowResetForm,
+    setIsSignUp,
+    handleAuth,
+    setErrors
+  };
 };
-
-export const useAuth = () => useContext(AuthContext);

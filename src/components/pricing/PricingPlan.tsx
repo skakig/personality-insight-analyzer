@@ -8,7 +8,7 @@ interface PricingPlanProps {
   description: string;
   features: string[];
   highlight?: boolean;
-  loading: boolean;
+  loading: string;
   onSubscribe: () => void;
   priceId: string;
 }
@@ -40,10 +40,10 @@ export const PricingPlan = ({
 
       <Button
         onClick={onSubscribe}
-        disabled={loading}
+        disabled={loading === priceId}
         className="w-full px-8 py-6 rounded-full bg-primary text-white hover:bg-primary/90 hover:text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
       >
-        {loading ? "Processing..." : "Get Started"}
+        {loading === priceId ? "Processing..." : "Get Started"}
         <ArrowRight className="ml-2 h-5 w-5" />
       </Button>
     </div>

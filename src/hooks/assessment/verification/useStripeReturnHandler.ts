@@ -1,7 +1,7 @@
+
 import { supabase } from "@/integrations/supabase/client";
-import { isPurchased } from "@/utils/purchaseStatus";
-import { clearPurchaseData, getPurchaseData } from "@/utils/purchaseStateUtils";
 import { toast } from "@/hooks/use-toast";
+import { cleanupPurchaseState, getPurchaseState } from "@/utils/purchaseStateUtils";
 
 /**
  * Specialized hook for handling returns from Stripe checkout
@@ -17,100 +17,152 @@ export const useStripeReturnHandler = () => {
     const sessionId = urlParams.get('session_id') || options?.sessionId;
     
     // Get stored data from localStorage
-    const storedData = getPurchaseData();
+    const storedData = getPurchaseState();
     const storedUserId = storedData.userId || options?.userId;
     
-    if (!success || !sessionId) {
-      console.log('Not a successful return from Stripe or missing session ID');
-      return null;
-    }
-    
-    console.log('Processing return from Stripe checkout:', { 
-      resultId,
-      sessionId,
-      success,
-      userId: storedUserId || 'guest'
-    });
-    
-    try {
-      // Attempt to update the purchase status directly
-      const updateData = {
-        is_purchased: true,
-        is_detailed: true,
-        purchase_status: 'completed',
-        purchase_completed_at: new Date().toISOString(),
-        access_method: 'purchase',
-        stripe_session_id: sessionId
-      };
+    if (success || sessionId || storedData.sessionId) {
+      console.log('Detected return from Stripe checkout:', {
+        resultId,
+        sessionId: sessionId || storedData.sessionId,
+        userId: storedUserId || 'guest',
+        success,
+        hasUrlSessionId: !!urlParams.get('session_id'),
+        hasStoredSessionId: !!storedData.sessionId,
+        timestamp: new Date().toISOString()
+      });
       
-      let query = supabase
-        .from('quiz_results')
-        .update(updateData)
-        .eq('id', resultId);
-      
-      // Add user_id filter if available (for logged-in users)
-      if (storedUserId) {
-        query = query.eq('user_id', storedUserId);
-      }
-      
-      const { error: updateError } = await query;
-      
-      if (updateError) {
-        console.error('Error updating purchase status:', updateError);
-        
-        // Try one more time without user filter if it failed
-        const { error: fallbackError } = await supabase
-          .from('quiz_results')
-          .update(updateData)
-          .eq('id', resultId)
-          .eq('stripe_session_id', sessionId);
-          
-        if (fallbackError) {
-          console.error('Fallback update also failed:', fallbackError);
-          return null;
-        }
-      }
-      
-      // Update purchase tracking if it exists
       try {
-        await supabase
-          .from('purchase_tracking')
-          .update({
-            status: 'completed',
-            completed_at: new Date().toISOString()
+        // Get current auth session to verify user
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id || storedUserId;
+        
+        // For logged-in users, directly update the purchase status
+        if (userId) {
+          console.log('Attempting direct database update for logged-in user with session ID:', 
+            sessionId || storedData.sessionId);
+          
+          // First try updating with both result ID and user ID which is most reliable
+          const { error: userError } = await supabase
+            .from('quiz_results')
+            .update({ 
+              is_purchased: true,
+              is_detailed: true,
+              purchase_status: 'completed',
+              purchase_completed_at: new Date().toISOString(),
+              access_method: 'purchase',
+              stripe_session_id: sessionId || storedData.sessionId,
+              user_id: userId // Ensure user ID is set
+            })
+            .eq('id', resultId);
+            
+          if (!userError) {
+            console.log('Successfully updated quiz result for user:', userId);
+            
+            // Also update purchase_tracking record if it exists
+            try {
+              await supabase
+                .from('purchase_tracking')
+                .update({
+                  status: 'completed',
+                  completed_at: new Date().toISOString(),
+                  stripe_session_id: sessionId || storedData.sessionId,
+                  user_id: userId // Ensure user ID is set
+                })
+                .eq('quiz_result_id', resultId);
+              
+              console.log('Updated related purchase tracking record');
+            } catch (trackingError) {
+              console.log('Non-critical error updating tracking record:', trackingError);
+            }
+            
+            // Fetch the updated result
+            const { data: result } = await supabase
+              .from('quiz_results')
+              .select('*')
+              .eq('id', resultId)
+              .eq('user_id', userId)
+              .maybeSingle();
+              
+            if (result) {
+              console.log('Successfully fetched updated result after purchase');
+              toast({
+                title: "Purchase Verified",
+                description: "Your detailed report is now available!",
+              });
+              
+              // Clear URL parameters to prevent repeat processing
+              window.history.replaceState({}, document.title, window.location.pathname);
+              cleanupPurchaseState();
+              return result;
+            }
+          } else {
+            console.error('Failed to update purchase status with user ID:', userError);
+            
+            // Fallback: try updating with session ID if user ID update failed
+            if (sessionId || storedData.sessionId) {
+              const { error: sessionError } = await supabase
+                .from('quiz_results')
+                .update({ 
+                  is_purchased: true,
+                  is_detailed: true,
+                  purchase_status: 'completed',
+                  purchase_completed_at: new Date().toISOString(),
+                  access_method: 'purchase',
+                  stripe_session_id: sessionId || storedData.sessionId,
+                  user_id: userId // Ensure user ID is set
+                })
+                .eq('id', resultId)
+                .eq('stripe_session_id', sessionId || storedData.sessionId);
+                
+              if (!sessionError) {
+                console.log('Successfully updated with session ID:', sessionId || storedData.sessionId);
+                const { data: sessionResult } = await supabase
+                  .from('quiz_results')
+                  .select('*')
+                  .eq('id', resultId)
+                  .eq('stripe_session_id', sessionId || storedData.sessionId)
+                  .maybeSingle();
+                  
+                if (sessionResult) {
+                  window.history.replaceState({}, document.title, window.location.pathname);
+                  cleanupPurchaseState();
+                  return sessionResult;
+                }
+              } else {
+                console.error('Session ID update also failed:', sessionError);
+              }
+            }
+          }
+        }
+        
+        // Last resort: try direct update with just the ID
+        const { error: directError } = await supabase
+          .from('quiz_results')
+          .update({ 
+            is_purchased: true,
+            is_detailed: true,
+            purchase_status: 'completed',
+            purchase_completed_at: new Date().toISOString(),
+            access_method: 'purchase'
           })
-          .eq('stripe_session_id', sessionId);
-      } catch (trackingError) {
-        console.error('Failed to update tracking record:', trackingError);
-        // Non-critical error, continue
+          .eq('id', resultId);
+          
+        if (!directError) {
+          console.log('Direct ID update as last resort succeeded');
+          const { data: directResult } = await supabase
+            .from('quiz_results')
+            .select('*')
+            .eq('id', resultId)
+            .maybeSingle();
+            
+          if (directResult) {
+            cleanupPurchaseState();
+            return directResult;
+          }
+        }
+      } catch (error) {
+        console.error('Error handling Stripe return:', error);
       }
-      
-      // Fetch the updated result
-      const { data: result, error: fetchError } = await supabase
-        .from('quiz_results')
-        .select('*')
-        .eq('id', resultId)
-        .maybeSingle();
-        
-      if (fetchError) {
-        console.error('Error fetching updated result:', fetchError);
-        return null;
-      }
-      
-      if (result) {
-        console.log('Successfully verified purchase from Stripe return');
-        toast({
-          title: "Purchase Completed",
-          description: "Your full report is now available.",
-        });
-        
-        // Clean up stored purchase data
-        clearPurchaseData();
-        
-        return result;
-      }
-    } catch (error) {
-      console.error('Error processing Stripe return:', error);
     }
     
     return null;

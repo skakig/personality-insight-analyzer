@@ -1,13 +1,12 @@
 
+import { executeVerification } from "./verificationCore";
+
 /**
- * Main purchase utility exports 
+ * Verifies a purchase with retry mechanism
+ * Attempts multiple times to verify if a purchase was completed
+ * 
+ * This is the entry point that maintains the same API as the original
  */
-
-// Export from helpers without duplicates
-export * from './helpers';
-
-// Export from verification
-export * from './verification';
-
-// Export from core verification
-export { executeVerification } from './verificationCore';
+export const verifyPurchaseWithRetry = async (resultId: string, maxRetries = 5, delayMs = 1000) => {
+  return executeVerification(resultId, maxRetries, delayMs);
+};

@@ -27,72 +27,6 @@ export type Database = {
         }
         Relationships: []
       }
-      affiliate_commission_tiers: {
-        Row: {
-          commission_rate: number
-          created_at: string | null
-          id: string
-          max_sales: number | null
-          min_sales: number
-          updated_at: string | null
-        }
-        Insert: {
-          commission_rate: number
-          created_at?: string | null
-          id?: string
-          max_sales?: number | null
-          min_sales: number
-          updated_at?: string | null
-        }
-        Update: {
-          commission_rate?: number
-          created_at?: string | null
-          id?: string
-          max_sales?: number | null
-          min_sales?: number
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      affiliates: {
-        Row: {
-          code: string
-          commission_rate: number
-          created_at: string | null
-          earnings: number
-          email: string
-          id: string
-          name: string
-          status: string
-          total_sales: number
-          updated_at: string | null
-        }
-        Insert: {
-          code: string
-          commission_rate?: number
-          created_at?: string | null
-          earnings?: number
-          email: string
-          id?: string
-          name: string
-          status?: string
-          total_sales?: number
-          updated_at?: string | null
-        }
-        Update: {
-          code?: string
-          commission_rate?: number
-          created_at?: string | null
-          earnings?: number
-          email?: string
-          id?: string
-          name?: string
-          status?: string
-          total_sales?: number
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
       analysis_templates: {
         Row: {
           category: string
@@ -204,8 +138,6 @@ export type Database = {
       }
       coupons: {
         Row: {
-          affiliate_id: string | null
-          applicable_products: string[] | null
           code: string
           created_at: string
           created_by: string | null
@@ -219,8 +151,6 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          affiliate_id?: string | null
-          applicable_products?: string[] | null
           code: string
           created_at?: string
           created_by?: string | null
@@ -234,8 +164,6 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          affiliate_id?: string | null
-          applicable_products?: string[] | null
           code?: string
           created_at?: string
           created_by?: string | null
@@ -249,13 +177,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "coupons_affiliate_id_fkey"
-            columns: ["affiliate_id"]
-            isOneToOne: false
-            referencedRelation: "affiliates"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "coupons_created_by_fkey"
             columns: ["created_by"]

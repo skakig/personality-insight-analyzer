@@ -2,85 +2,129 @@
 import { supabase } from "@/integrations/supabase/client";
 
 /**
- * Hook that provides strategies for fetching quiz results
+ * Provides strategies for fetching results during verification process
  */
 export const useResultFetchingStrategies = () => {
   /**
-   * Fetch a quiz result by user ID
+   * Fetch result using various filtering strategies
    */
-  const fetchUserResult = async (resultId: string, userId?: string) => {
+  const fetchResult = async (
+    id: string, 
+    userId?: string, 
+    sessionId?: string | null
+  ) => {
     try {
-      let query = supabase
-        .from('quiz_results')
-        .select('*')
-        .eq('id', resultId);
-        
-      if (userId) {
-        query = query.eq('user_id', userId);
+      // Try most specific filters first (best accuracy)
+      if (userId && sessionId) {
+        const { data } = await supabase
+          .from('quiz_results')
+          .select('*')
+          .eq('id', id)
+          .eq('user_id', userId)
+          .eq('stripe_session_id', sessionId)
+          .maybeSingle();
+          
+        if (data) return data;
       }
       
-      return await query.maybeSingle();
+      // Try with user ID
+      if (userId) {
+        const { data } = await supabase
+          .from('quiz_results')
+          .select('*')
+          .eq('id', id)
+          .eq('user_id', userId)
+          .maybeSingle();
+          
+        if (data) return data;
+      }
+      
+      // Try with session ID
+      if (sessionId) {
+        const { data } = await supabase
+          .from('quiz_results')
+          .select('*')
+          .eq('id', id)
+          .eq('stripe_session_id', sessionId)
+          .maybeSingle();
+          
+        if (data) return data;
+      }
+      
+      // Last resort: just ID
+      const { data } = await supabase
+        .from('quiz_results')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+        
+      return data;
     } catch (error) {
-      console.error('Error fetching user result:', error);
-      return { data: null, error };
+      console.error('Result fetch error:', error);
+      return null;
     }
   };
   
   /**
-   * Fetch a quiz result by session ID
+   * Fetch result by user ID
    */
-  const fetchResultBySessionId = async (resultId: string, sessionId: string) => {
+  const fetchByUserId = async (id: string, userId: string) => {
     try {
-      return await supabase
+      const { data } = await supabase
         .from('quiz_results')
         .select('*')
-        .eq('id', resultId)
+        .eq('id', id)
+        .eq('user_id', userId)
+        .maybeSingle();
+        
+      return data;
+    } catch (error) {
+      console.error('Error fetching by user ID:', error);
+      return null;
+    }
+  };
+  
+  /**
+   * Fetch result by session ID
+   */
+  const fetchBySessionId = async (id: string, sessionId: string) => {
+    try {
+      const { data } = await supabase
+        .from('quiz_results')
+        .select('*')
+        .eq('id', id)
         .eq('stripe_session_id', sessionId)
         .maybeSingle();
+        
+      return data;
     } catch (error) {
-      console.error('Error fetching result by session ID:', error);
-      return { data: null, error };
+      console.error('Error fetching by session ID:', error);
+      return null;
     }
   };
   
   /**
-   * Fetch a quiz result by guest token
+   * Fetch result by ID only
    */
-  const fetchResultByGuestToken = async (resultId: string, token: string) => {
+  const fetchById = async (id: string) => {
     try {
-      return await supabase
+      const { data } = await supabase
         .from('quiz_results')
         .select('*')
-        .eq('id', resultId)
-        .eq('guest_access_token', token)
+        .eq('id', id)
         .maybeSingle();
+        
+      return data;
     } catch (error) {
-      console.error('Error fetching result by guest token:', error);
-      return { data: null, error };
-    }
-  };
-  
-  /**
-   * Fetch a quiz result by guest email
-   */
-  const fetchResultByGuestEmail = async (resultId: string, email: string) => {
-    try {
-      return await supabase
-        .from('quiz_results')
-        .select('*')
-        .eq('id', resultId)
-        .eq('guest_email', email)
-        .maybeSingle();
-    } catch (error) {
-      console.error('Error fetching result by guest email:', error);
-      return { data: null, error };
+      console.error('Error fetching by ID:', error);
+      return null;
     }
   };
   
   return {
-    fetchUserResult,
-    fetchResultBySessionId,
-    fetchResultByGuestToken,
-    fetchResultByGuestEmail
+    fetchResult,
+    fetchByUserId,
+    fetchBySessionId,
+    fetchById
   };
 };

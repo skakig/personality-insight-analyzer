@@ -1,75 +1,76 @@
 
-import { useState } from 'react';
-import { useVerificationCoordinator } from './verification/useVerificationCoordinator';
-import { QuizResult } from '@/types/quiz';
+import { useState } from "react";
+import { toast } from "@/hooks/use-toast";
+import { useVerificationState } from "./useVerificationState";
+import { useVerifyPurchase } from "./useVerifyPurchase";
+import { usePreVerificationChecks } from "./usePreVerificationChecks";
+import { usePostPurchaseHandler } from "./usePostPurchaseHandler";
+import { useVerificationCoordinator } from "./verification/useVerificationCoordinator";
 
-export const useVerificationFlow = () => {
-  const [verificationAttempts, setVerificationAttempts] = useState(0);
-  const verification = useVerificationCoordinator();
+/**
+ * Handles the verification flow for purchases
+ */
+export const useVerificationFlow = (
+  setLoading: (loading: boolean) => void,
+  setResult: (result: any) => void
+) => {
+  const {
+    verifying,
+    verificationAttempts,
+    startVerification,
+    stopVerification,
+    incrementAttempts
+  } = useVerificationState();
   
-  // Destructure the values we need
-  const { 
-    isVerifying, 
-    verificationComplete, 
-    verificationSuccess,
-    runStandardVerification,
-    runFallbackVerification,
-    runVerificationSequence
-  } = verification;
+  const { verifyPurchase } = useVerifyPurchase(
+    setLoading, 
+    setResult, 
+    { 
+      startVerification, 
+      stopVerification, 
+      incrementAttempts,
+      verificationAttempts 
+    }
+  );
 
-  const runVerification = async (
-    resultId: string, 
-    sessionId?: string, 
-    userId?: string
+  const { checkDirectAccess, showCreateAccountToast } = usePreVerificationChecks();
+  const { handleVerificationFailure } = usePostPurchaseHandler();
+  const { executeVerificationFlow } = useVerificationCoordinator();
+
+  /**
+   * Execute verification flow wrapper function that maintains the same API
+   */
+  const executeVerificationFlowWrapper = async (
+    id: string | undefined, 
+    options: {
+      userId?: string;
+      stripeSessionId?: string;
+      isPostPurchase: boolean;
+      storedResultId?: string;
+      maxRetries: number;
+    }
   ) => {
-    setVerificationAttempts(prev => prev + 1);
-    
-    try {
-      const result = await runStandardVerification(
-        resultId,
-        userId,
-        undefined,
-        sessionId
-      );
-      
-      return result as QuizResult;
-    } catch (error) {
-      console.error('Verification error:', error);
-      return null;
-    }
-  };
-
-  // Verify purchase with multiple retries
-  const verifyPurchase = async (
-    resultId: string,
-    maxRetries = 3
-  ): Promise<QuizResult | null> => {
-    setVerificationAttempts(prev => prev + 1);
-    
-    try {
-      // First try standard verification
-      const standardResult = await runStandardVerification(resultId);
-      
-      if (standardResult) {
-        return standardResult as QuizResult;
+    return executeVerificationFlow(
+      id,
+      options,
+      {
+        verificationAttempts,
+        startVerification,
+        stopVerification
+      },
+      {
+        setResult,
+        setLoading,
+        verifyPurchase
       }
-      
-      // If standard verification fails, try fallback
-      const fallbackResult = await runFallbackVerification(resultId);
-      return fallbackResult as QuizResult;
-    } catch (error) {
-      console.error('Purchase verification error:', error);
-      return null;
-    }
+    );
   };
 
   return {
-    runVerification,
-    verifyPurchase,
-    isVerifying,
-    verificationComplete,
-    verificationSuccess,
+    verifying,
     verificationAttempts,
-    ...verification
+    checkDirectAccess,
+    showCreateAccountToast,
+    executeVerificationFlow: executeVerificationFlowWrapper
   };
 };
