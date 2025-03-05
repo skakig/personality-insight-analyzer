@@ -66,7 +66,12 @@ export const PreOrderCTA = () => {
           <p className="text-lg text-gray-600 mb-8">
             Pre-order "The Moral Hierarchy" today and be one of the first to receive this life-changing guide.
           </p>
-          <Button size="lg" onClick={handlePreOrder} disabled={loading}>
+          <Button 
+            size="lg" 
+            onClick={handlePreOrder} 
+            disabled={loading}
+            className="pre-order-button"
+          >
             {loading ? "Processing..." : "Pre-Order Now - $24.99"}
           </Button>
         </motion.div>

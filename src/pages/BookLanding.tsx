@@ -1,14 +1,14 @@
+
 import { toast } from "@/components/ui/use-toast";
 import { HeroSection } from "@/components/book/HeroSection";
 import { MoralLevelsSection } from "@/components/book/MoralLevelsSection";
 import { PreOrderBenefits } from "@/components/book/PreOrderBenefits";
 import { PreOrderCTA } from "@/components/book/PreOrderCTA";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 
 const BookLanding = () => {
   const [searchParams] = useSearchParams();
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (searchParams.get('success') === 'true') {
@@ -25,15 +25,14 @@ const BookLanding = () => {
     }
   }, [searchParams]);
 
-  const handlePreOrder = async () => {
-    setLoading(true);
+  const handlePreOrder = () => {
     try {
       const preOrderButton = document.querySelector('.pre-order-button');
       if (preOrderButton) {
         preOrderButton.scrollIntoView({ behavior: 'smooth' });
       }
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error('Error scrolling to pre-order button:', error);
     }
   };
 

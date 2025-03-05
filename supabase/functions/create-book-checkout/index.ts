@@ -17,6 +17,11 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const { successUrl, cancelUrl } = body;
     
+    console.log('Creating book checkout session with params:', {
+      successUrl: successUrl || 'Default success URL',
+      cancelUrl: cancelUrl || 'Default cancel URL'
+    });
+    
     // Create a Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -37,6 +42,12 @@ serve(async (req) => {
       mode: 'payment',
       success_url: successUrl || `${req.headers.get('origin')}/book/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelUrl || `${req.headers.get('origin')}/book?canceled=true`,
+    });
+
+    console.log('Checkout session created successfully:', {
+      id: session.id,
+      url: session.url,
+      status: session.status
     });
 
     return new Response(
