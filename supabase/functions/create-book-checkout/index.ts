@@ -1,51 +1,58 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from 'https://esm.sh/stripe@14.21.0';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { corsHeaders } from "../_shared/cors.ts";
+import Stripe from 'https://esm.sh/stripe@12.18.0?target=deno';
+
+const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+  apiVersion: '2023-10-16',
+});
 
 serve(async (req) => {
-  // Handle CORS preflight requests
+  // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    console.log('Initializing Stripe...');
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-      apiVersion: '2023-10-16',
-    });
-
-    console.log('Creating checkout session...');
+    const { successUrl, cancelUrl } = await req.json();
+    
+    // Create a Stripe checkout session
     const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
       line_items: [
         {
-          price: 'price_1QlcfyJy5TVq3Z9HzMjHJ1YB',
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: 'The Moral Hierarchy Book Pre-Order',
+              description: 'Pre-order for the upcoming book: The Moral Hierarchy',
+              images: ['https://example.com/placeholder-book-cover.jpg'], // Replace with your book cover image
+            },
+            unit_amount: 2499, // $24.99
+          },
           quantity: 1,
         },
       ],
       mode: 'payment',
-      success_url: `${req.headers.get('origin')}/book?success=true`,
-      cancel_url: `${req.headers.get('origin')}/book?canceled=true`,
+      success_url: successUrl || `${req.headers.get('origin')}/book/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: cancelUrl || `${req.headers.get('origin')}/book?canceled=true`,
     });
 
-    console.log('Payment session created:', session.id);
     return new Response(
       JSON.stringify({ url: session.url }),
       { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );
   } catch (error) {
-    console.error('Error creating payment session:', error);
+    console.error('Error creating checkout session:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );
   }

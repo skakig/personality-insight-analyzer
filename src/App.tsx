@@ -7,6 +7,7 @@ import { Assessment } from "./pages/Assessment";
 import AssessmentHistory from "./pages/AssessmentHistory";
 import Dashboard from "./pages/Dashboard";
 import BookLanding from "./pages/BookLanding";
+import BookPurchaseSuccess from "./pages/BookPurchaseSuccess";
 import Pricing from "./pages/Pricing";
 import { GiftSuccess } from "./pages/GiftSuccess";
 import About from "./pages/About";
@@ -87,6 +88,7 @@ function App() {
             <Route path="/assessment-history" element={<AssessmentHistory />} />
             <Route path="/dashboard" element={<Dashboard session={session} />} />
             <Route path="/book" element={<BookLanding />} />
+            <Route path="/book/success" element={<BookPurchaseSuccess />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/gift-success" element={<GiftSuccess />} />
             <Route path="/about" element={<About />} />

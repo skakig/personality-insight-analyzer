@@ -1,15 +1,21 @@
 
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
-import { toast } from "@/components/ui/use-toast";
+import { useNavigate } from "react-router-dom";
+import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 export const PreOrderCTA = () => {
+  const navigate = useNavigate();
+
   const handlePreOrder = async () => {
     try {
       const { data, error } = await supabase.functions.invoke('create-book-checkout', {
         method: 'POST',
+        body: { 
+          successUrl: `${window.location.origin}/book/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancelUrl: `${window.location.origin}/book?canceled=true`
+        }
       });
       
       if (error) {
@@ -29,7 +35,7 @@ export const PreOrderCTA = () => {
   };
 
   return (
-    <section className="py-24 bg-gradient-to-br from-primary to-secondary text-white">
+    <section className="py-24 bg-primary/5">
       <div className="container mx-auto px-4">
         <motion.div 
           initial={{ opacity: 0 }}
@@ -37,21 +43,13 @@ export const PreOrderCTA = () => {
           viewport={{ once: true }}
           className="max-w-3xl mx-auto text-center"
         >
-          <h2 className="text-4xl font-bold mb-6">Secure Your Copy Today</h2>
-          <p className="text-xl mb-8 text-white/90">
-            Pre-order now and receive exclusive access to supplementary materials and exercises.
+          <h2 className="text-4xl font-bold mb-4">Ready to Transform Your Moral Journey?</h2>
+          <p className="text-lg text-gray-600 mb-8">
+            Pre-order "The Moral Hierarchy" today and be one of the first to receive this life-changing guide.
           </p>
-          <Button 
-            size="lg"
-            onClick={handlePreOrder}
-            className="text-lg px-8 py-6 rounded-full bg-white text-primary hover:bg-white/90 hover:text-primary/90 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
-          >
-            Pre-order for $29.99
-            <ArrowRight className="ml-2 h-5 w-5" />
+          <Button size="lg" onClick={handlePreOrder}>
+            Pre-Order Now - $24.99
           </Button>
-          <p className="mt-6 text-white/80">
-            Limited time offer - Price will increase after launch
-          </p>
         </motion.div>
       </div>
     </section>
