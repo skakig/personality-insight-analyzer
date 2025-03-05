@@ -1,15 +1,14 @@
-
 import { toast } from "@/components/ui/use-toast";
 import { HeroSection } from "@/components/book/HeroSection";
 import { MoralLevelsSection } from "@/components/book/MoralLevelsSection";
 import { PreOrderBenefits } from "@/components/book/PreOrderBenefits";
 import { PreOrderCTA } from "@/components/book/PreOrderCTA";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 
 const BookLanding = () => {
   const [searchParams] = useSearchParams();
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (searchParams.get('success') === 'true') {
@@ -27,24 +26,14 @@ const BookLanding = () => {
   }, [searchParams]);
 
   const handlePreOrder = async () => {
+    setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('create-book-checkout', {
-        method: 'POST',
-      });
-      
-      if (error) {
-        throw new Error(error.message);
+      const preOrderButton = document.querySelector('.pre-order-button');
+      if (preOrderButton) {
+        preOrderButton.scrollIntoView({ behavior: 'smooth' });
       }
-
-      if (data?.url) {
-        window.location.href = data.url;
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to initiate checkout. Please try again.",
-        variant: "destructive",
-      });
+    } finally {
+      setLoading(false);
     }
   };
 

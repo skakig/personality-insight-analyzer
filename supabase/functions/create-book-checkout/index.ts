@@ -1,6 +1,5 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { corsHeaders } from "../_shared/cors.ts";
 import Stripe from 'https://esm.sh/stripe@12.18.0?target=deno';
 
@@ -15,7 +14,8 @@ serve(async (req) => {
   }
 
   try {
-    const { successUrl, cancelUrl } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const { successUrl, cancelUrl } = body;
     
     // Create a Stripe checkout session
     const session = await stripe.checkout.sessions.create({
@@ -40,7 +40,7 @@ serve(async (req) => {
     });
 
     return new Response(
-      JSON.stringify({ url: session.url }),
+      JSON.stringify({ url: session.url, sessionId: session.id }),
       { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

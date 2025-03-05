@@ -15,6 +15,7 @@ serve(async (req) => {
   }
 
   try {
+    // Initialize Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') || '',
       Deno.env.get('SUPABASE_ANON_KEY') || '',
@@ -25,9 +26,12 @@ serve(async (req) => {
       }
     );
 
-    const { sessionId } = await req.json();
+    // Get session ID from request body
+    const { sessionId } = await req.json().catch(() => ({}));
+    console.log('Verifying book purchase for session:', sessionId);
 
     if (!sessionId) {
+      console.error('Missing session ID in request');
       return new Response(
         JSON.stringify({ error: 'Missing session ID' }),
         { 
@@ -43,8 +47,11 @@ serve(async (req) => {
       .select('*')
       .eq('stripe_session_id', sessionId)
       .maybeSingle();
+    
+    console.log('Database query result:', { existingSession, dbError });
 
     if (existingSession?.status === 'completed') {
+      console.log('Purchase already verified in database');
       return new Response(
         JSON.stringify({ verified: true }),
         { 
@@ -56,9 +63,17 @@ serve(async (req) => {
 
     // If not found in database, verify with Stripe
     try {
+      console.log('Verifying with Stripe API');
       const session = await stripe.checkout.sessions.retrieve(sessionId);
+      console.log('Stripe session retrieved:', {
+        id: session.id,
+        status: session.payment_status,
+        customer: session.customer_details?.email
+      });
       
       if (session.payment_status === 'paid') {
+        console.log('Payment verified as paid');
+        
         // Save verified purchase to database
         const { error: insertError } = await supabaseClient
           .from('book_purchases')
@@ -85,10 +100,12 @@ serve(async (req) => {
           }
         );
       } else {
+        console.log('Payment not completed', session.payment_status);
         return new Response(
           JSON.stringify({ 
             verified: false, 
-            message: 'Payment not completed' 
+            message: 'Payment not completed',
+            status: session.payment_status
           }),
           { 
             status: 200, 
@@ -101,7 +118,8 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           verified: false, 
-          message: 'Error verifying with Stripe' 
+          message: 'Error verifying with Stripe',
+          error: stripeError.message
         }),
         { 
           status: 200, 
@@ -112,7 +130,7 @@ serve(async (req) => {
   } catch (err) {
     console.error('Error:', err);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ error: 'Internal server error', message: err.message }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
