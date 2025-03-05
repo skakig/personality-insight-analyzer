@@ -71,14 +71,19 @@ export const signIn = async ({ email, password }: AuthCredentials) => {
 };
 
 export const resetPassword = async (email: string) => {
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: getRedirectURL(),
-  });
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: getRedirectURL(),
+    });
 
-  if (error) {
+    if (error) {
+      console.error('Reset password error:', error);
+      return { success: false, error };
+    }
+
+    return { success: true, error: null };
+  } catch (error) {
     console.error('Reset password error:', error);
-    throw error;
+    return { success: false, error };
   }
-
-  return { success: true };
 };

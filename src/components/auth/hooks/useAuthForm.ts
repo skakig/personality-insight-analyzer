@@ -52,9 +52,9 @@ export const useAuthForm = () => {
     try {
       console.log('Attempting password reset for:', email);
       
-      const { error } = await resetPassword(email);
+      const { success, error } = await resetPassword(email);
       
-      if (error) throw error;
+      if (!success && error) throw error;
       
       toast({
         title: "Password Reset Email Sent",

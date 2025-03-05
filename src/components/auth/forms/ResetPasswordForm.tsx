@@ -39,9 +39,9 @@ export const ResetPasswordForm = ({
 
     setLoading(true);
     try {
-      const { error } = await resetPassword(email);
+      const { success, error } = await resetPassword(email);
       
-      if (error) {
+      if (!success && error) {
         throw error;
       }
       
